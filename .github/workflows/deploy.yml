@@ -1,0 +1,73 @@
+name: Déployer sur GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      # Application réelle, servie à la racine (https://calentour.github.io/).
+      # Sans les secrets Firebase, elle affiche un écran de configuration avec un lien vers la démo.
+      - name: Build de l'application
+        run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_MAP_CENTER_LNG: ${{ vars.VITE_MAP_CENTER_LNG }}
+          VITE_MAP_CENTER_LAT: ${{ vars.VITE_MAP_CENTER_LAT }}
+          VITE_MAP_ZOOM: ${{ vars.VITE_MAP_ZOOM }}
+
+      # Démo publique avec données fictives (https://calentour.github.io/demo/).
+      - name: Build de la démo
+        run: npx vite build --mode demo --outDir dist/demo --emptyOutDir
+        env:
+          VITE_BASE: /demo/
+          VITE_MAP_CENTER_LNG: '6.452'
+          VITE_MAP_CENTER_LAT: '48.176'
+          VITE_MAP_ZOOM: '14'
+
+      - name: Désactiver Jekyll
+        run: touch dist/.nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
