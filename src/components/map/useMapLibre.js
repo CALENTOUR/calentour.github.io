@@ -5,6 +5,15 @@ import { DEFAULT_MAP_VIEW, MAP_STYLE_URL } from '../../config/constants'
 
 const VIEW_KEY = 'calentour:lastView'
 
+// Style de secours si le fond OpenStreetMap ne charge pas (hors ligne sans cache) :
+// les secteurs et les adresses restent visibles et utilisables.
+const FALLBACK_STYLE = {
+  version: 8,
+  glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+  sources: {},
+  layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#1e293b' } }],
+}
+
 function readLastView() {
   try {
     return JSON.parse(localStorage.getItem(VIEW_KEY)) ?? null
@@ -75,10 +84,28 @@ export function useMapLibre(containerRef, { rememberView = false, initialBounds 
     }
     instance.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right')
 
-    instance.on('load', () => {
+    let ready = false
+    const onReady = () => {
+      if (ready) return
+      ready = true
+      clearTimeout(fallbackTimer)
       ensure3DBuildings(instance)
       if (!last && bounds) instance.fitBounds(bounds, { padding: 40, duration: 0 })
       setMap(instance)
+    }
+    const applyFallback = () => {
+      if (ready) return
+      instance.setStyle(FALLBACK_STYLE)
+      instance.once('style.load', onReady)
+    }
+    const fallbackTimer = setTimeout(applyFallback, navigator.onLine ? 10000 : 3000)
+    instance.on('load', onReady)
+    instance.on('error', (e) => {
+      // Une erreur avant le premier chargement = le style lui-même n'a pas pu être lu.
+      if (!ready && !instance.isStyleLoaded()) {
+        console.warn('Fond de carte indisponible, style de secours', e?.error)
+        applyFallback()
+      }
     })
 
     if (remember) {
@@ -100,6 +127,7 @@ export function useMapLibre(containerRef, { rememberView = false, initialBounds 
     }
 
     return () => {
+      clearTimeout(fallbackTimer)
       setMap(null)
       instance.remove()
     }

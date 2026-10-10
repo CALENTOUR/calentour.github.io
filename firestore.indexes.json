@@ -1,0 +1,15 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "sectorAddresses",
+      "fieldPath": "addresses",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "sectorVisits",
+      "fieldPath": "visits",
+      "indexes": []
+    }
+  ]
+}
