@@ -15,7 +15,8 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
-export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId)
+// En mode démo (npm run dev:demo / build:demo), Firebase est remplacé par une base locale.
+export const isFirebaseConfigured = import.meta.env.MODE === 'demo' || Boolean(firebaseConfig.apiKey && firebaseConfig.projectId)
 
 export const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null
 

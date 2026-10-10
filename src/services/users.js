@@ -74,6 +74,7 @@ export function authErrorMessage(error) {
     'auth/too-many-requests': 'Trop de tentatives. Réessayez dans quelques minutes.',
     'auth/network-request-failed': 'Pas de connexion réseau. La première connexion nécessite internet.',
     'not-invited': "Cet email n'a pas été invité. Demandez à un administrateur de vous ajouter.",
+    'demo/register': 'La création de compte est désactivée dans la démo. Utilisez les boutons ci-dessus.',
     'permission-denied': "Cet email n'a pas été invité. Demandez à un administrateur de vous ajouter.",
   }
   return messages[code] ?? `Erreur : ${error?.message ?? 'inconnue'}`

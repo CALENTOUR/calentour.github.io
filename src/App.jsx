@@ -62,7 +62,8 @@ export default function App() {
           Copiez <code>.env.example</code> en <code>.env.local</code> et renseignez les clés de votre projet Firebase,
           puis relancez <code>npm run dev</code>. Voir <code>docs/INSTALLATION.md</code>.
         </p>
-        <p className="muted small">Pour essayer sans Firebase : <code>npm run dev:demo</code>.</p>
+        <a className="btn btn-primary" href={`${import.meta.env.BASE_URL}demo/`}>Voir la démonstration</a>
+        <p className="muted small">En local, sans Firebase : <code>npm run dev:demo</code>.</p>
       </Screen>
     )
   }

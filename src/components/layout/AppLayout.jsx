@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useData } from '../../context/DataContext'
 import { useOnlineStatus } from '../../hooks/useOnlineStatus'
 import { logout } from '../../services/users'
+import { IS_DEMO } from '../../demo/demoInfo'
 
 const NAV = [
   { to: '/carte', label: 'Carte 3D', icon: '🗺️' },
@@ -59,6 +60,17 @@ export default function AppLayout() {
             <div className="muted">{ROLE_LABELS[profile?.role]}</div>
           </div>
           <button className="btn-sm" onClick={logout}>Se déconnecter</button>
+          {IS_DEMO && (
+            <button
+              className="btn-sm btn-ghost"
+              onClick={async () => {
+                const { resetDemo } = await import('../../demo/store')
+                resetDemo()
+              }}
+            >
+              Réinitialiser la démo
+            </button>
+          )}
         </div>
       </aside>
       <main className="main">
