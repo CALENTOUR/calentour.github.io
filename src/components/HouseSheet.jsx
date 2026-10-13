@@ -98,6 +98,8 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
       title={title || 'Maison'}
       subtitle={isBuilding ? `Immeuble · ${house.units.length} logements` : house.city}
       onClose={onClose}
+      compact
+      actions={<a className="btn btn-sm btn-ghost sheet-route" href={navigationUrl(house)} target="_blank" rel="noreferrer" title="Itinéraire">🧭<span className="hide-mobile"> Itinéraire</span></a>}
     >
       {isBuilding && !unit ? (
         <div className="stack">
@@ -112,14 +114,11 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
               )
             })}
           </div>
-          <a className="btn btn-ghost" href={navigationUrl(house)} target="_blank" rel="noreferrer">🧭 Itinéraire</a>
         </div>
       ) : (
         <>
           <DwellingForm key={key} entry={h[key]} onSave={save} onReset={() => save('todo')} />
-          {isBuilding
-            ? <button type="button" className="btn-ghost" onClick={() => setUnitId(null)}>← Tous les logements</button>
-            : <a className="btn btn-ghost" href={navigationUrl(house)} target="_blank" rel="noreferrer">🧭 Itinéraire</a>}
+          {isBuilding && <button type="button" className="btn-ghost btn-sm" onClick={() => setUnitId(null)}>← Tous les logements</button>}
         </>
       )}
     </Sheet>

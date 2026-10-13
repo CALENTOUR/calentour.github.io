@@ -780,3 +780,66 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .tours-map-top .tour-places button { box-shadow: none; background: var(--card-2); }
 .tours-map-top .tour-places button.on { background: var(--ink); border-color: var(--ink); color: #fff; }
 .tour-panel .btn-big { width: 100%; }
+
+/* ---------- Retours n°7 ---------- */
+
+/* Gros boutons d'édition : bien détachés du reste. */
+.btn-hero-edit { min-height: 84px; border: 2px solid #8d2f20; box-shadow: 0 6px 0 #8d2f20, 0 10px 22px rgba(184, 67, 47, .28); margin-bottom: 6px; }
+.btn-hero-edit:active { transform: translateY(4px); box-shadow: 0 2px 0 #8d2f20; }
+.btn-hero-edit strong { font-size: 1.25rem; }
+.btn-hero-go { flex: none; padding: .45rem .8rem; border-radius: 8px; background: #fff; color: var(--brand); font-size: .95rem; font-weight: 800; }
+.tour-panel .btn-big { min-height: 58px; border: 2px solid #8d2f20; box-shadow: 0 4px 0 #8d2f20; font-size: 1.12rem; }
+.tour-panel .btn-big:active { transform: translateY(3px); box-shadow: 0 1px 0 #8d2f20; }
+
+/* Éditeur : barre du haut avec le gros « Terminer », puis les secteurs. */
+.editor-head { position: absolute; left: .6rem; right: .6rem; top: calc(.6rem + var(--safe-top)); z-index: 3; display: flex; flex-direction: column; gap: .4rem; pointer-events: none; }
+.editor-head > * { pointer-events: auto; }
+.editor-head .editor-top { position: static; }
+.btn-done { min-height: 46px; padding: .3rem 1.1rem; border-radius: 10px; background: var(--green); border: 2px solid #2f5a2e; color: #fff; font-size: 1.05rem; font-weight: 900; box-shadow: 0 3px 0 #2f5a2e; white-space: nowrap; }
+.btn-done:active { transform: translateY(2px); box-shadow: 0 1px 0 #2f5a2e; }
+.editor-houses { cursor: pointer; min-height: 38px; }
+.editor-houses input { width: 18px; height: 18px; margin: 0; accent-color: var(--ink); }
+.editor-houses.busy { animation: pulse 1.2s infinite; }
+.editor-head .sector-tabs { align-self: flex-start; max-width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: .3rem; box-shadow: var(--float); }
+.editor .maplibregl-ctrl-top-right { top: calc(124px + var(--safe-top)); }
+.check-line { display: flex; align-items: center; gap: .5rem; cursor: pointer; font-weight: 700; }
+.check-line input { width: 18px; height: 18px; margin: 0; accent-color: var(--ink); }
+.card .sector-tabs { flex-wrap: wrap; }
+
+/* Binôme : sur chaque rue, l'invitation à ouvrir la carte. */
+.sector-go { display: flex; flex-direction: column; align-items: center; gap: .1rem; padding: .35rem .5rem; border-radius: 8px; background: var(--card-2); color: var(--ink); font-size: 1.15rem; }
+.sector-go small { font-size: .66rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+
+/* Binôme : boutons du bas transparents, posés sur la page ou la carte. */
+.shell-member .tabbar { background: linear-gradient(to top, rgba(242, 237, 226, .85), rgba(242, 237, 226, 0)); border-top: none; box-shadow: none; height: auto; padding: 6px 12px calc(8px + var(--safe-bottom)); }
+.shell-member .tab { min-height: 46px; background: rgba(251, 249, 244, .72); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border-color: rgba(31, 42, 36, .14); }
+.shell-member .tab.active { background: rgba(31, 42, 36, .86); }
+.shell-member.shell-fullmap .tabbar { background: none; }
+.shell-member .fullmap { bottom: 0; }
+.shell-member .fullmap .map-side { bottom: calc(70px + var(--safe-bottom)); }
+.shell-member .fullmap .map-note-action { bottom: calc(72px + var(--safe-bottom)); }
+.shell-member .fullmap .maplibregl-ctrl-bottom-right, .shell-member .fullmap .maplibregl-ctrl-bottom-left { margin-bottom: calc(60px + var(--safe-bottom)); }
+.shell-member .main { padding-bottom: calc(70px + var(--safe-bottom)); }
+
+/* Fiche d'une maison : petit panneau en bas, la carte reste visible et touchable. */
+.sheet-backdrop.sheet-compact { background: none; pointer-events: none; align-items: flex-end; animation: none; }
+.sheet-compact .sheet { pointer-events: auto; max-width: 520px; max-height: 52vh; gap: .5rem; padding: .55rem .7rem calc(.6rem + var(--safe-bottom)); border: 1px solid var(--border); box-shadow: 0 -4px 22px rgba(31, 42, 36, .22); border-radius: 14px 14px 0 0; }
+.sheet-compact .sheet-header { align-items: center; }
+.sheet-compact .sheet-header h2 { font-size: 1.02rem; }
+.sheet-compact .btn-round { width: 36px; height: 36px; }
+.sheet-compact .sheet-route { min-height: 36px; }
+.sheet-compact .stack { gap: .5rem; }
+.sheet-compact .status-grid { grid-template-columns: repeat(4, 1fr); gap: .35rem; }
+.sheet-compact .status-btn { min-height: 62px; padding: .3rem .2rem; gap: .1rem; }
+.sheet-compact .status-btn-icon { font-size: 1.35rem; }
+.sheet-compact .status-btn-label { font-size: .78rem; line-height: 1.1; }
+.sheet-compact .status-btn-hint { display: none; }
+.sheet-compact .amount-input, .sheet-compact .amount-input input { font-size: 1.9rem; }
+.sheet-compact .chips { gap: .3rem; }
+.sheet-compact .btn-big { min-height: 46px; }
+@media (min-width: 700px) {
+  .sheet-backdrop.sheet-compact { align-items: flex-end; }
+  .sheet-compact .sheet { border-radius: 14px; margin-bottom: 1rem; }
+}
+.shell-member .fullmap .maplibregl-ctrl-scale { display: none; }
+.editor-head .editor-houses { display: inline-flex; flex-direction: row; align-items: center; gap: .4rem; padding: .25rem .65rem; border: 1px solid var(--border); border-radius: 8px; background: var(--card-2); font-weight: 800; white-space: nowrap; }

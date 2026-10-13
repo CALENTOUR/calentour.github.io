@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import TourMap, { tourBounds } from '../../components/map/TourMap'
+import TourMap, { tourPoints } from '../../components/map/TourMap'
+import { fitPoints } from '../../components/map/useMapLibre'
 import TourForm from '../../components/TourForm'
 import Sheet from '../../components/ui/Sheet'
 import { useToast } from '../../components/ui/Toast'
@@ -8,9 +9,8 @@ import { TOUR_COLORS } from '../../config/constants'
 import { useData } from '../../context/DataContext'
 import { formatEuro, formatPercent } from '../../lib/format'
 import { globalStats, tourStats } from '../../lib/stats'
-import { pieceLabels, villagesOf } from '../../lib/places'
+import { tourAreas, villagesOf } from '../../lib/places'
 import { findHouses } from '../../lib/tourBuilder'
-import { bounds, unflatten } from '../../lib/geo'
 import { createTour, loadInitialTours, nameInitialTours, saveTour } from '../../services/tours'
 import TourMapEditor from './TourMapEditor'
 
@@ -101,31 +101,33 @@ export default function ToursMapPage() {
   const stats = useMemo(() => (selected ? tourStats(selected, statesById[selected.id]) : null), [selected, statesById])
   const perTour = useMemo(() => Object.fromEntries(tours.map((t) => [t.id, tourStats(t, statesById[t.id])])), [tours, statesById])
   const villages = useMemo(() => villagesOf(shown), [shown])
-  // Villages de la tournée choisie, avec l'emprise de ses rues dans chacun.
-  const tourPlaces = useMemo(() => {
-    if (!selected) return []
-    const labels = pieceLabels(selected)
-    const byPlace = new Map()
-    for (const p of selected.pieces) {
-      const name = labels[p.id]?.place || 'Autres rues'
-      byPlace.set(name, [...(byPlace.get(name) ?? []), p])
-    }
-    return [...byPlace.entries()].map(([name, list]) => ({
-      name,
-      pieceIds: new Set(list.map((p) => p.id)),
-      bounds: bounds(list.flatMap((p) => p.lines.flatMap((l) => unflatten(l.c)))),
-    }))
-  }, [selected])
-  const place = tourPlaces.find((x) => x.name === placeSel) ?? null
+  // Secteurs de la tournée choisie : ses rues regroupées par endroit, chacun nommé
+  // d'après son ou ses villages.
+  const tourPlaces = useMemo(() => (selected ? tourAreas(selected).map((a) => ({ ...a, pieceIds: new Set(a.pieceIds) })) : []), [selected])
+  const place = tourPlaces.find((x) => x.id === placeSel) ?? null
+  const mapAreas = useMemo(() => (tourPlaces.length > 1 ? tourPlaces.map((a) => ({ ...a, active: a.id === placeSel })) : null), [tourPlaces, placeSel])
   const placeStats = place && stats ? [...place.pieceIds].reduce((r, id) => {
     const x = stats.byPiece[id]
     return x ? { done: r.done + x.done, total: r.total + x.total, amount: r.amount + x.amount } : r
   }, { done: 0, total: 0, amount: 0 }) : null
 
-  const PAD = { top: 150, bottom: 150, left: 40, right: 70 }
-  const fitBox = (b, maxZoom = 17) => { if (b && map) map.fitBounds(b, { padding: PAD, maxZoom, duration: 700, pitch: map.getPitch() }) }
-  const fitTo = (list) => fitBox(list.length && tourBounds(list), 17)
-  // Choix d'une tournée : on oublie le village choisi dans la précédente.
+  // Marges du cadrage : la place laissée libre par les boutons du haut et le panneau du bas.
+  const padding = () => {
+    const c = map.getContainer().getBoundingClientRect()
+    const top = document.querySelector('.tours-map-top')?.getBoundingClientRect()
+    const panel = document.querySelector('.tours-map .map-panel')?.getBoundingClientRect()
+    return {
+      top: top ? Math.max(30, top.bottom - c.top + 24) : 60,
+      bottom: panel ? Math.max(40, c.bottom - panel.top + 24) : 50,
+      left: 30,
+      right: 64,
+    }
+  }
+  // Après un changement d'affichage, on attend que le panneau soit en place pour le mesurer.
+  const fitLater = (points, maxZoom) => setTimeout(() => { if (map) fitPoints(map, points, { padding: padding(), maxZoom }) }, 60)
+  const fitBox = (b, maxZoom) => b && fitLater([b[0], [b[1][0], b[0][1]], b[1], [b[0][0], b[1][1]]], maxZoom)
+  const fitTo = (list) => list.length && fitLater(tourPoints(list), 17.5)
+  // Choix d'une tournée : on oublie le secteur choisi dans la précédente.
   const pick = (id) => {
     setSelectedId(id)
     setPlaceSel(null)
@@ -136,8 +138,8 @@ export default function ToursMapPage() {
       fitTo([selected])
       return
     }
-    setPlaceSel(p.name)
-    fitBox(p.bounds, 18)
+    setPlaceSel(p.id)
+    fitLater(selected.pieces.filter((x) => p.pieceIds.has(x.id)).flatMap((x) => tourPoints([{ pieces: [x] }])), 18.5)
   }
   const toggle = (id) => setHidden((h) => {
     const next = new Set(h)
@@ -158,6 +160,9 @@ export default function ToursMapPage() {
     const box = [[e.point.x - 16, e.point.y - 16], [e.point.x + 16, e.point.y + 16]]
     const hit = m.queryRenderedFeatures(box, { layers: ['pieces'] })[0]
     const id = hit?.properties.tourId ?? null
+    // Toucher dans un cercle rouge zoome sur ce secteur de la tournée choisie.
+    const area = !hit && m.getLayer('areas-fill') ? m.queryRenderedFeatures(e.point, { layers: ['areas-fill'] })[0] : null
+    if (area) return choosePlace(tourPlaces.find((a) => a.id === area.properties.areaId))
     if (id !== selectedId) pick(id)
   }
 
@@ -176,7 +181,7 @@ export default function ToursMapPage() {
     <div className={`fullmap tours-map${panelOpen ? ' panel-open' : ''}${full ? ' is-full' : ''}`}>
       <TourMap
         tours={shown} statesById={statesById} focusTourId={selected?.id ?? null} autoFit={false}
-        showHouses={showHouses} showProgress={showProgress} showLabels
+        showHouses={showHouses} showProgress={showProgress} showLabels areas={mapAreas}
         fitPadding={{ top: 80, bottom: 60, left: 30, right: 60 }}
         onMapClick={onMapClick}
         onHouseClick={(p) => { if (p.tourId !== selectedId) pick(p.tourId) }}
@@ -226,17 +231,17 @@ export default function ToursMapPage() {
           <span className="check">{showProgress ? '✓' : ''}</span>Avancement
         </button>
         {selected && tourPlaces.length > 1 ? (
-          <div className="village-chips tour-places" aria-label={`Villages de la tournée ${selected.number}`}>
-            <span className="tour-places-label"><span className="swatch" style={{ background: selected.color }} /><span className="hide-mobile">Villages de la tournée </span>{selected.number}</span>
+          <div className="village-chips tour-places" aria-label={`Secteurs de la tournée ${selected.number}`}>
+            <span className="tour-places-label"><span className="swatch" style={{ background: selected.color }} /><span className="hide-mobile">Secteurs de la tournée </span>{selected.number}</span>
             <button type="button" className={!place ? 'on' : ''} onClick={() => choosePlace(null)}>Tous</button>
             {tourPlaces.map((p) => (
-              <button key={p.name} type="button" className={place?.name === p.name ? 'on' : ''} onClick={() => choosePlace(p)}>📍 {p.name}</button>
+              <button key={p.id} type="button" className={place?.id === p.id ? 'on' : ''} onClick={() => choosePlace(p)}>📍 {p.name}</button>
             ))}
           </div>
         ) : !selected && villages.length > 1 && (
           <div className="village-chips" aria-label="Aller à un village">
             {villages.map((v) => (
-              <button key={v.name} type="button" onClick={() => fitBox(v.bounds, 16)}>📍 {v.name}</button>
+              <button key={v.name} type="button" onClick={() => fitBox(v.bounds, 16.5)}>📍 {v.name}</button>
             ))}
           </div>
         )}
