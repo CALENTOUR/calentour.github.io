@@ -36,8 +36,15 @@ function makeEntry(random, daysBack) {
   return entry
 }
 
-// Villages de la démo : les tournées de plus de deux rues passent par deux villages.
-const VILLAGES = ['Dompaire', 'Bocquegney', 'Damas-et-Bettegney', 'Gorhey', 'Hennecourt', 'Racécourt', 'Madegney', 'Ville-sur-Illon']
+// Villages de la démo : fictifs (« Village A », « Village B »…), mais cohérents avec
+// la carte : chaque zone d'environ 2 km reçoit son nom, quelle que soit la tournée.
+// Les vrais noms viennent de la Base Adresse Nationale dans l'application réelle.
+const villageNames = new Map()
+const villageOf = ([lng, lat]) => {
+  const key = `${Math.floor(lng / 0.027)}:${Math.floor(lat / 0.018)}`
+  if (!villageNames.has(key)) villageNames.set(key, `Village ${String.fromCharCode(65 + (villageNames.size % 26))}`)
+  return villageNames.get(key)
+}
 
 export async function seedDemo() {
   const random = rng(88)
@@ -58,7 +65,7 @@ export async function seedDemo() {
     t.lines.forEach((line, li) => {
       const pieceId = `${id}p${li}`
       const street = STREETS[streetIndex++ % STREETS.length]
-      const city = VILLAGES[(ti + (li >= 2 ? 1 : 0)) % VILLAGES.length]
+      const city = villageOf(line[Math.floor(line.length / 2)])
       pieces.push({ id: pieceId, name: street, lines: [{ c: flatten(line) }] })
       const len = lineLength(line)
       let n = 1
