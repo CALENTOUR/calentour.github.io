@@ -8,6 +8,7 @@ import { STATUS_LIST } from '../../config/constants'
 import { useData } from '../../context/DataContext'
 import { useTourContext } from '../../hooks/useTourContext'
 import { formatEuro, formatPercent } from '../../lib/format'
+import { pieceLabels } from '../../lib/places'
 import { globalStats, tourStats } from '../../lib/stats'
 
 function cheer(progress) {
@@ -24,6 +25,7 @@ export default function MyStatsPage() {
   const { tours, statesById } = useData()
   if (!tour) return <NoTour />
   const s = tourStats(tour, state)
+  const labels = pieceLabels(tour)
   const ranking = settings?.rankingForMembers ? globalStats(tours, statesById).perTour : null
   const rank = ranking ? ranking.findIndex((r) => r.tour.id === tour.id) + 1 : 0
 
@@ -65,7 +67,7 @@ export default function MyStatsPage() {
             {tour.pieces.map((p) => {
               const ps = s.byPiece[p.id]
               return (
-                <tr key={p.id}><td>{p.name}</td><td>{formatPercent(ps.progress)}</td><td>{ps.counts.given}</td><td className="num">{formatEuro(ps.amount)}</td></tr>
+                <tr key={p.id}><td>{labels[p.id].full}</td><td>{formatPercent(ps.progress)}</td><td>{ps.counts.given}</td><td className="num">{formatEuro(ps.amount)}</td></tr>
               )
             })}
           </tbody>

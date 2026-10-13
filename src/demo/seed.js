@@ -36,6 +36,9 @@ function makeEntry(random, daysBack) {
   return entry
 }
 
+// Villages de la démo : les tournées de plus de deux rues passent par deux villages.
+const VILLAGES = ['Dompaire', 'Bocquegney', 'Damas-et-Bettegney', 'Gorhey', 'Hennecourt', 'Racécourt', 'Madegney', 'Ville-sur-Illon']
+
 export async function seedDemo() {
   const random = rng(88)
   const year = new Date().getFullYear()
@@ -55,6 +58,7 @@ export async function seedDemo() {
     t.lines.forEach((line, li) => {
       const pieceId = `${id}p${li}`
       const street = STREETS[streetIndex++ % STREETS.length]
+      const city = VILLAGES[(ti + (li >= 2 ? 1 : 0)) % VILLAGES.length]
       pieces.push({ id: pieceId, name: street, lines: [{ c: flatten(line) }] })
       const len = lineLength(line)
       let n = 1
@@ -62,7 +66,7 @@ export async function seedDemo() {
         const side = n % 2 ? 1 : -1
         const [lng, lat] = offsetPoint(line, along, side * 14)
         const house = {
-          id: `${pieceId}h${n}`, number: String(n), label: `${n} ${street}`, city: '',
+          id: `${pieceId}h${n}`, number: String(n), label: `${n} ${street}`, city,
           lng, lat, pieceId, along: Math.round(projectOnLine([lng, lat], line).along),
         }
         if (random() < 0.035) house.units = Array.from({ length: 4 + Math.floor(random() * 6) }, (_, i) => ({ id: `u${i + 1}`, label: `Appt ${i + 1}` }))

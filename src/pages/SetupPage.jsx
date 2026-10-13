@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { authErrorMessage, setupAmicale } from '../services/users'
+import Logo from '../components/ui/Logo'
 
 // Premier lancement : aucune amicale configurée dans Firebase.
 export default function SetupPage() {
@@ -23,7 +24,7 @@ export default function SetupPage() {
   return (
     <div className="login-screen">
       <form className="login-card stack" onSubmit={submit}>
-        <div className="logo-big">🚒</div>
+        <Logo size={72} className="logo-big" />
         <h1>Bienvenue</h1>
         <p className="muted">Première utilisation : crée l’amicale et ton compte administrateur.</p>
         <label>Nom de l’amicale<input required value={form.amicale} onChange={set('amicale')} placeholder="Amicale des sapeurs-pompiers de …" /></label>

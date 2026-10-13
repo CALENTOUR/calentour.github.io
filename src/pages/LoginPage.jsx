@@ -3,6 +3,7 @@ import { APP_NAME, APP_SLOGAN } from '../config/constants'
 import { useData } from '../context/DataContext'
 import { IS_DEMO, DEMO_ACCOUNTS } from '../demo/demoInfo'
 import { authErrorMessage, login } from '../services/users'
+import Logo from '../components/ui/Logo'
 
 export default function LoginPage() {
   const { settings } = useData()
@@ -24,7 +25,7 @@ export default function LoginPage() {
   return (
     <div className="login-screen">
       <div className="login-card">
-        <div className="logo-big">🚒</div>
+        <Logo size={72} className="logo-big" />
         <h1>{APP_NAME}</h1>
         <p className="muted">{settings?.amicale || APP_SLOGAN}</p>
         {IS_DEMO && (

@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-maskable-512.png'],
       manifest: {
         name: mode === 'demo' ? 'CalenTour Démo' : 'CalenTour',
         short_name: mode === 'demo' ? 'CalenTour Démo' : 'CalenTour',
@@ -35,12 +35,12 @@ export default defineConfig(({ mode }) => ({
         scope: BASE,
         display: 'standalone',
         orientation: 'any',
-        background_color: '#f4f5fa',
+        background_color: '#f2ede2',
         theme_color: '#fbf9f4',
         icons: [
           { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {
