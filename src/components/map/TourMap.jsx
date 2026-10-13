@@ -5,7 +5,7 @@ import { IconGps } from '../ui/Icons'
 import { dwellingKey } from '../../services/state'
 import { drawLitHouses, litHouses } from './houseBuildings'
 import { addStatusIcons } from './icons'
-import { circlePolygon, pieceLabels } from '../../lib/places'
+import { circlePolygon, pieceLabels, villagesOf } from '../../lib/places'
 import { fitPoints, setGeoJSON, toggle3D, useMapLibre } from './useMapLibre'
 
 // État affiché d'un immeuble : le plus urgent de ses logements.
@@ -15,7 +15,12 @@ export function buildingStatus(house, h) {
   return 'empty'
 }
 
-const inFocus = (t, pieceId, focusPieceId, focusTourId) => ((!focusPieceId || pieceId === focusPieceId) && (!focusTourId || t.id === focusTourId) ? 1 : 0)
+// 1 : rue ou tournée choisie ; 0.5 : autre rue de la même tournée ; 0 : autre tournée.
+const inFocus = (t, pieceId, focusPieceId, focusTourId) => {
+  if ((!focusPieceId || pieceId === focusPieceId) && (!focusTourId || t.id === focusTourId)) return 1
+  if (focusPieceId && (!focusTourId || t.id === focusTourId) && t.pieces?.some((p) => p.id === focusPieceId)) return 0.5
+  return 0
+}
 
 export function piecesGeoJSON(tours, focusPieceId, focusTourId, statesById = null) {
   const names = Object.assign({}, ...tours.map((t) => pieceLabels(t)))
@@ -109,12 +114,12 @@ function ensureLayers(map) {
   map.addLayer({
     id: 'pieces-casing', type: 'line', source: 'pieces',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': '#ffffff', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 4, 17, 14], 'line-opacity': ['case', ['==', ['get', 'focus'], 1], 0.9, 0.6] },
+    paint: { 'line-color': '#ffffff', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 4, 17, 14], 'line-opacity': ['case', ['==', ['get', 'focus'], 1], 0.9, ['==', ['get', 'focus'], 0.5], 0.6, 0.15] },
   })
   map.addLayer({
     id: 'pieces', type: 'line', source: 'pieces',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 3, 14, 5, 17, 9], 'line-opacity': ['case', ['==', ['get', 'focus'], 1], 0.95, 0.6] },
+    paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 3, 14, 5, 17, 9], 'line-opacity': ['case', ['==', ['get', 'focus'], 1], 0.95, ['==', ['get', 'focus'], 0.5], 0.6, 0.15] },
   })
   map.addLayer({
     id: 'houses', type: 'symbol', source: 'houses',
@@ -133,7 +138,7 @@ function ensureLayers(map) {
       'text-optional': true,
     },
     paint: {
-      'icon-opacity': ['case', ['==', ['get', 'focus'], 1], 1, 0.6],
+      'icon-opacity': ['case', ['==', ['get', 'focus'], 1], 1, ['==', ['get', 'focus'], 0.5], 0.6, 0.25],
       'text-color': '#1f2a24',
       'text-halo-color': '#ffffff',
       'text-halo-width': 1.6,
@@ -194,10 +199,25 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
     if (streetLabels && !map.getLayer('street-labels')) {
       // Nom de chaque rue écrit le long de son tracé.
       map.addLayer({
-        id: 'street-labels', type: 'symbol', source: 'pieces', filter: ['==', ['get', 'focus'], 1],
+        id: 'street-labels', type: 'symbol', source: 'pieces', filter: ['>', ['get', 'focus'], 0],
         layout: { 'symbol-placement': 'line', 'text-field': ['get', 'label'], 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 13, 11, 17, 15], 'text-max-angle': 40, 'symbol-spacing': 320, 'text-padding': 4 },
         paint: { 'text-color': '#1f2a24', 'text-halo-color': '#ffffff', 'text-halo-width': 2.4 },
       })
+    }
+    if (streetLabels) {
+      // Nom des villages de la tournée, au centre de leurs maisons.
+      const features = villagesOf(tours).filter((v) => v.points.length).map((v) => ({
+        type: 'Feature', properties: { name: v.name },
+        geometry: { type: 'Point', coordinates: [0, 1].map((k) => v.points.reduce((a, p) => a + p[k], 0) / v.points.length) },
+      }))
+      setGeoJSON(map, 'village-names', { type: 'FeatureCollection', features })
+      if (!map.getLayer('village-names')) {
+        map.addLayer({
+          id: 'village-names', type: 'symbol', source: 'village-names', maxzoom: 17,
+          layout: { 'text-field': ['upcase', ['get', 'name']], 'text-font': ['Noto Sans Bold'], 'text-size': 15, 'text-letter-spacing': 0.08, 'text-allow-overlap': false },
+          paint: { 'text-color': '#7a1a14', 'text-halo-color': '#ffffff', 'text-halo-width': 2.6 },
+        })
+      }
     }
     map.setPaintProperty('pieces', 'line-color', showProgress ? PROGRESS_COLOR : ['get', 'color'])
     if (showLabels || showProgress) {
@@ -237,7 +257,7 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
       const key = [...lit].sort().join(',')
       if (key !== litSig.current.lit) {
         litSig.current.lit = key
-        map.setPaintProperty('houses', 'icon-opacity', ['case', ['in', ['get', 'houseId'], ['literal', [...lit]]], 0, ['==', ['get', 'focus'], 1], 1, 0.6])
+        map.setPaintProperty('houses', 'icon-opacity', ['case', ['in', ['get', 'houseId'], ['literal', [...lit]]], 0, ['==', ['get', 'focus'], 1], 1, ['==', ['get', 'focus'], 0.5], 0.6, 0.25])
       }
     }
     let timer = 0
@@ -343,11 +363,8 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
       <div ref={containerRef} className="map-container" />
       {map && (
         <div className="map-btns">
-          <div className="dim-toggle" role="group" aria-label="Vue 2D ou 3D">
-            <button type="button" className={is3D ? '' : 'on'} aria-pressed={!is3D} onClick={() => is3D && toggle3D(map)}>2D</button>
-            <button type="button" className={is3D ? 'on' : ''} aria-pressed={is3D} onClick={() => !is3D && toggle3D(map)}>3D</button>
-          </div>
-          {showMe && <button type="button" className={me ? 'me-on' : ''} onClick={goToMe} aria-label="Afficher ma position"><IconGps width={18} height={18} />Ma position</button>}
+          <button type="button" className="map-btn-sq" onClick={() => toggle3D(map)} aria-label={is3D ? 'Passer en vue 2D' : 'Passer en vue 3D'} title={is3D ? 'Vue 2D' : 'Vue 3D'}>{is3D ? '2D' : '3D'}</button>
+          {showMe && <button type="button" className={`map-btn-sq${me ? ' me-on' : ''}`} onClick={goToMe} aria-label="Afficher ma position" title="Ma position"><IconGps width={20} height={20} /></button>}
           {expandable && (
             <button type="button" onClick={() => setFull((f) => !f)} aria-label={full ? 'Quitter le plein écran' : 'Plein écran'}>{full ? '✕ Réduire' : '⛶ Plein écran'}</button>
           )}
