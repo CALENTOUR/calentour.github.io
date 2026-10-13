@@ -12,6 +12,7 @@ import PiecePage from './pages/member/PiecePage'
 import MyStatsPage from './pages/member/MyStatsPage'
 import DashboardPage from './pages/admin/DashboardPage'
 import ToursMapPage from './pages/admin/ToursMapPage'
+import ToursListPage from './pages/admin/ToursListPage'
 import TourEditPage from './pages/admin/TourEditPage'
 import DonsPage from './pages/admin/DonsPage'
 import SettingsPage from './pages/admin/SettingsPage'
@@ -51,7 +52,7 @@ function Gate() {
           <>
             <Route path="/admin" element={<DashboardPage />} />
             <Route path="/admin/carte" element={<ToursMapPage />} />
-            <Route path="/admin/tournees" element={<Navigate to="/admin/carte" replace />} />
+            <Route path="/admin/tournees" element={<ToursListPage />} />
             <Route path="/admin/tournees/:tourId" element={<TourEditPage />} />
             <Route path="/admin/tournees/:tourId/terrain" element={<MyTourPage />} />
             <Route path="/admin/tournees/:tourId/terrain/:pieceId" element={<PiecePage />} />

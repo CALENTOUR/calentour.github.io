@@ -25,11 +25,11 @@ src/
 | --- | --- |
 | `settings/app` | `amicale`, `year` (campagne en cours), `rankingForMembers` |
 | `users/{uid}` | `login`, `name`, `role` (`admin` / `member`), `tourId`, `active` |
-| `tours/{id}` (au départ : `src/config/tours.json`, tracés de la carte Google, chargés automatiquement) | `number`, `name`, `members`, `color`, `pieces` [{ `id`, `name`, `lines` [{ `c`: [lng, lat, …], `r`? }] }], `houses` [{ `id`, `label`, `lng`, `lat`, `pieceId`, `along`, `units`? }] |
+| `tours/{id}` (au départ : `src/config/tours.json`, tracés de la carte Google, chargés automatiquement) | `number`, `name`, `members`, `color`, `pieces` [{ `id`, `name`, `lines` [{ `c`: [lng, lat, …], `r`? }] }], `houses` [{ `id`, `label`, `lng`, `lat`, `pieceId`, `along`, `units`?, `added`? }] |
 | `campaigns/{année}/state/{tourId}` | `h` : { cléHabitation: { `s`, `amount`, `mode`, `at`, `by` } } |
 | `campaigns/{année}/passages/{id}` | journal de tous les passages (historique) |
 
-Une tournée = une équipe (souvent un binôme, parfois plus ou moins). `r` est la rue complète le long de laquelle on fait glisser les extrémités d’un trait dans l’éditeur. Ses rues (`pieces`) sont les sous-onglets de « Ma tournée ». Une habitation est une maison,
+Une tournée = une équipe (souvent un binôme, parfois plus ou moins). `r` est la rue complète le long de laquelle on fait glisser les extrémités d’un trait dans l’éditeur. Ses rues (`pieces`) sont les sous-onglets de « Ma tournée ». Un binôme peut ajouter une maison oubliée (`added: true`) : les règles l'autorisent à modifier la seule liste `houses` de sa tournée. Une habitation est une maison,
 ou un logement d'immeuble (clé `maison__logement`).
 
 Statuts : `todo` À faire, `given` A donné, `again` À repasser, `refused` Refus, `empty` Habitation vide.

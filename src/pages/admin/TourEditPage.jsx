@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import TourMap from '../../components/map/TourMap'
 import AccessCard from '../../components/AccessCard'
 import TourForm from '../../components/TourForm'
@@ -70,11 +70,13 @@ export default function TourEditPage() {
   const toast = useToast()
   const { toursById, statesById, users } = useData()
   const tour = toursById[tourId]
-  const [editing, setEditing] = useState(false)
+  const location = useLocation()
+  // Une tournée qui vient d'être créée s'ouvre directement dans l'éditeur.
+  const [editing, setEditing] = useState(Boolean(location.state?.edit))
   const [progress, setProgress] = useState(null)
   const tours = useMemo(() => (tour ? [tour] : []), [tour])
 
-  if (!tour) return <div className="page"><p className="muted">Tournée introuvable.</p><Link to="/admin/carte">← Carte</Link></div>
+  if (!tour) return <div className="page"><p className="muted">Tournée introuvable.</p><Link to="/admin/tournees">← Gestion des tournées</Link></div>
 
   const update = (data) => saveTour(tourId, data).catch((err) => toast(`Erreur : ${err.message}`))
 
@@ -120,7 +122,12 @@ export default function TourEditPage() {
     if (!window.confirm(`Supprimer définitivement la tournée ${tour.number} (${tour.name}) ? Ses rues, ses maisons et ses dons seront supprimés, ses accès désactivés.`)) return
     await removeTour(tour, users)
     toast(`Tournée ${tour.number} supprimée`)
-    navigate('/admin/carte')
+    navigate('/admin/tournees')
+  }
+
+  const closeEditor = () => {
+    setEditing(false)
+    if (location.state?.edit) navigate(location.pathname, { replace: true })
   }
 
   const housesByPiece = sortHouses(tour.houses, tour.pieces)
@@ -128,10 +135,19 @@ export default function TourEditPage() {
   return (
     <div className="page stack-lg">
       <div className="row">
-        <Link to="/admin/carte" className="btn btn-ghost btn-sm">←</Link>
+        <Link to="/admin/tournees" className="btn btn-ghost btn-sm" aria-label="Retour à la gestion des tournées">←</Link>
         <h1 className="spacer"><span className="swatch" style={{ background: tour.color }} />Tournée {tour.number} · {tour.name}</h1>
         <Link to={`/admin/tournees/${tour.id}/terrain`} className="btn btn-sm">📱 Vue terrain</Link>
       </div>
+
+      <button type="button" className="btn-primary btn-hero" onClick={() => setEditing(true)}>
+        <span className="btn-hero-icon" aria-hidden="true">✏️</span>
+        <span className="spacer">
+          <strong>Modifier la tournée</strong>
+          <span>Ajouter ou retirer des rues, ajuster leurs bouts, ajouter une maison oubliée</span>
+        </span>
+        <span aria-hidden="true">›</span>
+      </button>
 
       <div className="edit-layout">
         <div className="stack">
@@ -146,7 +162,6 @@ export default function TourEditPage() {
               {progress != null ? `Recherche ${Math.round(progress * 100)} %` : '🏠 Chercher les maisons'}
             </button>
           </div>
-          <button type="button" className="btn-primary btn-big" onClick={() => setEditing(true)}>✏️ Modifier les rues sur la carte</button>
           <TourMap tours={tours} statesById={statesById} flat expandable className="edit-map" />
         </div>
       </div>
@@ -174,7 +189,7 @@ export default function TourEditPage() {
                     <button type="button" className="btn-sm btn-ghost danger" onClick={() => removeHouse(h)} aria-label="Retirer">✕</button>
                   </li>
                 ))}
-                {!list.length && <li className="muted small">Aucune maison. Utilise « Chercher les maisons » ou le mode 🏠 Maison.</li>}
+                {!list.length && <li className="muted small">Aucune maison. Utilise « Chercher les maisons » ou « Maison non répertoriée » dans l’éditeur.</li>}
               </ul>
             </details>
           )
@@ -188,7 +203,7 @@ export default function TourEditPage() {
         </div>
         <button type="button" className="btn-danger" onClick={remove}>🗑️ Supprimer</button>
       </div>
-      {editing && <TourMapEditor tour={tour} onClose={() => setEditing(false)} />}
+      {editing && <TourMapEditor tour={tour} onClose={closeEditor} />}
     </div>
   )
 }

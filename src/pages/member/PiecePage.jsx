@@ -1,7 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import TourMap, { buildingStatus, tourBounds } from '../../components/map/TourMap'
+import AddHouseSheet from '../../components/AddHouseSheet'
 import HouseSheet from '../../components/HouseSheet'
+import ViewSwitch from '../../components/ViewSwitch'
 import NoTour from '../../components/NoTour'
 import Sheet from '../../components/ui/Sheet'
 import Confetti from '../../components/ui/Confetti'
@@ -11,13 +13,14 @@ import { useTourContext } from '../../hooks/useTourContext'
 import { formatEuro, formatPercent } from '../../lib/format'
 import { sortHouses, tourStats } from '../../lib/stats'
 import { dwellingKey } from '../../services/state'
+import { saveTour } from '../../services/tours'
 
-// Place laissée autour des rues quand la carte se cadre : sous les onglets des rues
-// en haut, au-dessus du panneau du bas.
-const FIT_PADDING = { top: 90, bottom: 170, left: 40, right: 60 }
+// Place laissée autour des rues quand la carte se cadre : sous la bascule et les
+// onglets des rues en haut, au-dessus du panneau du bas.
+const FIT_PADDING = { top: 140, bottom: 170, left: 40, right: 60 }
 
-// « Ma tournée » : carte 3D plein écran, un onglet par morceau de tournée,
-// panneau du bas avec la maison suivante et la liste.
+// « Ma tournée » en vue carte : carte 3D plein écran, un onglet par rue,
+// panneau du bas avec la liste des maisons et l'ajout d'une maison oubliée.
 export default function PiecePage() {
   const { pieceId } = useParams()
   const navigate = useNavigate()
@@ -26,6 +29,8 @@ export default function PiecePage() {
   const [openHouseId, setOpenHouseId] = useState(null)
   const [listOpen, setListOpen] = useState(false)
   const [party, setParty] = useState(0)
+  const [adding, setAdding] = useState(false)
+  const [newPoint, setNewPoint] = useState(null)
   const mapRef = useRef(null)
   const focus = !pieceId || pieceId === 'tout' ? null : pieceId
   const h = state?.h ?? {}
@@ -41,7 +46,6 @@ export default function PiecePage() {
   const stats = tourStats(tour, state)
   const ps = (focus ? stats.byPiece[focus] : stats) ?? stats
   const statusOf = (house) => (house.units?.length ? buildingStatus(house, h) : h[dwellingKey(house.id)]?.s ?? 'todo')
-  const next = houses.find((x) => statusOf(x) === 'todo') ?? houses.find((x) => statusOf(x) === 'again')
   const openHouse = tour.houses.find((x) => x.id === openHouseId)
   const title = focus ? tour.pieces.find((p) => p.id === focus)?.name : 'Toute ma tournée'
 
@@ -60,6 +64,21 @@ export default function PiecePage() {
     setOpenHouseId(house.id)
   }
 
+  // Toucher une rue l'ouvre ; en mode ajout, toucher la carte place la nouvelle maison.
+  const onMapClick = (e, m) => {
+    if (adding) {
+      setAdding(false)
+      setNewPoint(e.lngLat)
+      return
+    }
+    const box = [[e.point.x - 14, e.point.y - 14], [e.point.x + 14, e.point.y + 14]]
+    const hit = m.queryRenderedFeatures(box, { layers: ['pieces'] })[0]
+    if (hit && hit.properties.pieceId !== focus) choosePiece(hit.properties.pieceId)
+  }
+  const addHouse = (house) => saveTour(tour.id, { houses: [...tour.houses, house] })
+    .then(() => toast(`${house.label} ajoutée`))
+    .catch((err) => toast(`Ajout impossible : ${err.message}`))
+
   const onSaved = (status, amount) => {
     if (status === 'given') {
       setParty(Date.now())
@@ -77,13 +96,15 @@ export default function PiecePage() {
         focusPieceId={focus}
         fitPadding={FIT_PADDING}
         showMe
-        onHouseClick={(p) => { const house = tour.houses.find((x) => x.id === p.houseId); if (house) goTo(house) }}
+        onHouseClick={adding ? undefined : (p) => { const house = tour.houses.find((x) => x.id === p.houseId); if (house) goTo(house) }}
+        onMapClick={onMapClick}
         onReady={(m) => { mapRef.current = m }}
         className="fullmap-map"
       />
 
+      <div className="map-top">
+        <ViewSwitch base={base} view="carte" className="view-switch-float" />
       <div className="map-chips" role="tablist">
-        <button type="button" className="chip-back" onClick={() => navigate(base)} aria-label="Retour à la liste des rues">←</button>
         <button type="button" className={!focus ? 'on' : ''} onClick={() => choosePiece(null)}>Tout<span className="chip-pct">{stats.counts.todo || '✓'}</span></button>
         {tour.pieces.map((p) => {
           const pp = stats.byPiece[p.id]
@@ -96,6 +117,9 @@ export default function PiecePage() {
           )
         })}
       </div>
+      </div>
+
+      {adding && <div className="map-note map-note-action">Touche l’endroit de la maison sur la carte <button type="button" className="btn-sm" onClick={() => setAdding(false)}>Annuler</button></div>}
 
       <div className="map-panel">
         <div className="map-panel-info">
@@ -103,10 +127,10 @@ export default function PiecePage() {
           <div className="map-panel-bar"><i style={{ width: `${Math.round(ps.progress * 100)}%` }} /></div>
           <div className="small muted">{ps.done}/{ps.total} faites · {formatEuro(ps.amount)}</div>
         </div>
-        <button type="button" className="btn-round map-panel-list" onClick={() => setListOpen(true)} aria-label="Liste des maisons">☰</button>
-        {next
-          ? <button type="button" className="btn-primary map-panel-next" onClick={() => goTo(next)}>Suivante ▶</button>
-          : <span className="map-panel-done">{houses.length ? '🏆 Fini' : ''}</span>}
+        <div className="map-panel-actions">
+          <button type="button" className="map-panel-btn" onClick={() => setListOpen(true)}><span aria-hidden="true">☰</span>Liste</button>
+          <button type="button" className={`map-panel-btn${adding ? ' on' : ''}`} onClick={() => setAdding((v) => !v)}><span aria-hidden="true">＋🏠</span>Maison</button>
+        </div>
       </div>
 
       {listOpen && (
@@ -130,10 +154,12 @@ export default function PiecePage() {
                 </li>
               )
             })}
-            {!houses.length && <li className="muted small">Aucune maison sur ce morceau. Un administrateur peut les ajouter.</li>}
+            {!houses.length && <li className="muted small">Aucune maison sur cette rue. Ajoute-les avec le bouton « ＋🏠 Maison ».</li>}
           </ul>
         </Sheet>
       )}
+
+      {newPoint && <AddHouseSheet tour={tour} point={newPoint} onAdd={addHouse} onClose={() => setNewPoint(null)} />}
 
       {openHouse && (
         <HouseSheet tour={tour} house={openHouse} state={state} year={year} user={user} onClose={() => setOpenHouseId(null)} onSaved={onSaved} />

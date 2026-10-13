@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import CollectedCard from '../../components/ui/CollectedCard'
+import ProgressPie from '../../components/ui/ProgressPie'
 import StatTile from '../../components/ui/StatTile'
 import StreetArt from '../../components/ui/StreetArt'
 import StatusBar from '../../components/ui/StatusBar'
@@ -16,8 +18,8 @@ export default function DashboardPage() {
       <div className="page"><div className="card empty">
         <div className="empty-icon">🚒</div>
         <h2>Bienvenue sur CalenTour</h2>
-        <p className="muted">Commence par créer les tournées dans l’onglet Carte.</p>
-        <Link className="btn btn-primary" to="/admin/carte">Créer les tournées</Link>
+        <p className="muted">Commence par créer les tournées dans l’onglet Gestion des tournées.</p>
+        <Link className="btn btn-primary" to="/admin/tournees">Créer les tournées</Link>
       </div></div>
     )
   }
@@ -32,15 +34,18 @@ export default function DashboardPage() {
         </div>
         <StreetArt className="dash-art" />
       </div>
+      <div className="dash-grid">
+        <CollectedCard stats={g} />
+        <section className="card stack">
+          <h2>Avancement général <span className="muted small">({g.done} maisons faites sur {g.total})</span></h2>
+          <ProgressPie counts={g.counts} total={g.total} progress={g.progress} />
+        </section>
+      </div>
       <div className="tiles tiles-wide">
-        <StatTile icon="💰" label="Total collecté" value={formatEuro(g.amount)} tone="brand" />
-        <StatTile icon="💶" label="Espèces" value={formatEuro(g.byMode.cash)} />
-        <StatTile icon="🧾" label="Chèques" value={formatEuro(g.byMode.cheque)} sub={`${g.chequeCount} chèques`} />
-        <StatTile icon="✅" label="Maisons faites" value={formatPercent(g.progress)} sub={`${g.done} sur ${g.total}`} />
-        <StatTile icon="🤝" label="Ont donné" value={formatPercent(g.giveRate)} sub={`${g.counts.given} dons`} tone="green" />
+        <StatTile icon="🤝" label="Ont donné" value={formatPercent(g.giveRate)} sub={`${g.counts.given} dons sur les maisons visitées`} tone="green" />
         <StatTile icon="✋" label="Refus ou vides" value={formatPercent(g.refuseRate)} sub={`${g.counts.refused} refus · ${g.counts.empty} vides`} tone="red" />
         <StatTile icon="🔁" label="À repasser" value={formatPercent(g.againRate)} sub={`${g.counts.again} maisons`} tone="orange" />
-        <StatTile icon="⭐" label="Don moyen" value={formatEuro(g.average)} sub={`${formatEuro(g.perVisit)} par maison visitée`} />
+        <StatTile icon="📍" label="Par maison visitée" value={formatEuro(g.perVisit)} />
       </div>
 
       <section className="card stack">
