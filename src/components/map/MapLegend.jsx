@@ -18,13 +18,16 @@ export default function MapLegend() {
     <div className="map-legend-wrap">
       {open && (
         <div className="house-legend" role="dialog" aria-label="Couleurs des maisons">
-          <strong>Couleur des maisons</strong>
+          <div className="house-legend-head">
+            <strong>Que veulent dire les couleurs ?</strong>
+            <button type="button" className="legend-close" onClick={toggle} aria-label="Fermer">✕</button>
+          </div>
           <ul>
             {STATUS_LIST.map((s) => (
               <li key={s.key}><i style={{ background: LIT_COLORS[s.key] }} />{s.label}</li>
             ))}
-            <li className="house-legend-other"><i className="legend-pale" />Couleur pâle : autre rue</li>
-            <li className="house-legend-other"><i style={{ background: OTHER_BUILDING }} />Pas dans ta tournée</li>
+            <li className="house-legend-other"><i className="legend-pale" />Couleur pâle : maison d’une autre rue de ta tournée</li>
+            <li className="house-legend-other"><i style={{ background: OTHER_BUILDING }} />Maison grise claire : pas dans ta tournée</li>
           </ul>
         </div>
       )}

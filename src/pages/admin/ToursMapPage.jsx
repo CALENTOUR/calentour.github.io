@@ -265,7 +265,7 @@ export default function ToursMapPage() {
                   <button type="button" className="tour-card-main" onClick={() => focus(t.id)} aria-pressed={isSel}>
                     <span className="tour-num">{t.number}</span>
                     <span className="tour-card-text">
-                      <strong className="ellipsis">{t.name}</strong>
+                      <strong className="tour-name-wrap">{t.name}</strong>
                       <span className="small muted ellipsis">{areas.length > 1 ? `${areas.length} secteurs` : areas[0]?.name ?? 'Pas de rue'} · {t.houses.length} maisons</span>
                     </span>
                     {finished
@@ -351,7 +351,7 @@ export default function ToursMapPage() {
             <ProgressRing value={shownStats.progress} size={64} stroke={8} color="var(--green)"><strong>{Math.round(shownStats.progress * 100)}%</strong></ProgressRing>
             <div className="tour-float-title">
               <span className="kicker">Tournée {selected.number}{place ? ` · secteur ${place.num}` : ''}</span>
-              <strong className="ellipsis">{selected.name}</strong>
+              <strong className="tour-name-wrap">{selected.name}</strong>
               <span className="small muted">{shownStats.done} / {shownStats.total} maisons · {formatEuro(shownStats.amount)}</span>
             </div>
           </div>
