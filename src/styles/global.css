@@ -994,3 +994,5 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .tour-ring { flex: none; display: grid; }
 .tour-ring .tour-ring-pct { font-size: .62rem !important; letter-spacing: -.02em; }
 .tour-ring-done { width: 52px; height: 52px; }
+.tour-ring .tour-ring-pct { font-size: .68rem !important; }
+.tour-ring .tour-ring-done-n { font-size: .56rem; font-weight: 900; filter: brightness(.85); }
