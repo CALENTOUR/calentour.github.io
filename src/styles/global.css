@@ -977,3 +977,20 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .tours-map-top .village-chips button.on { background: #2f6fb0; border-color: #2f6fb0; color: #fff; }
 .layers-pop .check-line { flex-direction: row; justify-content: flex-start; min-height: 32px; }
 @media (min-width: 900px) { .tours-map.panel-open .progress-legend { left: calc(312px + .8rem); } }
+
+/* Légende des couleurs de maisons (carte du membre). */
+.map-legend-wrap { position: relative; display: flex; justify-content: center; }
+.legend-btn { width: 46px; height: 46px; padding: 0; border-radius: 50%; border: 1px solid var(--border); background: var(--card); box-shadow: var(--float); display: grid; place-items: center; font-weight: 800; color: var(--ink); }
+.legend-dots { display: grid; grid-template-columns: repeat(2, 10px); gap: 3px; }
+.legend-dots i { width: 10px; height: 10px; border-radius: 3px; }
+.house-legend { position: absolute; right: calc(100% + .5rem); bottom: 0; padding: .6rem .75rem; border-radius: 12px; border: 1px solid var(--border); background: var(--card); box-shadow: var(--float); white-space: nowrap; font-size: .82rem; }
+.house-legend strong { display: block; font-size: .78rem; margin-bottom: .35rem; }
+.house-legend ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
+.house-legend li { display: flex; align-items: center; gap: .5rem; font-weight: 700; }
+.house-legend i { width: 16px; height: 14px; border-radius: 3px; flex: none; }
+.house-legend .house-legend-other { color: var(--muted); font-weight: 600; }
+.house-legend .house-legend-other i { border: 1px solid #cfc7b6; }
+.house-legend .legend-pale { background: linear-gradient(90deg, #c9d8e6 50%, #cddbc9 50%); }
+.tour-ring { flex: none; display: grid; }
+.tour-ring .tour-ring-pct { font-size: .62rem !important; letter-spacing: -.02em; }
+.tour-ring-done { width: 52px; height: 52px; }

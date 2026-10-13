@@ -94,3 +94,10 @@ export async function exportCompta({ year, amicale, tours, statesById, stats }) 
     `calentour-compta-${year}.xlsx`,
   )
 }
+
+// Copie des tournées (rues, maisons, adresses), sans les dons ni les comptes :
+// à envoyer pour faire vérifier les tracés et les villages.
+export function exportTours(tours) {
+  const data = tours.map(({ id, number, name, color, pieces, houses }) => ({ id, number, name, color, pieces, houses }))
+  downloadBlob(new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), tours: data })], { type: 'application/json' }), `calentour-tournees-${new Date().toISOString().slice(0, 10)}.json`)
+}

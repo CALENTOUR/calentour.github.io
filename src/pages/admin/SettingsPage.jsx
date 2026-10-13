@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { setDoc } from 'firebase/firestore'
 import AccessCard from '../../components/AccessCard'
 import { useToast } from '../../components/ui/Toast'
+import { exportTours } from '../../lib/exports'
 import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
 import { settingsRef } from '../../services/paths'
 import { authErrorMessage, createAccount, generatePassword, updateUser } from '../../services/users'
 
 export default function SettingsPage() {
-  const { settings, users, toursById } = useData()
+  const { settings, users, toursById, tours } = useData()
   const { profile } = useAuth()
   const toast = useToast()
   const [amicale, setAmicale] = useState(settings?.amicale ?? '')
@@ -57,6 +58,12 @@ export default function SettingsPage() {
           <button type="button" onClick={newCampaign}>Démarrer la campagne {(settings?.year ?? 0) + 1}</button>
           <button type="button" className="btn-ghost" onClick={previousCampaign}>Revenir à {(settings?.year ?? 0) - 1}</button>
         </div>
+      </div>
+
+      <div className="card stack">
+        <h2>Vérifier les tournées</h2>
+        <p className="small muted">Télécharge les rues et les maisons de toutes les tournées (sans les dons ni les comptes), pour faire vérifier les tracés et les villages.</p>
+        <div className="row wrap"><button type="button" className="btn-ghost" onClick={() => exportTours(tours ?? [])}>Télécharger les tournées</button></div>
       </div>
 
       <div className="card stack">
