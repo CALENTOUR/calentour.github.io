@@ -103,6 +103,13 @@ function findBuilding(cells, point) {
   return best?.b ?? null
 }
 
+// Maison absente de la carte : petit bâtiment de 10 m sur 8 dessiné à l'adresse.
+function fakeBuilding([lng, lat]) {
+  const dx = 5 / (111320 * Math.cos((lat * Math.PI) / 180))
+  const dy = 4 / 111320
+  return { height: 6, ring: [[lng - dx, lat - dy], [lng + dx, lat - dy], [lng + dx, lat + dy], [lng - dx, lat + dy], [lng - dx, lat - dy]] }
+}
+
 const PALE = { todo: '#c9d8e6', given: '#cddbc9', again: '#ecdcb6', refused: '#e5c4bc', empty: '#bdb9b0' }
 
 // Bâtiments colorés des maisons (`houses` : entités de la couche des pastilles).
@@ -116,8 +123,7 @@ export function litHouses(map, houses) {
   const cells = buildingIndex(map, src)
   const taken = new Map()
   for (const h of houses) {
-    const b = findBuilding(cells, h.geometry.coordinates)
-    if (!b) continue
+    const b = findBuilding(cells, h.geometry.coordinates) ?? fakeBuilding(h.geometry.coordinates)
     lit.add(h.properties.houseId)
     // Un bâtiment partagé par plusieurs adresses : la plus urgente donne la couleur.
     const prev = taken.get(b)
