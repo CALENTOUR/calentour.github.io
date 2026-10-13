@@ -1007,3 +1007,15 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .house-legend-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .legend-close{background:none;border:0;color:#b3261e;font-size:1.1rem;font-weight:700;padding:0 4px;cursor:pointer;line-height:1}
 .tour-name-wrap{white-space:normal;overflow-wrap:anywhere;line-height:1.2}
+
+.house-legend{white-space:normal;width:min(250px,calc(100vw - 90px))}
+.house-legend li{align-items:flex-start;line-height:1.25}
+.house-legend i{margin-top:2px}
+.map-btns .map-btn-sq{width:40px;height:40px;min-height:40px;padding:0;display:grid;place-items:center;font-weight:800;font-size:.85rem;border-radius:10px;background:var(--card);border:1px solid var(--border);box-shadow:var(--float)}
+.fullmap .map-btns{flex-direction:column}
+.sector-group{display:flex;flex-direction:column;gap:inherit}
+.sector-group-title{display:flex;align-items:center;gap:.5rem;font-size:1rem;margin:.6rem 0 .1rem}
+.fab-add svg{display:block;margin:auto}
+.editor-head .editor-houses{background:var(--blue,#2f6fb0);color:#fff;border-color:transparent;font-size:.95rem;padding:.35rem .8rem;box-shadow:0 2px 8px rgba(47,111,176,.4)}
+.editor-head .editor-houses.on{background:var(--ink);}
+.editor-head .editor-houses input{accent-color:#fff}

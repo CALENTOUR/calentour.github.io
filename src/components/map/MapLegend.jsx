@@ -31,9 +31,9 @@ export default function MapLegend() {
           </ul>
         </div>
       )}
-      <button type="button" className={`legend-btn${open ? ' on' : ''}`} onClick={toggle} aria-expanded={open} aria-label="Couleurs des maisons" title="Couleurs des maisons">
+      {!open && <button type="button" className={`legend-btn${open ? ' on' : ''}`} onClick={toggle} aria-expanded={open} aria-label="Couleurs des maisons" title="Couleurs des maisons">
         {open ? '✕' : <span className="legend-dots">{['todo', 'given', 'again', 'refused'].map((k) => <i key={k} style={{ background: LIT_COLORS[k] }} />)}</span>}
-      </button>
+      </button>}
     </div>
   )
 }

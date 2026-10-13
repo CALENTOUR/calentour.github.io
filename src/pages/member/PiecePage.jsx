@@ -132,6 +132,7 @@ export default function PiecePage() {
         focusPieceId={focus}
         fitPadding={FIT_PADDING}
         showMe
+        streetLabels
         onHouseClick={adding ? undefined : (p) => { const house = tour.houses.find((x) => x.id === p.houseId); if (house) goTo(house) }}
         onMapClick={onMapClick}
         onReady={(m) => { mapRef.current = m }}
@@ -181,7 +182,11 @@ export default function PiecePage() {
             <strong>{Math.round(ps.progress * 100)}%</strong>
           </ProgressRing>
         </button>
-        <button type="button" className={`fab-add${adding ? ' on' : ''}`} onClick={() => setAdding((v) => !v)} aria-label="Ajouter une maison oubliée" title="Ajouter une maison oubliée">{adding ? '✕' : '＋'}</button>
+        <button type="button" className={`fab-add${adding ? ' on' : ''}`} onClick={() => setAdding((v) => !v)} aria-label="Ajouter une maison oubliée" title="Ajouter une maison oubliée">{adding ? '✕' : (
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3 11.5 11 4l8 7.5" /><path d="M5.5 9.5V20h6" /><path d="M18 14v7M14.5 17.5h7" />
+          </svg>
+        )}</button>
       </div>
 
       {listOpen && (
