@@ -6,6 +6,7 @@ import { exportTours } from '../../lib/exports'
 import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
 import { settingsRef } from '../../services/paths'
+import { resetProgress, simulateProgress } from '../../services/simulation'
 import { authErrorMessage, changeMyPassword, createAccount, generatePassword, updateUser } from '../../services/users'
 
 export default function SettingsPage() {
@@ -82,6 +83,14 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      <div className="card stack">
+        <h2>Simulation (temporaire)</h2>
+        <p className="small muted">Remplit les tournées avec un avancement au hasard pour tester l’affichage. « Remise à zéro » efface tous les passages de la campagne {settings?.year}, y compris les vrais.</p>
+        <div className="row wrap">
+          <button type="button" className="btn-ghost" onClick={() => simulateProgress(settings.year, tours ?? []).then(() => toast('Simulation générée')).catch((err) => toast(`Erreur : ${err.message}`))}>🎲 Générer une simulation</button>
+          <button type="button" className="btn-ghost" onClick={() => window.confirm(`Remettre toutes les tournées à zéro pour ${settings.year} ?`) && resetProgress(settings.year, tours ?? []).then(() => toast('Tournées remises à zéro')).catch((err) => toast(`Erreur : ${err.message}`))}>↺ Remise à zéro</button>
+        </div>
+      </div>
       <div className="card stack">
         <h2>Vérifier les tournées</h2>
         <p className="small muted">Télécharge les rues et les maisons de toutes les tournées (sans les dons ni les comptes), pour faire vérifier les tracés et les villages.</p>
