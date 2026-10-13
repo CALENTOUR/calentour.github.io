@@ -5,9 +5,9 @@ export default function SectorTabs({ areas, active, onChoose, className = '' }) 
   return (
     <div className={`village-chips sector-tabs ${className}`} role="tablist" aria-label="Secteurs de la tournée">
       <button type="button" role="tab" aria-selected={!active} className={!active ? 'on' : ''} onClick={() => onChoose(null)}>Toute la tournée</button>
-      {areas.map((a) => (
+      {areas.map((a, i) => (
         <button key={a.id} type="button" role="tab" aria-selected={active === a.id} className={active === a.id ? 'on' : ''} onClick={() => onChoose(a)}>
-          📍 {a.name} <span className="chip-pct">{a.pieceIds.length} rue{a.pieceIds.length > 1 ? 's' : ''}</span>
+          {i + 1} · {a.name} <span className="chip-pct">{a.pieceIds.length} rue{a.pieceIds.length > 1 ? 's' : ''}</span>
         </button>
       ))}
     </div>
