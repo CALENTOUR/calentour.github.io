@@ -10,21 +10,21 @@ import { formatEuro, formatPercent } from '../../lib/format'
 import { globalStats, tourStats } from '../../lib/stats'
 import { pieceLabels, villagesOf } from '../../lib/places'
 import { findHouses } from '../../lib/tourBuilder'
-import { createTour, loadInitialTours, nameInitialTours, removeTour, saveTour } from '../../services/tours'
-import { Access, Identity } from './TourEditPage'
+import { bounds, unflatten } from '../../lib/geo'
+import { createTour, loadInitialTours, nameInitialTours, saveTour } from '../../services/tours'
 import TourMapEditor from './TourMapEditor'
 
 // Onglet Tournées : la carte de toutes les tournées, avec ses calques. Le bandeau
-// de côté choisit les tournées affichées ; toucher une tournée donne tous ses
-// boutons (rues, équipe et accès, suppression). Le mode plein écran masque le
-// reste de l'application.
+// de côté choisit les tournées affichées. Toucher une tournée affiche son
+// avancement, ses villages en haut (un toucher zoome sur le village) et un gros
+// bouton vers sa fiche, où se trouvent tous ses réglages. Le mode plein écran
+// masque le reste de l'application.
 export default function ToursMapPage() {
-  const { tours, toursById, statesById, users, settings } = useData()
+  const { tours, toursById, statesById, settings } = useData()
   const toast = useToast()
   const [selectedId, setSelectedId] = useState(null)
-  const [pieceId, setPieceId] = useState(null)
+  const [placeSel, setPlaceSel] = useState(null)
   const [editId, setEditId] = useState(null)
-  const [teamId, setTeamId] = useState(null)
   // Tournées masquées (toutes visibles au départ, les nouvelles aussi).
   const [hidden, setHidden] = useState(() => new Set())
   const [panelOpen, setPanelOpen] = useState(() => window.matchMedia?.('(min-width: 900px)').matches ?? false)
@@ -71,7 +71,6 @@ export default function ToursMapPage() {
   const [creating, setCreating] = useState(false)
   const [map, setMap] = useState(null)
   const editing = toursById[editId] ?? null
-  const team = toursById[teamId] ?? null
 
   // Plein écran : la carte prend tout l'écran (barre, menu et onglets masqués),
   // et l'écran entier du navigateur quand il le permet.
@@ -101,22 +100,44 @@ export default function ToursMapPage() {
   const selected = (!hidden.has(selectedId) && toursById[selectedId]) || null
   const stats = useMemo(() => (selected ? tourStats(selected, statesById[selected.id]) : null), [selected, statesById])
   const perTour = useMemo(() => Object.fromEntries(tours.map((t) => [t.id, tourStats(t, statesById[t.id])])), [tours, statesById])
-  const account = selected ? users.find((u) => u.tourId === selected.id && u.active) : null
-  const labels = useMemo(() => (selected ? pieceLabels(selected) : {}), [selected])
   const villages = useMemo(() => villagesOf(shown), [shown])
-  const piece = selected?.pieces.find((p) => p.id === pieceId) ?? null
+  // Villages de la tournée choisie, avec l'emprise de ses rues dans chacun.
+  const tourPlaces = useMemo(() => {
+    if (!selected) return []
+    const labels = pieceLabels(selected)
+    const byPlace = new Map()
+    for (const p of selected.pieces) {
+      const name = labels[p.id]?.place || 'Autres rues'
+      byPlace.set(name, [...(byPlace.get(name) ?? []), p])
+    }
+    return [...byPlace.entries()].map(([name, list]) => ({
+      name,
+      pieceIds: new Set(list.map((p) => p.id)),
+      bounds: bounds(list.flatMap((p) => p.lines.flatMap((l) => unflatten(l.c)))),
+    }))
+  }, [selected])
+  const place = tourPlaces.find((x) => x.name === placeSel) ?? null
+  const placeStats = place && stats ? [...place.pieceIds].reduce((r, id) => {
+    const x = stats.byPiece[id]
+    return x ? { done: r.done + x.done, total: r.total + x.total, amount: r.amount + x.amount } : r
+  }, { done: 0, total: 0, amount: 0 }) : null
 
-  const PAD = { top: 130, bottom: 230, left: 40, right: 70 }
+  const PAD = { top: 150, bottom: 150, left: 40, right: 70 }
   const fitBox = (b, maxZoom = 17) => { if (b && map) map.fitBounds(b, { padding: PAD, maxZoom, duration: 700, pitch: map.getPitch() }) }
-  const fitTo = (list, pid) => fitBox(list.length && tourBounds(list, pid), pid ? 18 : 17)
-  // Choix d'une tournée : on oublie le secteur choisi dans la précédente.
+  const fitTo = (list) => fitBox(list.length && tourBounds(list), 17)
+  // Choix d'une tournée : on oublie le village choisi dans la précédente.
   const pick = (id) => {
     setSelectedId(id)
-    setPieceId(null)
+    setPlaceSel(null)
   }
-  const choosePiece = (pid) => {
-    setPieceId(pid)
-    fitTo([selected], pid)
+  const choosePlace = (p) => {
+    if (!p) {
+      setPlaceSel(null)
+      fitTo([selected])
+      return
+    }
+    setPlaceSel(p.name)
+    fitBox(p.bounds, 18)
   }
   const toggle = (id) => setHidden((h) => {
     const next = new Set(h)
@@ -138,7 +159,6 @@ export default function ToursMapPage() {
     const hit = m.queryRenderedFeatures(box, { layers: ['pieces'] })[0]
     const id = hit?.properties.tourId ?? null
     if (id !== selectedId) pick(id)
-    else if (hit && selected.pieces.length > 1) setPieceId(hit.properties.pieceId)
   }
 
   const nextNumber = Math.max(0, ...tours.map((t) => t.number)) + 1
@@ -151,17 +171,11 @@ export default function ToursMapPage() {
     toast(`Tournée ${values.number} créée : ajoute ses rues`)
   }
 
-  const remove = async () => {
-    if (!window.confirm(`Supprimer définitivement la tournée ${selected.number} (${selected.name}) ? Ses rues, ses maisons et ses dons seront supprimés, ses accès désactivés.`)) return
-    await removeTour(selected, users)
-    toast(`Tournée ${selected.number} supprimée`)
-    pick(null)
-  }
 
   return (
     <div className={`fullmap tours-map${panelOpen ? ' panel-open' : ''}${full ? ' is-full' : ''}`}>
       <TourMap
-        tours={shown} statesById={statesById} focusTourId={selected?.id ?? null} focusPieceId={piece?.id ?? null} autoFit={false}
+        tours={shown} statesById={statesById} focusTourId={selected?.id ?? null} autoFit={false}
         showHouses={showHouses} showProgress={showProgress} showLabels
         fitPadding={{ top: 80, bottom: 60, left: 30, right: 60 }}
         onMapClick={onMapClick}
@@ -211,7 +225,15 @@ export default function ToursMapPage() {
         <button type="button" className={`layer-btn${showProgress ? ' on' : ''}`} aria-pressed={showProgress} onClick={() => setShowProgress((v) => !v)}>
           <span className="check">{showProgress ? '✓' : ''}</span>Avancement
         </button>
-        {villages.length > 1 && (
+        {selected && tourPlaces.length > 1 ? (
+          <div className="village-chips tour-places" aria-label={`Villages de la tournée ${selected.number}`}>
+            <span className="tour-places-label"><span className="swatch" style={{ background: selected.color }} /><span className="hide-mobile">Villages de la tournée </span>{selected.number}</span>
+            <button type="button" className={!place ? 'on' : ''} onClick={() => choosePlace(null)}>Tous</button>
+            {tourPlaces.map((p) => (
+              <button key={p.name} type="button" className={place?.name === p.name ? 'on' : ''} onClick={() => choosePlace(p)}>📍 {p.name}</button>
+            ))}
+          </div>
+        ) : !selected && villages.length > 1 && (
           <div className="village-chips" aria-label="Aller à un village">
             {villages.map((v) => (
               <button key={v.name} type="button" onClick={() => fitBox(v.bounds, 16)}>📍 {v.name}</button>
@@ -238,40 +260,16 @@ export default function ToursMapPage() {
         <div className="map-panel tour-panel">
           <div className="map-panel-info">
             <strong className="ellipsis"><span className="swatch" style={{ background: selected.color }} />{selected.number}. {selected.name}</strong>
-            <div className="map-panel-bar"><i style={{ width: `${Math.round(stats.progress * 100)}%` }} /></div>
+            <div className="map-panel-line">
+              <div className="map-panel-bar"><i style={{ width: `${Math.round(stats.progress * 100)}%` }} /></div>
+              <strong className="small">{formatPercent(stats.progress)}</strong>
+            </div>
             <div className="small muted ellipsis">
-              {selected.pieces.length} rue{selected.pieces.length > 1 ? 's' : ''} · {stats.total} maisons · {formatPercent(stats.progress)} · {formatEuro(stats.amount)}
-              {account ? ` · 🔑 ${account.login}` : ''}
+              {place ? `${place.name} : ${placeStats.done}/${placeStats.total} faites · ` : `${stats.done}/${stats.total} faites · `}
+              {formatEuro(place ? placeStats.amount : stats.amount)}
             </div>
           </div>
-          {selected.pieces.length > 1 && (
-            <div className="sector-tabs" role="tablist" aria-label="Secteurs de la tournée">
-              <button type="button" role="tab" aria-selected={!piece} className={!piece ? 'on' : ''} onClick={() => { setPieceId(null); fitTo([selected]) }}>
-                Tout<span className="chip-pct">{selected.pieces.length}</span>
-              </button>
-              {selected.pieces.map((p) => {
-                const ps = stats.byPiece[p.id]
-                return (
-                  <button key={p.id} type="button" role="tab" aria-selected={piece?.id === p.id} className={piece?.id === p.id ? 'on' : ''} onClick={(e) => { choosePiece(p.id); e.currentTarget.scrollIntoView({ inline: 'nearest', block: 'nearest' }) }}>
-                    {labels[p.id]?.village && <span className="chip-village">{labels[p.id].village}</span>}
-                    {labels[p.id]?.street ?? p.name}
-                    <span className="chip-pct">{formatPercent(ps?.progress ?? 0)}</span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-          {piece && (
-            <div className="small muted ellipsis">
-              {labels[piece.id]?.full} · {stats.byPiece[piece.id]?.done}/{stats.byPiece[piece.id]?.total} faites · {formatEuro(stats.byPiece[piece.id]?.amount ?? 0)}
-            </div>
-          )}
-          <div className="tour-actions">
-            <button type="button" className="btn-primary" onClick={() => setEditId(selected.id)}>✏️ Modifier les rues</button>
-            <button type="button" onClick={() => setTeamId(selected.id)}>👥 Équipe et accès</button>
-            <Link to={`/admin/tournees/${selected.id}`} className="btn" title="Ordre des rues, logements, fiche complète">📋 Fiche</Link>
-            <button type="button" className="danger" onClick={remove} aria-label="Supprimer la tournée">🗑️ Supprimer</button>
-          </div>
+          <Link to={`/admin/tournees/${selected.id}`} className="btn btn-primary btn-big">⚙️ Modifier les infos de la tournée</Link>
         </div>
       )}
 
@@ -286,14 +284,6 @@ export default function ToursMapPage() {
         </Sheet>
       )}
 
-      {team && (
-        <Sheet title={`Tournée ${team.number}`} subtitle="Équipe et accès du binôme" onClose={() => setTeamId(null)}>
-          <div className="stack">
-            <Identity key={`${team.id}-${team.number}-${team.name}-${team.color}`} tour={team} />
-            <Access tour={team} />
-          </div>
-        </Sheet>
-      )}
 
       {editing && <TourMapEditor tour={editing} onClose={() => setEditId(null)} />}
     </div>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { bounds, lineLength, pointAt, unflatten } from '../../lib/geo'
 import { tourStats } from '../../lib/stats'
+import { IconGps } from '../ui/Icons'
 import { dwellingKey } from '../../services/state'
 import { addStatusIcons } from './icons'
 import { setGeoJSON, toggle3D, useMapLibre } from './useMapLibre'
@@ -249,7 +250,7 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
             <button type="button" className={is3D ? '' : 'on'} aria-pressed={!is3D} onClick={() => is3D && toggle3D(map)}>2D</button>
             <button type="button" className={is3D ? 'on' : ''} aria-pressed={is3D} onClick={() => !is3D && toggle3D(map)}>3D</button>
           </div>
-          {showMe && <button type="button" className={me ? 'me-on' : ''} onClick={goToMe} aria-label="Me localiser">📍 Moi</button>}
+          {showMe && <button type="button" className={me ? 'me-on' : ''} onClick={goToMe} aria-label="Afficher ma position"><IconGps width={18} height={18} />Ma position</button>}
           {expandable && (
             <button type="button" onClick={() => setFull((f) => !f)} aria-label={full ? 'Quitter le plein écran' : 'Plein écran'}>{full ? '✕ Réduire' : '⛶ Plein écran'}</button>
           )}
