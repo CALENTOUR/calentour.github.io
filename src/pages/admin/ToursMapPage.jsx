@@ -26,6 +26,8 @@ export default function ToursMapPage() {
   const toast = useToast()
   const [selectedId, setSelectedId] = useState(null)
   const [placeSel, setPlaceSel] = useState(null)
+  // Village choisi dans le bandeau du haut : gros zoom et contour bleu.
+  const [villageSel, setVillageSel] = useState(null)
   const [editId, setEditId] = useState(null)
   // Tournées masquées (toutes visibles au départ, les nouvelles aussi).
   const [hidden, setHidden] = useState(() => new Set())
@@ -103,6 +105,7 @@ export default function ToursMapPage() {
   const stats = useMemo(() => (selected ? tourStats(selected, statesById[selected.id]) : null), [selected, statesById])
   const perTour = useMemo(() => Object.fromEntries(tours.map((t) => [t.id, tourStats(t, statesById[t.id])])), [tours, statesById])
   const villages = useMemo(() => villagesOf(shown), [shown])
+  const village = (!selected && villages.find((v) => v.name === villageSel)) || null
   // Secteurs de la tournée choisie : ses rues regroupées par endroit, chacun nommé
   // d'après son ou ses villages.
   const areasById = useMemo(() => Object.fromEntries(tours.map((t) => [t.id, tourAreas(t)])), [tours])
@@ -154,12 +157,21 @@ export default function ToursMapPage() {
   }
   // Après un changement d'affichage, on attend que le panneau soit en place pour le mesurer.
   const fitLater = (points, maxZoom) => setTimeout(() => { if (map) fitPoints(map, points, { padding: padding(), maxZoom }) }, 60)
-  const fitBox = (b, maxZoom) => b && fitLater([b[0], [b[1][0], b[0][1]], b[1], [b[0][0], b[1][1]]], maxZoom)
   const fitTo = (list) => list.length && fitLater(tourPoints(list), 17.5)
   // Choix d'une tournée : on oublie le secteur choisi dans la précédente.
   const pick = (id) => {
     setSelectedId(id)
     setPlaceSel(null)
+    setVillageSel(null)
+  }
+  const chooseVillage = (v) => {
+    if (villageSel === v.name) {
+      setVillageSel(null)
+      fitTo(shown)
+      return
+    }
+    setVillageSel(v.name)
+    fitLater(v.outline?.coordinates[0] ?? v.points, 18)
   }
   const choosePlace = (p) => {
     if (!p) {
@@ -218,7 +230,7 @@ export default function ToursMapPage() {
     <div className={`fullmap tours-map${panelOpen ? ' panel-open' : ''}${full ? ' is-full' : ''}${selected ? ' has-float' : ''}`}>
       <TourMap
         tours={shown} statesById={statesById} focusTourId={selected?.id ?? null} autoFit={false}
-        showHouses={showHouses} showProgress={showProgress} showLabels areas={mapAreas}
+        showHouses={showHouses} showProgress={showProgress} showLabels areas={mapAreas} outline={village?.outline ?? null}
         fitPadding={{ top: 80, bottom: 60, left: 30, right: 60 }}
         onMapClick={onMapClick}
         onHouseClick={(p) => { if (p.tourId !== selectedId) pick(p.tourId) }}
@@ -290,7 +302,7 @@ export default function ToursMapPage() {
         ) : !selected && villages.length > 1 && (
           <div className="village-chips" aria-label="Aller à un village">
             {villages.map((v) => (
-              <button key={v.name} type="button" onClick={() => fitBox(v.bounds, 16.5)}>{v.name}</button>
+              <button key={v.name} type="button" className={village?.name === v.name ? 'on' : ''} aria-pressed={village?.name === v.name} onClick={() => chooseVillage(v)}>{v.name}</button>
             ))}
           </div>
         )}
