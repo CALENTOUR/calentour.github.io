@@ -12,7 +12,7 @@ import { sortHouses } from '../../lib/stats'
 import { findHouses, mergeSameName } from '../../lib/tourBuilder'
 import { removeTour, saveTour } from '../../services/tours'
 import TourMapEditor from './TourMapEditor'
-import { authErrorMessage, createAccount, generatePassword, updateUser } from '../../services/users'
+import { authErrorMessage, createAccount, generatePassword, normalizeLogin, updateUser } from '../../services/users'
 
 export function Identity({ tour }) {
   const toast = useToast()
@@ -37,16 +37,25 @@ export function Access({ tour }) {
   const accounts = users.filter((u) => u.tourId === tour.id)
   const active = accounts.find((u) => u.active)
 
-  const create = async () => {
-    setBusy(true)
+  const [form, setForm] = useState({ login: '', password: '' })
+
+  const create = async (e) => {
+    e.preventDefault()
     const taken = new Set(users.map((u) => u.login))
-    let login = `tournee${tour.number}`
-    for (let i = 2; taken.has(login); i++) login = `tournee${tour.number}-${i}`
-    const password = generatePassword()
+    let login = normalizeLogin(form.login)
+    if (login && taken.has(login)) return toast('Cet identifiant est déjà pris.')
+    if (!login) {
+      login = `tournee${tour.number}`
+      for (let i = 2; taken.has(login); i++) login = `tournee${tour.number}-${i}`
+    }
+    if (form.password && form.password.length < 6) return toast('Mot de passe trop court (6 caractères minimum).')
+    const password = form.password || generatePassword()
+    setBusy(true)
     try {
       if (active) await updateUser(active.id, { active: false })
       await createAccount({ login, password, name: tour.name, role: 'member', tourId: tour.id })
       setCreated({ login, password })
+      setForm({ login: '', password: '' })
     } catch (err) {
       toast(authErrorMessage(err))
     } finally {
@@ -59,10 +68,14 @@ export function Access({ tour }) {
       <h2>Accès du binôme</h2>
       {created ? <AccessCard amicale={settings?.amicale} tour={tour} {...created} />
         : active ? <AccessCard amicale={settings?.amicale} tour={tour} login={active.login} />
-          : <p className="muted small">Pas encore d’accès. Un clic crée l’identifiant et le mot de passe à donner au binôme.</p>}
-      <button type="button" className={active || created ? 'btn-ghost' : 'btn-primary'} disabled={busy} onClick={create}>
-        {busy ? 'Création…' : active || created ? '🔄 Nouveau mot de passe (remplace l’accès)' : '🔑 Créer l’accès'}
-      </button>
+          : <p className="muted small">Pas encore d’accès. Choisis un identifiant et un mot de passe, ou laisse vide pour qu’ils soient créés automatiquement.</p>}
+      <form className="stack" onSubmit={create}>
+        <input value={form.login} onChange={(e) => setForm({ ...form, login: e.target.value })} placeholder={`Identifiant (vide = tournee${tour.number})`} autoComplete="off" />
+        <input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Mot de passe (vide = généré, 6 caractères min.)" autoComplete="new-password" />
+        <button type="submit" className={active || created ? 'btn-ghost' : 'btn-primary'} disabled={busy}>
+          {busy ? 'Création…' : active || created ? '🔄 Remplacer l’accès' : '🔑 Créer l’accès'}
+        </button>
+      </form>
     </div>
   )
 }
