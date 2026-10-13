@@ -4,18 +4,19 @@ import TourMap, { piecesGeoJSON } from '../../components/map/TourMap'
 import { pickStreet, touchTolerance } from '../../components/map/streetPicker'
 import { roadGraph, snapToRoads } from '../../components/map/snapToRoads'
 import { setGeoJSON } from '../../components/map/useMapLibre'
+import AddHouseSheet from '../../components/AddHouseSheet'
 import { useToast } from '../../components/ui/Toast'
 import { useData } from '../../context/DataContext'
 import { newId } from '../../lib/format'
 import { chainLines, distance, flatten, lineLength, projectOnLine, samplePoints, sliceLine, unflatten } from '../../lib/geo'
-import { addFoundHouses, locateOnPieces, searchHouses } from '../../lib/tourBuilder'
+import { addFoundHouses, searchHouses } from '../../lib/tourBuilder'
 import { saveTour } from '../../services/tours'
 
 const MODES = [
-  { key: 'street', icon: '➕', label: 'Rue', help: 'Touche une rue : elle s’allume en orange, puis choisis « Toute la rue » ou « Ce tronçon ». Pour allonger ou raccourcir, fais glisser un rond blanc, ou touche-le puis touche l’endroit voulu.' },
-  { key: 'draw', icon: '✏️', label: 'Tracer', help: 'Touche le point de départ, puis le point d’arrivée : le tracé suit la route tout seul.' },
-  { key: 'house', icon: '🏠', label: 'Maison', help: 'Touche l’endroit d’une maison qui manque.' },
-  { key: 'eraser', icon: '🧽', label: 'Gomme' },
+  { key: 'street', icon: '➕', label: 'Ajouter une rue entière', desc: 'Toucher une rue de la carte', help: 'Touche une rue : elle s’allume en orange, puis choisis « Toute la rue » ou « Ce tronçon ». Pour allonger ou raccourcir, fais glisser un rond blanc, ou touche-le puis touche l’endroit voulu.' },
+  { key: 'draw', icon: '✏️', label: 'Tracer un bout de rue', desc: 'Départ puis arrivée', help: 'Touche le point de départ, puis le point d’arrivée : le tracé suit la route tout seul.' },
+  { key: 'house', icon: '🏠', label: 'Maison non répertoriée', desc: 'Ajouter une maison oubliée', help: 'Touche l’endroit d’une maison qui manque : son adresse est proposée, tu peux la corriger.' },
+  { key: 'eraser', icon: '🧽', label: 'Gomme', desc: 'Effacer un bout ou une rue' },
 ]
 const ERASERS = [
   { key: 'brush', label: 'Effacer un bout', help: 'Appuie sur une rue et glisse le doigt (ou la souris) le long du bout à effacer.' },
@@ -126,6 +127,7 @@ export default function TourMapEditor({ tour, onClose }) {
   const toast = useToast()
   const { tours: allTours, statesById } = useData()
   const [mode, setMode] = useState('street')
+  const [newPoint, setNewPoint] = useState(null)
   const [eraser, setEraser] = useState('brush')
   const [preview, setPreview] = useState(null)
   const [drawStart, setDrawStart] = useState(null)
@@ -430,11 +432,7 @@ export default function TourMapEditor({ tour, onClose }) {
       if (path.length > 1 && lineLength(path) > 5) addLines(null, [{ coords: path, ref: path }])
     } else if (mode === 'house') {
       if (!tour.pieces.length) return toast('Ajoute d’abord une rue.')
-      const label = window.prompt('Adresse de la maison (ex. 12 rue de la Gare) :')
-      if (!label?.trim()) return
-      const loc = locateOnPieces(e.lngLat.lng, e.lngLat.lat, tour.pieces)
-      const house = { id: newId().slice(0, 12), label: label.trim(), number: label.trim().split(' ')[0], lng: e.lngLat.lng, lat: e.lngLat.lat, pieceId: loc.pieceId, along: loc.along }
-      update({ houses: [...tour.houses, house] })
+      setNewPoint(e.lngLat)
     } else if (mode === 'eraser' && eraser === 'delete') {
       const best = nearestLine(m, e.lngLat)
       if (!best) return toast('Touche une rue de la tournée.')
@@ -519,11 +517,13 @@ export default function TourMapEditor({ tour, onClose }) {
         <div className="editor-modes">
           {MODES.map((m) => (
             <button key={m.key} type="button" className={mode === m.key ? 'on' : ''} onClick={() => chooseMode(m.key)}>
-              <span>{m.icon}</span>{m.label}
+              <span className="mode-icon" aria-hidden="true">{m.icon}</span>
+              <span className="mode-text"><strong>{m.label}</strong><small>{m.desc}</small></span>
             </button>
           ))}
         </div>
       </div>
+      {newPoint && <AddHouseSheet tour={tour} point={newPoint} onAdd={(house) => update({ houses: [...tourRef.current.houses, house] })} onClose={() => setNewPoint(null)} />}
     </div>,
     document.body,
   )

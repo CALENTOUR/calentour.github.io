@@ -1,5 +1,6 @@
 import NoTour from '../../components/NoTour'
 import PrepareOffline from '../../components/PrepareOffline'
+import CollectedCard from '../../components/ui/CollectedCard'
 import ProgressRing from '../../components/ui/ProgressRing'
 import StatTile from '../../components/ui/StatTile'
 import StatusBar from '../../components/ui/StatusBar'
@@ -33,20 +34,14 @@ export default function MyStatsPage() {
           <div className="hero-kicker">Tournée n°{tour.number} <span className="live live-light">● en direct</span></div>
           <h1>{tour.name}</h1>
           <p>{cheer(s.progress)}</p>
-          <div className="hero-amount">{formatEuro(s.amount)}</div>
-          <div className="hero-amount-label">collectés</div>
         </div>
-        <ProgressRing value={s.progress} color="#ffffff" size={128}>
+        <ProgressRing value={s.progress} color="var(--green)" size={128}>
           <strong>{formatPercent(s.progress)}</strong>
           <span>{s.done}/{s.total} faites</span>
         </ProgressRing>
       </section>
+      <CollectedCard stats={s} />
       <div className="tiles">
-        <StatTile icon="💰" label="Collecté" value={formatEuro(s.amount)} tone="brand" />
-        <StatTile icon="💶" label="Espèces" value={formatEuro(s.byMode.cash)} />
-        <StatTile icon="🧾" label="Chèques" value={formatEuro(s.byMode.cheque)} sub={`${s.chequeCount} chèque${s.chequeCount > 1 ? 's' : ''}`} />
-        <StatTile icon="⭐" label="Don moyen" value={formatEuro(s.average)} />
-        <StatTile icon="✅" label="Maisons faites" value={formatPercent(s.progress)} sub={`${s.done} sur ${s.total}`} />
         <StatTile icon="🤝" label="Ont donné" value={formatPercent(s.giveRate)} sub="des maisons visitées" tone="green" />
         <StatTile icon="🔁" label="À repasser" value={s.counts.again} tone="orange" />
         <StatTile icon="📍" label="Par maison visitée" value={formatEuro(s.perVisit)} />

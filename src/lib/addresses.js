@@ -90,3 +90,10 @@ export async function fetchHousesAlongPieces(pieces, onProgress) {
   }
   return { houses, pieceNames }
 }
+
+// Adresse la plus proche d'un point touché sur la carte (pour pré-remplir une maison ajoutée à la main).
+export async function nearestAddress(lng, lat) {
+  const features = await reverse(lng, lat)
+  const f = features.find((x) => x.properties?.housenumber) ?? features[0]
+  return f ? [f.properties.housenumber, f.properties.street ?? f.properties.name].filter(Boolean).join(' ') : ''
+}

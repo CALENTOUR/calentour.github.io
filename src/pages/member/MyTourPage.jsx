@@ -1,19 +1,24 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import NoTour from '../../components/NoTour'
 import StreetArt from '../../components/ui/StreetArt'
+import ViewSwitch, { preferredView } from '../../components/ViewSwitch'
 import { useTourContext } from '../../hooks/useTourContext'
 import { formatEuro } from '../../lib/format'
 import { tourStats } from '../../lib/stats'
 
 // « Ma tournée » : un bouton par rue avec le nombre de maisons restantes ;
-// toucher une rue ouvre sa carte en plein écran.
+// toucher une rue ouvre sa carte en plein écran. En haut, bascule vers la carte
+// de toute la tournée (la dernière vue choisie est retenue).
 export default function MyTourPage() {
   const { tour, state, base } = useTourContext()
+  const location = useLocation()
   if (!tour) return <NoTour />
+  if (!location.state?.chosen && preferredView() === 'carte') return <Navigate to={`${base}/tout`} replace />
   const s = tourStats(tour, state)
 
   return (
     <div className="page stack">
+      <ViewSwitch base={base} view="rues" />
       <div className="tour-head" style={{ '--tour': tour.color }}>
         <div className="tour-head-row">
           <div className="spacer">

@@ -14,6 +14,7 @@ const MEMBER_NAV = [
 const ADMIN_NAV = [
   { to: '/admin', icon: '📈', label: 'Tableau de bord', end: true },
   { to: '/admin/carte', icon: '🗺️', label: 'Carte' },
+  { to: '/admin/tournees', icon: '🚒', label: 'Gestion des tournées', short: 'Tournées' },
   { to: '/admin/dons', icon: '💶', label: 'Dons' },
   { to: '/admin/reglages', icon: '⚙️', label: 'Réglages' },
 ]
@@ -50,7 +51,7 @@ export default function Layout() {
       </main>
       <nav className="tabbar">
         {nav.map((n) => (
-          <NavLink key={n.to} to={n.to} end={n.end} className="tab"><span className="tab-icon">{n.icon}</span><span>{n.label}</span></NavLink>
+          <NavLink key={n.to} to={n.to} end={n.end} className="tab"><span className="tab-icon">{n.icon}</span><span className="tab-label">{n.short ?? n.label}</span></NavLink>
         ))}
       </nav>
     </div>
