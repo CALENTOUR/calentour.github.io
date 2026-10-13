@@ -1,5 +1,5 @@
 import { serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore'
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth'
+import { EmailAuthProvider, createUserWithEmailAndPassword, reauthenticateWithCredential, signInWithEmailAndPassword, signOut, updatePassword } from 'firebase/auth'
 import { auth, db, secondaryAuth } from '../lib/firebase'
 import { LOGIN_DOMAIN } from '../config/constants'
 import { settingsRef, userRef } from './paths'
@@ -12,6 +12,13 @@ export const loginToEmail = (login) => {
 
 export function login(identifier, password) {
   return signInWithEmailAndPassword(auth, loginToEmail(identifier), password)
+}
+
+// Changement de son propre mot de passe (l'ancien est redemandé par sécurité).
+export async function changeMyPassword(current, next) {
+  const user = auth.currentUser
+  await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, current))
+  await updatePassword(user, next)
 }
 
 export function logout() {
@@ -59,6 +66,7 @@ export function authErrorMessage(error) {
   const code = error?.code ?? error?.message
   const messages = {
     'auth/invalid-credential': 'Identifiant ou mot de passe incorrect.',
+    'auth/wrong-password': 'Mot de passe actuel incorrect.',
     'auth/invalid-email': 'Identifiant invalide (lettres, chiffres, points et tirets uniquement).',
     'auth/user-disabled': 'Ce compte est désactivé.',
     'auth/email-already-in-use': 'Cet identifiant est déjà pris.',

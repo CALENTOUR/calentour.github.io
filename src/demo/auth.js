@@ -67,6 +67,20 @@ export async function createUserWithEmailAndPassword(auth, email, password) {
   return { user }
 }
 
+export const EmailAuthProvider = { credential: (email, password) => ({ email, password }) }
+
+export async function reauthenticateWithCredential(user, cred) {
+  const account = readDoc(accountPath(cred.email))
+  if (!account || account.password !== cred.password) throw authError('auth/invalid-credential')
+  return { user }
+}
+
+export async function updatePassword(user, password) {
+  if (!password || password.length < 6) throw authError('auth/weak-password')
+  const account = readDoc(accountPath(user.email))
+  write([{ type: 'set', path: accountPath(user.email), data: { ...account, password } }])
+}
+
 export async function signOut(auth) {
   if (auth.main) setUser(null)
   else auth.currentUser = null

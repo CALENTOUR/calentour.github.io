@@ -6,7 +6,7 @@ import { exportTours } from '../../lib/exports'
 import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
 import { settingsRef } from '../../services/paths'
-import { authErrorMessage, createAccount, generatePassword, updateUser } from '../../services/users'
+import { authErrorMessage, changeMyPassword, createAccount, generatePassword, updateUser } from '../../services/users'
 
 export default function SettingsPage() {
   const { settings, users, toursById, tours } = useData()
@@ -15,6 +15,18 @@ export default function SettingsPage() {
   const [amicale, setAmicale] = useState(settings?.amicale ?? '')
   const [admin, setAdmin] = useState({ name: '', login: '' })
   const [created, setCreated] = useState(null)
+  const [pwd, setPwd] = useState({ current: '', next: '' })
+
+  const changePassword = async (e) => {
+    e.preventDefault()
+    try {
+      await changeMyPassword(pwd.current, pwd.next)
+      setPwd({ current: '', next: '' })
+      toast('Mot de passe changé')
+    } catch (err) {
+      toast(authErrorMessage(err))
+    }
+  }
 
   const save = (data, message) => setDoc(settingsRef(), data, { merge: true })
     .then(() => toast(message))
@@ -49,6 +61,16 @@ export default function SettingsPage() {
       <form className="card stack" onSubmit={(e) => { e.preventDefault(); save({ amicale: amicale.trim() }, 'Nom enregistré') }}>
         <h2>Amicale</h2>
         <div className="row"><input value={amicale} onChange={(e) => setAmicale(e.target.value)} placeholder="Amicale des sapeurs-pompiers de …" /><button type="submit">Enregistrer</button></div>
+      </form>
+
+      <form className="card stack" onSubmit={changePassword}>
+        <h2>Mon mot de passe</h2>
+        <p className="small muted">Identifiant : <code>{profile?.login}</code></p>
+        <div className="row wrap">
+          <input type="password" autoComplete="current-password" required value={pwd.current} onChange={(e) => setPwd({ ...pwd, current: e.target.value })} placeholder="Mot de passe actuel" />
+          <input type="password" autoComplete="new-password" required minLength={6} value={pwd.next} onChange={(e) => setPwd({ ...pwd, next: e.target.value })} placeholder="Nouveau (6 caractères min.)" />
+          <button type="submit">Changer</button>
+        </div>
       </form>
 
       <div className="card stack">
