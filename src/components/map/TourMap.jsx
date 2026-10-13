@@ -109,12 +109,12 @@ function ensureLayers(map) {
   map.addLayer({
     id: 'pieces-casing', type: 'line', source: 'pieces',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': '#ffffff', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 4, 17, 14], 'line-opacity': ['case', ['==', ['get', 'focus'], 1], 0.9, 0.3] },
+    paint: { 'line-color': '#ffffff', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 4, 17, 14], 'line-opacity': ['case', ['==', ['get', 'focus'], 1], 0.9, 0.6] },
   })
   map.addLayer({
     id: 'pieces', type: 'line', source: 'pieces',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 3, 14, 5, 17, 9], 'line-opacity': ['case', ['==', ['get', 'focus'], 1], 0.95, 0.25] },
+    paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 3, 14, 5, 17, 9], 'line-opacity': ['case', ['==', ['get', 'focus'], 1], 0.95, 0.6] },
   })
   map.addLayer({
     id: 'houses', type: 'symbol', source: 'houses',
@@ -133,7 +133,7 @@ function ensureLayers(map) {
       'text-optional': true,
     },
     paint: {
-      'icon-opacity': ['case', ['==', ['get', 'focus'], 1], 1, 0.3],
+      'icon-opacity': ['case', ['==', ['get', 'focus'], 1], 1, 0.6],
       'text-color': '#1f2a24',
       'text-halo-color': '#ffffff',
       'text-halo-width': 1.6,
@@ -237,7 +237,7 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
       const key = [...lit].sort().join(',')
       if (key !== litSig.current.lit) {
         litSig.current.lit = key
-        map.setPaintProperty('houses', 'icon-opacity', ['case', ['in', ['get', 'houseId'], ['literal', [...lit]]], 0, ['==', ['get', 'focus'], 1], 1, 0.3])
+        map.setPaintProperty('houses', 'icon-opacity', ['case', ['in', ['get', 'houseId'], ['literal', [...lit]]], 0, ['==', ['get', 'focus'], 1], 1, 0.6])
       }
     }
     let timer = 0

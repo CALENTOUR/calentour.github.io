@@ -1000,3 +1000,10 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 /* Villages du haut de la carte : sur plusieurs lignes au lieu d'être coupés. */
 .tours-map-top .village-chips:not(.tour-places) { flex-wrap: wrap; overflow-x: hidden; overflow-y: auto; max-height: 76px; scrollbar-width: thin; }
 @media (min-width: 900px) { .tours-map-top .village-chips:not(.tour-places) { max-height: 116px; } }
+
+.install-help{margin-top:16px;padding:12px 14px;border:2px solid #b3261e;background:#fbeae8;color:#7a1a14;border-radius:10px;text-align:left;font-size:.9rem}
+.install-help strong{display:block;margin-bottom:6px;color:#b3261e}
+.install-help p{margin:4px 0}
+.house-legend-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.legend-close{background:none;border:0;color:#b3261e;font-size:1.1rem;font-weight:700;padding:0 4px;cursor:pointer;line-height:1}
+.tour-name-wrap{white-space:normal;overflow-wrap:anywhere;line-height:1.2}

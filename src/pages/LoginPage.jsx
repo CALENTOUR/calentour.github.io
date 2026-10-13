@@ -49,6 +49,12 @@ export default function LoginPage() {
           <button type="submit" className="btn-primary btn-big" disabled={busy}>{busy ? 'Connexion…' : 'Se connecter'}</button>
         </form>
         <p className="small muted">Identifiant oublié ? Demande à un administrateur de l’amicale.</p>
+        <div className="install-help">
+          <strong>Mettre CalenTour sur l’écran d’accueil</strong>
+          <p><b>iPhone (Safari)</b> : touche le bouton Partager (carré avec une flèche vers le haut), puis « Sur l’écran d’accueil », puis « Ajouter ».</p>
+          <p><b>Android (Chrome)</b> : touche les 3 points en haut à droite, puis « Ajouter à l’écran d’accueil » (ou « Installer l’application »), puis « Ajouter ».</p>
+          <p>Ensuite, ouvre CalenTour depuis la nouvelle icône, comme une application.</p>
+        </div>
       </div>
     </div>
   )
