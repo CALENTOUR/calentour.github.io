@@ -18,8 +18,8 @@ export default function DashboardPage() {
       <div className="page"><div className="card empty">
         <div className="empty-icon">🚒</div>
         <h2>Bienvenue sur CalenTour</h2>
-        <p className="muted">Commence par créer les tournées dans l’onglet Gestion des tournées.</p>
-        <Link className="btn btn-primary" to="/admin/tournees">Créer les tournées</Link>
+        <p className="muted">Commence par créer les tournées dans l’onglet Tournées.</p>
+        <Link className="btn btn-primary" to="/admin/carte">Créer les tournées</Link>
       </div></div>
     )
   }

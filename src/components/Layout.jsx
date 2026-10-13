@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import OfflineBanner from './OfflineBanner'
-import { APP_NAME } from '../config/constants'
+import Logo from './ui/Logo'
 import { useAuth } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { IS_DEMO } from '../demo/demoInfo'
@@ -13,8 +13,7 @@ const MEMBER_NAV = [
 ]
 const ADMIN_NAV = [
   { to: '/admin', icon: '📈', label: 'Tableau de bord', end: true },
-  { to: '/admin/carte', icon: '🗺️', label: 'Carte' },
-  { to: '/admin/tournees', icon: '🚒', label: 'Gestion des tournées', short: 'Tournées' },
+  { to: '/admin/carte', icon: '🗺️', label: 'Carte des tournées', short: 'Tournées' },
   { to: '/admin/dons', icon: '💶', label: 'Dons' },
   { to: '/admin/reglages', icon: '⚙️', label: 'Réglages' },
 ]
@@ -30,7 +29,7 @@ export default function Layout() {
   return (
     <div className={`shell ${isAdmin ? 'shell-admin' : 'shell-member'}${fullMap ? ' shell-fullmap' : ''}`}>
       <header className="topbar">
-        <div className="brand"><span className="brand-mark" aria-hidden="true">🚒</span><strong>{APP_NAME}</strong> <span className="brand-year">{year}</span></div>
+        <div className="brand"><Logo size={30} className="brand-mark" /><strong className="wordmark">Calen<span>Tour</span></strong> <span className="brand-year">{year}</span></div>
         <div className="topbar-right">
           {IS_DEMO && <button type="button" className="btn-sm btn-ghost" onClick={resetDemo} title="Réinitialiser la démo">↺ <span className="hide-mobile">Réinitialiser la démo</span></button>}
           <span className="who small hide-mobile">{profile?.name}</span>

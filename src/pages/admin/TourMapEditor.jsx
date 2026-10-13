@@ -220,7 +220,7 @@ export default function TourMapEditor({ tour, onClose }) {
     setGeoJSON(map, 'preview', lineFeatures(preview ? preview.lines : []))
   }, [map, preview])
 
-  const showHandles = mode === 'street' || mode === 'house' || (mode === 'eraser' && eraser === 'delete')
+  const showHandles = mode === 'street' || (mode === 'eraser' && eraser === 'delete')
   useEffect(() => {
     if (!map) return
     ensureEditorLayers(map)

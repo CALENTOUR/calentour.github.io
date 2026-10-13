@@ -1,24 +1,24 @@
-import { Link, Navigate, useLocation } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import NoTour from '../../components/NoTour'
 import StreetArt from '../../components/ui/StreetArt'
-import ViewSwitch, { preferredView } from '../../components/ViewSwitch'
+import ViewSwitch from '../../components/ViewSwitch'
 import { useTourContext } from '../../hooks/useTourContext'
 import { formatEuro } from '../../lib/format'
+import { pieceLabels } from '../../lib/places'
 import { tourStats } from '../../lib/stats'
 
 // « Ma tournée » : un bouton par rue avec le nombre de maisons restantes ;
 // toucher une rue ouvre sa carte en plein écran. En haut, bascule vers la carte
-// de toute la tournée (la dernière vue choisie est retenue).
+// de toute la tournée.
 export default function MyTourPage() {
   const { tour, state, base } = useTourContext()
-  const location = useLocation()
   if (!tour) return <NoTour />
-  if (!location.state?.chosen && preferredView() === 'carte') return <Navigate to={`${base}/tout`} replace />
   const s = tourStats(tour, state)
+  const labels = pieceLabels(tour)
 
   return (
     <div className="page stack">
-      <ViewSwitch base={base} view="rues" />
+      <ViewSwitch base={base} />
       <div className="tour-head" style={{ '--tour': tour.color }}>
         <div className="tour-head-row">
           <div className="spacer">
@@ -43,7 +43,8 @@ export default function MyTourPage() {
                 {done ? <span className="sector-trophy">🏆</span> : <><strong>{ps.counts.todo}</strong><span>à faire</span></>}
               </div>
               <div className="spacer">
-                <strong className="sector-name">{p.name}</strong>
+                {labels[p.id].village && <span className="sector-village">{labels[p.id].village}</span>}
+                <strong className="sector-name">{labels[p.id].street}</strong>
                 <div className="sector-bar"><i style={{ width: `${Math.round(ps.progress * 100)}%` }} /></div>
                 <div className="small muted">
                   {ps.done}/{ps.total} faites{ps.counts.again ? ` · ${ps.counts.again} à repasser` : ''}{ps.amount ? ` · ${formatEuro(ps.amount)}` : ''}

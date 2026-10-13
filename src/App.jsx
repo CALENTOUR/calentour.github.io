@@ -12,10 +12,10 @@ import PiecePage from './pages/member/PiecePage'
 import MyStatsPage from './pages/member/MyStatsPage'
 import DashboardPage from './pages/admin/DashboardPage'
 import ToursMapPage from './pages/admin/ToursMapPage'
-import ToursListPage from './pages/admin/ToursListPage'
 import TourEditPage from './pages/admin/TourEditPage'
 import DonsPage from './pages/admin/DonsPage'
 import SettingsPage from './pages/admin/SettingsPage'
+import Logo from './components/ui/Logo'
 
 function Screen({ children }) {
   return <div className="login-screen"><div className="login-card stack">{children}</div></div>
@@ -25,7 +25,7 @@ function Gate() {
   const { status, isAdmin } = useAuth()
   const { settings, loading } = useData()
 
-  if (status === 'loading' || settings === undefined) return <Screen><div className="logo-big spin">🚒</div><p className="muted">Chargement…</p></Screen>
+  if (status === 'loading' || settings === undefined) return <Screen><Logo size={72} className="logo-big pulse" /><p className="muted">Chargement…</p></Screen>
   if (status === 'signedOut') return settings === null ? <SetupPage /> : <LoginPage />
   if (status === 'noProfile' || status === 'inactive') {
     return (
@@ -36,7 +36,7 @@ function Gate() {
       </Screen>
     )
   }
-  if (loading) return <Screen><div className="logo-big spin">🚒</div><p className="muted">Chargement de la tournée…</p></Screen>
+  if (loading) return <Screen><Logo size={72} className="logo-big pulse" /><p className="muted">Chargement de la tournée…</p></Screen>
 
   return (
     <Routes>
@@ -52,7 +52,7 @@ function Gate() {
           <>
             <Route path="/admin" element={<DashboardPage />} />
             <Route path="/admin/carte" element={<ToursMapPage />} />
-            <Route path="/admin/tournees" element={<ToursListPage />} />
+            <Route path="/admin/tournees" element={<Navigate to="/admin/carte" replace />} />
             <Route path="/admin/tournees/:tourId" element={<TourEditPage />} />
             <Route path="/admin/tournees/:tourId/terrain" element={<MyTourPage />} />
             <Route path="/admin/tournees/:tourId/terrain/:pieceId" element={<PiecePage />} />
@@ -70,7 +70,7 @@ export default function App() {
   if (!isFirebaseConfigured) {
     return (
       <Screen>
-        <div className="logo-big">🚒</div>
+        <Logo size={72} className="logo-big" />
         <h2>Configuration Firebase manquante</h2>
         <p className="muted">Renseignez les clés Firebase (voir <code>docs/INSTALLATION.md</code>).</p>
         <a className="btn btn-primary" href={`${import.meta.env.BASE_URL}demo/`}>Voir la démonstration</a>

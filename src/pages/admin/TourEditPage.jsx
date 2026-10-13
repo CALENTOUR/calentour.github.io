@@ -11,7 +11,7 @@ import { removeTour, saveTour } from '../../services/tours'
 import TourMapEditor from './TourMapEditor'
 import { authErrorMessage, createAccount, generatePassword, updateUser } from '../../services/users'
 
-function Identity({ tour }) {
+export function Identity({ tour }) {
   const toast = useToast()
   const { tours } = useData()
   const save = async (values) => {
@@ -26,7 +26,7 @@ function Identity({ tour }) {
   )
 }
 
-function Access({ tour }) {
+export function Access({ tour }) {
   const { users, settings } = useData()
   const toast = useToast()
   const [created, setCreated] = useState(null)
@@ -76,7 +76,7 @@ export default function TourEditPage() {
   const [progress, setProgress] = useState(null)
   const tours = useMemo(() => (tour ? [tour] : []), [tour])
 
-  if (!tour) return <div className="page"><p className="muted">Tournée introuvable.</p><Link to="/admin/tournees">← Gestion des tournées</Link></div>
+  if (!tour) return <div className="page"><p className="muted">Tournée introuvable.</p><Link to="/admin/carte">← Tournées</Link></div>
 
   const update = (data) => saveTour(tourId, data).catch((err) => toast(`Erreur : ${err.message}`))
 
@@ -122,7 +122,7 @@ export default function TourEditPage() {
     if (!window.confirm(`Supprimer définitivement la tournée ${tour.number} (${tour.name}) ? Ses rues, ses maisons et ses dons seront supprimés, ses accès désactivés.`)) return
     await removeTour(tour, users)
     toast(`Tournée ${tour.number} supprimée`)
-    navigate('/admin/tournees')
+    navigate('/admin/carte')
   }
 
   const closeEditor = () => {
@@ -135,7 +135,7 @@ export default function TourEditPage() {
   return (
     <div className="page stack-lg">
       <div className="row">
-        <Link to="/admin/tournees" className="btn btn-ghost btn-sm" aria-label="Retour à la gestion des tournées">←</Link>
+        <Link to="/admin/carte" className="btn btn-ghost btn-sm" aria-label="Retour aux tournées">←</Link>
         <h1 className="spacer"><span className="swatch" style={{ background: tour.color }} />Tournée {tour.number} · {tour.name}</h1>
         <Link to={`/admin/tournees/${tour.id}/terrain`} className="btn btn-sm">📱 Vue terrain</Link>
       </div>

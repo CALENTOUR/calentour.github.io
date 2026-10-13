@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import TourMap, { tourBounds } from '../../components/map/TourMap'
 import TourForm from '../../components/TourForm'
 import Sheet from '../../components/ui/Sheet'
@@ -9,16 +9,20 @@ import { useData } from '../../context/DataContext'
 import { formatEuro, formatPercent } from '../../lib/format'
 import { globalStats, tourStats } from '../../lib/stats'
 import { findHouses } from '../../lib/tourBuilder'
-import { createTour, loadInitialTours, saveTour } from '../../services/tours'
+import { createTour, loadInitialTours, removeTour, saveTour } from '../../services/tours'
+import { Access, Identity } from './TourEditPage'
+import TourMapEditor from './TourMapEditor'
 
-// Carte de toutes les tournées, en plein écran, pour la vue d'ensemble. Le bandeau
-// de côté choisit les tournées affichées ; la modification se fait dans
-// « Gestion des tournées ». On peut quand même créer une tournée d'ici.
+// Onglet Tournées : la carte de toutes les tournées, avec ses calques. Le bandeau
+// de côté choisit les tournées affichées ; toucher une tournée donne tous ses
+// boutons (rues, équipe et accès, suppression). Le mode plein écran masque le
+// reste de l'application.
 export default function ToursMapPage() {
   const { tours, toursById, statesById, users, settings } = useData()
   const toast = useToast()
-  const navigate = useNavigate()
   const [selectedId, setSelectedId] = useState(null)
+  const [editId, setEditId] = useState(null)
+  const [teamId, setTeamId] = useState(null)
   // Tournées masquées (toutes visibles au départ, les nouvelles aussi).
   const [hidden, setHidden] = useState(() => new Set())
   const [panelOpen, setPanelOpen] = useState(() => window.matchMedia?.('(min-width: 900px)').matches ?? false)
@@ -40,7 +44,8 @@ export default function ToursMapPage() {
   const [searching, setSearching] = useState(null)
   const searched = useRef(new Set())
   useEffect(() => {
-    if (searching) return
+    // Pendant l'édition d'une tournée, c'est l'éditeur qui cherche ses maisons.
+    if (searching || editId) return
     const next = tours.find((t) => t.pieces.length && !t.houses.length && !searched.current.has(t.id))
     if (!next) return
     searched.current.add(next.id)
@@ -50,9 +55,36 @@ export default function ToursMapPage() {
       .then((res) => saveTour(next.id, { pieces: res.pieces, houses: res.houses }))
       .catch((err) => toast(`Tournée ${next.number} : maisons introuvables (${err.message})`))
       .finally(() => setSearching(null))
-  }, [tours, searching, toast])
+  }, [tours, searching, editId, toast])
   const [creating, setCreating] = useState(false)
   const [map, setMap] = useState(null)
+  const editing = toursById[editId] ?? null
+  const team = toursById[teamId] ?? null
+
+  // Plein écran : la carte prend tout l'écran (barre, menu et onglets masqués),
+  // et l'écran entier du navigateur quand il le permet.
+  const [full, setFull] = useState(false)
+  useEffect(() => {
+    document.body.classList.toggle('immersive', full)
+    return () => document.body.classList.remove('immersive')
+  }, [full])
+  useEffect(() => {
+    const onChange = () => { if (!document.fullscreenElement) setFull(false) }
+    document.addEventListener('fullscreenchange', onChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange)
+      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {})
+    }
+  }, [])
+  const toggleFull = () => {
+    if (full) {
+      setFull(false)
+      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {})
+    } else {
+      setFull(true)
+      document.documentElement.requestFullscreen?.().catch(() => {})
+    }
+  }
   const shown = useMemo(() => tours.filter((t) => !hidden.has(t.id)), [tours, hidden])
   const selected = (!hidden.has(selectedId) && toursById[selectedId]) || null
   const stats = useMemo(() => (selected ? tourStats(selected, statesById[selected.id]) : null), [selected, statesById])
@@ -88,12 +120,21 @@ export default function ToursMapPage() {
   const create = async (values) => {
     const id = await createTour(values)
     setCreating(false)
+    setHidden((h) => { const next = new Set(h); next.delete(id); return next })
+    setSelectedId(id)
+    setEditId(id)
     toast(`Tournée ${values.number} créée : ajoute ses rues`)
-    navigate(`/admin/tournees/${id}`, { state: { edit: true } })
+  }
+
+  const remove = async () => {
+    if (!window.confirm(`Supprimer définitivement la tournée ${selected.number} (${selected.name}) ? Ses rues, ses maisons et ses dons seront supprimés, ses accès désactivés.`)) return
+    await removeTour(selected, users)
+    toast(`Tournée ${selected.number} supprimée`)
+    setSelectedId(null)
   }
 
   return (
-    <div className={`fullmap tours-map${panelOpen ? ' panel-open' : ''}`}>
+    <div className={`fullmap tours-map${panelOpen ? ' panel-open' : ''}${full ? ' is-full' : ''}`}>
       <TourMap
         tours={shown} statesById={statesById} focusTourId={selected?.id ?? null}
         showHouses={showHouses} showProgress={showProgress} showLabels
@@ -134,8 +175,11 @@ export default function ToursMapPage() {
       </aside>
 
       <div className="tours-map-top">
+        <button type="button" className={`full-btn${full ? ' on' : ''}`} onClick={toggleFull} aria-pressed={full} aria-label={full ? 'Quitter le plein écran' : 'Plein écran'} title={full ? 'Quitter le plein écran' : 'Plein écran'}>
+          <span aria-hidden="true">{full ? '✕' : '⛶'}</span><span className="hide-mobile">{full ? 'Quitter le plein écran' : 'Plein écran'}</span>
+        </button>
         <button type="button" className={`layer-btn tours-panel-btn${panelOpen ? ' on' : ''}`} onClick={() => setPanelOpen((v) => !v)}>☰ Tournées <span className="chip-pct">{shown.length}/{tours.length}</span></button>
-        <button type="button" className="btn-primary" onClick={() => setCreating(true)}>＋ Nouvelle tournée</button>
+        <button type="button" className="btn-primary" onClick={() => setCreating(true)}>＋ <span className="hide-mobile">Nouvelle </span>tournée</button>
         <button type="button" className={`layer-btn${showHouses ? ' on' : ''}`} aria-pressed={showHouses} onClick={() => setShowHouses((v) => !v)}>
           <span className="check">{showHouses ? '✓' : ''}</span>Maisons
         </button>
@@ -143,6 +187,7 @@ export default function ToursMapPage() {
           <span className="check">{showProgress ? '✓' : ''}</span>Avancement
         </button>
       </div>
+
 
       {searching && <div className="map-note">Recherche des maisons · tournée {searching.number} ({searching.left} restante{searching.left > 1 ? 's' : ''})</div>}
 
@@ -158,7 +203,7 @@ export default function ToursMapPage() {
       )}
 
       {selected && (
-        <div className="map-panel">
+        <div className="map-panel tour-panel">
           <div className="map-panel-info">
             <strong className="ellipsis"><span className="swatch" style={{ background: selected.color }} />{selected.number}. {selected.name}</strong>
             <div className="map-panel-bar"><i style={{ width: `${Math.round(stats.progress * 100)}%` }} /></div>
@@ -167,7 +212,12 @@ export default function ToursMapPage() {
               {account ? ` · 🔑 ${account.login}` : ''}
             </div>
           </div>
-          <Link to={`/admin/tournees/${selected.id}`} className="btn btn-sm">Gérer ›</Link>
+          <div className="tour-actions">
+            <button type="button" className="btn-primary" onClick={() => setEditId(selected.id)}>✏️ Modifier les rues</button>
+            <button type="button" onClick={() => setTeamId(selected.id)}>👥 Équipe et accès</button>
+            <Link to={`/admin/tournees/${selected.id}`} className="btn" title="Ordre des rues, logements, fiche complète">📋 Fiche</Link>
+            <button type="button" className="danger" onClick={remove} aria-label="Supprimer la tournée">🗑️ Supprimer</button>
+          </div>
         </div>
       )}
 
@@ -181,6 +231,17 @@ export default function ToursMapPage() {
           />
         </Sheet>
       )}
+
+      {team && (
+        <Sheet title={`Tournée ${team.number}`} subtitle="Équipe et accès du binôme" onClose={() => setTeamId(null)}>
+          <div className="stack">
+            <Identity key={`${team.id}-${team.number}-${team.name}-${team.color}`} tour={team} />
+            <Access tour={team} />
+          </div>
+        </Sheet>
+      )}
+
+      {editing && <TourMapEditor tour={editing} onClose={() => setEditId(null)} />}
     </div>
   )
 }
