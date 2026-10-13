@@ -11,24 +11,24 @@ Fonctionne hors ligne, synchronise au retour du réseau.
 
 ## Fonctionnalités
 
-| Écran | Contenu |
-| --- | --- |
-| Carte 3D | OpenStreetMap vectoriel + bâtiments 3D, rotation, inclinaison, GPS, secteurs colorés avec % d'avancement, maisons colorées par statut, saisie d'un passage en un appui |
-| Adresses | Liste filtrable (secteur, statut, recherche), saisie des passages, ajout et correction des adresses |
-| Secteurs | Dessin des secteurs sur la carte, communes, affectation des membres, import automatique des adresses depuis OpenStreetMap |
-| Statistiques | Dons, calendriers, refus, repasses, don moyen, moyens de paiement, comparaison N / N-1, par secteur, par commune, classement des membres |
-| Campagnes | Une campagne par année, historique, campagne active |
-| Administration | Invitations, rôles (Administrateur / Membre), désactivation, communes |
-| Exports | Excel (adresses, secteurs, communes, membres) et PDF |
+| Pour qui | Écran | Contenu |
+| --- | --- | --- |
+| Binôme | Ma tournée | Progression, montant collecté, une carte par rue de la tournée |
+| Binôme | Rue | Carte 3D de la rue, maisons colorées par statut, saisie en 2 appuis, maison suivante, itinéraire |
+| Binôme | Mes stats | Collecté, espèces, chèques, don moyen, % fait, à repasser, en direct |
+| Admin | Tableau de bord | Totaux, taux de don, refus, repasses, dons par jour, classement des tournées, carte |
+| Admin | Tournées | Import de la carte Google (KML), maisons officielles, ajout d'une rue d'un clic, immeubles, accès des binômes |
+| Admin | Dons | Tous les passages, filtres, correction, export comptable Excel |
+| Admin | Réglages | Campagne de l'année, classement visible ou non par les binômes, administrateurs |
 
-Statuts : ⚪ À faire, 🟢 Don réalisé, 🟠 Absent / Repasse, 🔴 Refus, ⚫ Vacant / Ruine / Tertiaire.
-Aucun nom d'habitant n'est stocké : adresse, position GPS et commentaire uniquement.
+Statuts : 🏠 À faire, 💶 A donné, 🔁 À repasser (absent ou « repassez »), ✋ Refus, 🚫 Habitation vide.
+Aucun nom d'habitant n'est stocké.
 
 ## Stack
 
-React 19, Vite 7, Firebase Authentication (email + mot de passe), Firestore avec cache persistant hors ligne,
+React 19, Vite 7, Firebase Authentication (identifiant + mot de passe créés par l'administrateur), Firestore avec cache persistant hors ligne,
 MapLibre GL 5 avec le fond OpenStreetMap gratuit d'[OpenFreeMap](https://openfreemap.org) (aucune clé, aucun quota),
-vite-plugin-pwa (service worker Workbox), ExcelJS, jsPDF. Hébergement GitHub Pages via GitHub Actions.
+vite-plugin-pwa (service worker Workbox), ExcelJS. Adresses : Base Adresse Nationale. Hébergement GitHub Pages via GitHub Actions.
 
 ## Démarrer
 

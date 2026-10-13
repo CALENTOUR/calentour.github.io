@@ -1,81 +1,71 @@
-import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
-import {
-  createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
-  signOut,
-  updateProfile,
-} from 'firebase/auth'
-import { auth, db } from '../lib/firebase'
-import { COL } from './paths'
+import { serverTimestamp, setDoc, updateDoc, writeBatch } from 'firebase/firestore'
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth'
+import { auth, db, secondaryAuth } from '../lib/firebase'
+import { LOGIN_DOMAIN } from '../config/constants'
+import { settingsRef, userRef } from './paths'
 
-export const normalizeEmail = (email) => email.trim().toLowerCase()
+export const normalizeLogin = (login) => login.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9._@-]/g, '')
+export const loginToEmail = (login) => {
+  const clean = normalizeLogin(login)
+  return clean.includes('@') ? clean : `${clean}@${LOGIN_DOMAIN}`
+}
 
-export function login(email, password) {
-  return signInWithEmailAndPassword(auth, normalizeEmail(email), password)
+export function login(identifier, password) {
+  return signInWithEmailAndPassword(auth, loginToEmail(identifier), password)
 }
 
 export function logout() {
   return signOut(auth)
 }
 
-export function resetPassword(email) {
-  return sendPasswordResetEmail(auth, normalizeEmail(email))
+// Mot de passe facile à dicter : 3 syllabes + 2 chiffres (ex. "bafilo42").
+export function generatePassword() {
+  const c = 'bcdfghjklmnprstvz'
+  const v = 'aeiou'
+  const r = (s) => s[Math.floor(Math.random() * s.length)]
+  return `${r(c)}${r(v)}${r(c)}${r(v)}${r(c)}${r(v)}${Math.floor(10 + Math.random() * 90)}`
 }
 
-// Création de compte réservée aux personnes invitées par un administrateur.
-export async function register({ name, email, password }) {
-  const cleanEmail = normalizeEmail(email)
-  const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password)
-  try {
-    const invitation = await getDoc(doc(db, COL.invitations, cleanEmail))
-    if (!invitation.exists()) throw new Error('not-invited')
-    await setDoc(doc(db, COL.users, cred.user.uid), {
-      name: name.trim() || invitation.data().name,
-      email: cleanEmail,
-      role: invitation.data().role,
-      active: true,
-      createdAt: serverTimestamp(),
-    })
-    await updateProfile(cred.user, { displayName: name.trim() })
-    await deleteDoc(doc(db, COL.invitations, cleanEmail))
-    return cred.user
-  } catch (error) {
-    // Pas d'invitation : on supprime le compte Auth tout juste créé.
-    await cred.user.delete().catch(() => {})
-    throw error
-  }
-}
-
-export function inviteUser({ name, email, role }) {
-  return setDoc(doc(db, COL.invitations, normalizeEmail(email)), {
-    name: name.trim(),
+// Compte créé par l'administrateur (binôme ou autre administrateur).
+export async function createAccount({ login: identifier, password, name, role, tourId = null }) {
+  const sec = secondaryAuth()
+  const cred = await createUserWithEmailAndPassword(sec, loginToEmail(identifier), password)
+  await signOut(sec).catch(() => {})
+  await setDoc(userRef(cred.user.uid), {
+    login: normalizeLogin(identifier),
+    name,
     role,
+    tourId,
+    active: true,
     createdAt: serverTimestamp(),
   })
-}
-
-export function cancelInvitation(email) {
-  return deleteDoc(doc(db, COL.invitations, email))
+  return cred.user.uid
 }
 
 export function updateUser(uid, data) {
-  return updateDoc(doc(db, COL.users, uid), data)
+  return updateDoc(userRef(uid), data)
+}
+
+// Premier lancement : création de l'amicale et du premier administrateur.
+export async function setupAmicale({ amicale, login: identifier, password, name }) {
+  const cred = await createUserWithEmailAndPassword(auth, loginToEmail(identifier), password)
+  const batch = writeBatch(db)
+  batch.set(settingsRef(), { amicale, year: new Date().getFullYear(), rankingForMembers: false, createdAt: serverTimestamp() })
+  batch.set(userRef(cred.user.uid), { login: normalizeLogin(identifier), name, role: 'admin', tourId: null, active: true, createdAt: serverTimestamp() })
+  await batch.commit()
 }
 
 export function authErrorMessage(error) {
   const code = error?.code ?? error?.message
   const messages = {
-    'auth/invalid-credential': 'Email ou mot de passe incorrect.',
-    'auth/invalid-email': 'Adresse email invalide.',
+    'auth/invalid-credential': 'Identifiant ou mot de passe incorrect.',
+    'auth/invalid-email': 'Identifiant invalide (lettres, chiffres, points et tirets uniquement).',
     'auth/user-disabled': 'Ce compte est désactivé.',
-    'auth/email-already-in-use': 'Un compte existe déjà avec cet email. Utilisez "Se connecter".',
+    'auth/email-already-in-use': 'Cet identifiant est déjà pris.',
     'auth/weak-password': 'Mot de passe trop court (6 caractères minimum).',
     'auth/too-many-requests': 'Trop de tentatives. Réessayez dans quelques minutes.',
-    'auth/network-request-failed': 'Pas de connexion réseau. La première connexion nécessite internet.',
-    'not-invited': "Cet email n'a pas été invité. Demandez à un administrateur de vous ajouter.",
-    'demo/register': 'La création de compte est désactivée dans la démo. Utilisez les boutons ci-dessus.',
-    'permission-denied': "Cet email n'a pas été invité. Demandez à un administrateur de vous ajouter.",
+    'auth/network-request-failed': 'Pas de réseau. La première connexion nécessite internet.',
+    'permission-denied': 'Action non autorisée.',
   }
   return messages[code] ?? `Erreur : ${error?.message ?? 'inconnue'}`
 }

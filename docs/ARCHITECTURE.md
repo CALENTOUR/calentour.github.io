@@ -1,59 +1,54 @@
-# Architecture
+# Architecture (v2)
 
 ```
 src/
-  config/constants.js      statuts, couleurs, rôles, fond de carte
-  lib/firebase.js          initialisation Firebase + cache Firestore persistant (hors ligne)
-  lib/geo.js               point dans polygone, centre, emprise
-  lib/osm.js               import d'adresses OpenStreetMap (Overpass) + géocodage inverse (Nominatim)
-  lib/stats.js             agrégations : global, secteur, commune, membre
-  lib/exports.js           Excel (ExcelJS) et PDF (jsPDF), chargés à la demande
-  services/                toutes les écritures Firestore, une fonction par action métier
-  context/AuthContext.jsx  utilisateur Firebase + profil (rôle, actif)
-  context/DataContext.jsx  abonnements temps réel partagés par toutes les pages
-  components/map/          MapLibre (3D, GPS, couches secteurs/adresses, éditeur de polygone)
-  components/              fiche de passage, formulaire d'adresse, éléments d'interface
-  pages/                   un fichier par entrée du menu
-  demo/                    remplaçants locaux de Firebase pour la démo publique
+  config/constants.js        statuts, modes de paiement, couleurs, fond de carte
+  lib/firebase.js            Firebase + cache Firestore persistant (hors ligne) + instance de création de comptes
+  lib/kml.js                 lecture de l'export Google My Maps (traits = rues, noms = binômes)
+  lib/addresses.js           maisons le long des rues (Base Adresse Nationale, géocodage inverse)
+  lib/tourBuilder.js         rattachement des maisons aux rues, fusion des rues de même nom
+  lib/geo.js                 distances, projection sur un tracé, tracés à plat pour Firestore
+  lib/stats.js               statistiques par tournée, par rue, globales, par jour
+  lib/exports.js             export comptable Excel (chargé à la demande)
+  lib/offlineMap.js          téléchargement à l'avance du fond de carte d'une tournée
+  services/                  écritures Firestore (tournées, passages, comptes)
+  context/                   utilisateur connecté, abonnements temps réel
+  components/map/            carte MapLibre 3D, pictogrammes maison / immeuble, clic sur une rue
+  pages/member/              Ma tournée, vue d'une rue (carte + liste), Mes stats
+  pages/admin/               Tableau de bord, Tournées, édition d'une tournée, Dons, Réglages
+  demo/                      remplaçants locaux de Firebase pour la démo publique
 ```
 
 ## Modèle de données Firestore
 
-Le plan gratuit limite les lectures à 50 000 par jour. Un document par maison coûterait
-(nombre d'adresses × nombre de membres) lectures à chaque ouverture, soit plusieurs centaines de milliers
-pour 50 membres et 3 000 adresses. Les adresses et les passages sont donc regroupés **par secteur** :
-
 | Chemin | Contenu |
 | --- | --- |
-| `users/{uid}` | `name`, `email`, `role` (`admin` / `member`), `active` |
-| `invitations/{email}` | `name`, `role` |
-| `communes/{id}` | `name` |
-| `sectors/{id}` | `name`, `color`, `polygon` [{lng, lat}], `communeId`, `memberIds` [] |
-| `sectorAddresses/{sectorId}` | `addresses` : { idAdresse: { `label`, `lat`, `lng`, `comment` } } |
-| `campaigns/{année}` | `year`, `active` |
-| `campaigns/{année}/sectorVisits/{sectorId}` | `visits` : { idAdresse: Visite } |
+| `settings/app` | `amicale`, `year` (campagne en cours), `rankingForMembers` |
+| `users/{uid}` | `login`, `name`, `role` (`admin` / `member`), `tourId`, `active` |
+| `tours/{id}` | `number`, `name`, `members`, `color`, `pieces` [{ `id`, `name`, `lines` [{ `c`: [lng, lat, …] }] }], `houses` [{ `id`, `label`, `lng`, `lat`, `pieceId`, `along`, `units`? }] |
+| `campaigns/{année}/state/{tourId}` | `h` : { cléHabitation: { `s`, `amount`, `mode`, `at`, `by` } } |
+| `campaigns/{année}/passages/{id}` | journal de tous les passages (historique) |
 
-Visite : `status`, `calendars`, `cash`, `cheque`, `card`, `transfer`, `total`, `comment`, `userId`, `date`.
+Une tournée = un binôme. Ses rues (`pieces`) sont les sous-onglets de « Ma tournée ». Une habitation est une maison,
+ou un logement d'immeuble (clé `maison__logement`).
 
-Chaque saisie modifie un seul champ du document du secteur (`visits.<idAdresse>`) : deux membres
-qui travaillent dans le même secteur, même hors ligne, ne s'écrasent pas.
+Statuts : `todo` À faire, `given` A donné, `again` À repasser, `refused` Refus, `empty` Habitation vide.
+Modes : `cash` Espèces, `cheque` Chèque.
 
-Une adresse garde un seul état par campagne (le dernier passage). L'historique se lit d'une campagne à l'autre.
+## Quota gratuit
+
+Un binôme ne lit que 2 documents (sa tournée et son état). L'administrateur lit un document par tournée.
+Avec 20 tournées et 45 pompiers, on reste très loin des 50 000 lectures par jour du plan gratuit.
 
 ## Hors ligne
 
-- Firestore `persistentLocalCache` (IndexedDB) : lecture des données sans réseau, écritures en file d'attente.
-- Service worker Workbox : application précachée, tuiles OpenFreeMap en cache (60 jours, 5 000 tuiles).
-- Si le fond de carte ne charge pas, un fond uni de secours s'affiche : secteurs et maisons restent utilisables.
+- Firestore `persistentLocalCache` : lecture sans réseau, écritures en file d'attente (dernière saisie gagnante).
+- Service worker Workbox : application précachée, tuiles OpenFreeMap en cache.
+- « Préparer le hors ligne » télécharge à l'avance le fond de carte autour de la tournée.
+- Sans fond de carte, rues et maisons restent affichées sur fond uni.
 
-## Rôles
+## Comptes
 
-| Action | Membre | Administrateur |
-| --- | --- | --- |
-| Voir carte, adresses, secteurs, stats, campagnes | oui | oui |
-| Saisir un passage (campagne active) | oui | oui |
-| Exporter Excel / PDF | oui | oui |
-| Gérer adresses, secteurs, communes, campagnes | non | oui |
-| Inviter, changer un rôle, désactiver un compte | non | oui |
-
-Les droits sont appliqués côté serveur par `firestore.rules`, l'interface ne fait que masquer les boutons.
+Les identifiants (`tournee7`) sont convertis en adresse technique `tournee7@calentour.app` pour Firebase Authentication.
+L'administrateur crée les comptes depuis une seconde instance Firebase, sans être déconnecté.
+Un mot de passe oublié se remplace en créant un nouvel accès (l'ancien est désactivé).

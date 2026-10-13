@@ -1,6 +1,6 @@
 export const IS_DEMO = import.meta.env.MODE === 'demo'
 
 export const DEMO_ACCOUNTS = [
-  { label: 'administrateur', email: 'admin@demo.calentour.fr', password: 'demo1234' },
-  { label: 'membre', email: 'membre@demo.calentour.fr', password: 'demo1234' },
+  { label: 'administrateur', login: 'admin', password: 'demo1234', role: 'admin' },
+  { label: 'binôme (tournée 2)', login: 'tournee2', password: 'demo1234', role: 'member' },
 ]

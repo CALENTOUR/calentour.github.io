@@ -6,7 +6,7 @@ import {
   persistentMultipleTabManager,
 } from 'firebase/firestore'
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -24,10 +24,17 @@ export const auth = app ? getAuth(app) : null
 if (auth) setPersistence(auth, browserLocalPersistence)
 
 // Cache local persistant (IndexedDB) : lecture hors ligne, écritures mises en file
-// d'attente et envoyées automatiquement au retour du réseau. Fonctionne avec
-// plusieurs onglets ouverts.
+// d'attente et envoyées automatiquement au retour du réseau.
 export const db = app
   ? initializeFirestore(app, {
       localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
     })
   : null
+
+// Seconde instance Firebase, utilisée par l'administrateur pour créer le compte
+// d'un binôme sans être lui-même déconnecté.
+let secondary = null
+export function secondaryAuth() {
+  if (!secondary) secondary = getAuth(initializeApp(firebaseConfig, 'creation-comptes'))
+  return secondary
+}

@@ -1,85 +1,64 @@
 rules_version = '2';
 
-// Règles de sécurité CalenTour.
-// - Seules les personnes invitées par un administrateur peuvent créer leur compte.
-// - Les membres lisent tout et enregistrent les passages de la campagne active.
-// - Les administrateurs gèrent membres, communes, secteurs, adresses et campagnes.
+// Règles de sécurité CalenTour v2.
+// - Les comptes sont créés par un administrateur (un par binôme).
+// - Un binôme lit sa tournée et enregistre ses passages ; il ne voit les autres
+//   tournées que si le classement lui est ouvert.
+// - Les administrateurs gèrent tout.
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function signedIn() {
-      return request.auth != null;
-    }
-    function profile() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
+    function signedIn() { return request.auth != null; }
+    function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
     function isMember() {
       return signedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && profile().active == true;
+        && me().active == true;
     }
-    function isAdmin() {
-      return isMember() && profile().role == 'admin';
-    }
-    function myEmail() {
-      return request.auth.token.email.lower();
-    }
-    function invitation() {
-      return get(/databases/$(database)/documents/invitations/$(myEmail())).data;
+    function isAdmin() { return isMember() && me().role == 'admin'; }
+    function settings() { return get(/databases/$(database)/documents/settings/app).data; }
+    function myTour(tourId) { return isMember() && me().tourId == tourId; }
+    function canSeeAll() { return isAdmin() || (isMember() && settings().rankingForMembers == true); }
+    function settingsExist() { return exists(/databases/$(database)/documents/settings/app); }
+
+    // Nom de l'amicale lisible avant connexion (écran de connexion).
+    match /settings/app {
+      allow read: if true;
+      // Premier lancement : création par le futur premier administrateur.
+      allow create: if signedIn() && !settingsExist()
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow update: if isAdmin();
     }
 
     match /users/{uid} {
-      allow read: if isMember();
-      // Création de son propre profil, uniquement avec le rôle prévu par l'invitation.
-      allow create: if signedIn()
-        && request.auth.uid == uid
-        && exists(/databases/$(database)/documents/invitations/$(myEmail()))
-        && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'active', 'createdAt'])
-        && request.resource.data.email == myEmail()
-        && request.resource.data.role == invitation().role
-        && request.resource.data.active == true;
-      // Un membre peut changer son nom, rien d'autre.
-      allow update: if isAdmin()
-        || (isMember() && request.auth.uid == uid
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']));
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if isAdmin()
+        || (signedIn() && request.auth.uid == uid && !settingsExist()
+            && request.resource.data.role == 'admin'
+            && getAfter(/databases/$(database)/documents/settings/app).data.year is int);
+      allow update, delete: if isAdmin();
+    }
+
+    match /tours/{tourId} {
+      allow read: if myTour(tourId) || canSeeAll();
+      allow write: if isAdmin();
+    }
+
+    match /campaigns/{year}/state/{tourId} {
+      allow read: if myTour(tourId) || canSeeAll();
+      // Un binôme écrit uniquement l'état de sa tournée, pour la campagne en cours.
+      allow create, update: if isAdmin()
+        || (myTour(tourId) && int(year) == settings().year
+            && request.resource.data.keys().hasOnly(['h']));
       allow delete: if isAdmin();
     }
 
-    match /invitations/{email} {
-      allow read: if isAdmin() || (signedIn() && myEmail() == email);
-      allow create, update: if isAdmin()
-        && request.resource.data.role in ['admin', 'member'];
-      allow delete: if isAdmin() || (signedIn() && myEmail() == email);
-    }
-
-    match /communes/{id} {
-      allow read: if isMember();
-      allow write: if isAdmin();
-    }
-
-    match /sectors/{id} {
-      allow read: if isMember();
-      allow write: if isAdmin();
-    }
-
-    match /sectorAddresses/{sectorId} {
-      allow read: if isMember();
-      allow write: if isAdmin();
-    }
-
-    match /campaigns/{year} {
-      allow read: if isMember();
-      allow write: if isAdmin();
-
-      match /sectorVisits/{sectorId} {
-        allow read: if isMember();
-        // Les membres saisissent les passages de la campagne active uniquement.
-        allow create, update: if isAdmin()
-          || (isMember()
-              && get(/databases/$(database)/documents/campaigns/$(year)).data.active == true
-              && request.resource.data.keys().hasOnly(['visits', 'updatedAt']));
-        allow delete: if isAdmin();
-      }
+    match /campaigns/{year}/passages/{id} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        || (myTour(request.resource.data.tourId) && int(year) == settings().year
+            && request.resource.data.by == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
   }
 }

@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
-import { doc, onSnapshot } from 'firebase/firestore'
-import { auth, db } from '../lib/firebase'
-import { COL } from '../services/paths'
+import { onSnapshot } from 'firebase/firestore'
+import { auth } from '../lib/firebase'
+import { userRef } from '../services/paths'
 import { ROLES } from '../config/constants'
 
 const AuthContext = createContext(null)
@@ -21,8 +21,8 @@ export function AuthProvider({ children }) {
     if (!firebaseUser) return undefined
     setProfile(undefined)
     return onSnapshot(
-      doc(db, COL.users, firebaseUser.uid),
-      (snap) => setProfile(snap.exists() ? { id: snap.id, ...snap.data() } : null),
+      userRef(firebaseUser.uid),
+      (snap) => setProfile(snap.exists() ? { id: snap.id, uid: snap.id, ...snap.data() } : null),
       () => setProfile(null),
     )
   }, [firebaseUser])
@@ -37,7 +37,7 @@ export function AuthProvider({ children }) {
       status,
       user: firebaseUser ?? null,
       profile: profile ?? null,
-      isAdmin: profile?.role === ROLES.ADMIN && profile?.active,
+      isAdmin: profile?.role === ROLES.ADMIN && profile?.active === true,
     }
   }, [firebaseUser, profile])
 

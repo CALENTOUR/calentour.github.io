@@ -49,9 +49,9 @@ jobs:
         run: npx vite build --mode demo --outDir dist/demo --emptyOutDir
         env:
           VITE_BASE: /demo/
-          VITE_MAP_CENTER_LNG: '6.452'
-          VITE_MAP_CENTER_LAT: '48.176'
-          VITE_MAP_ZOOM: '14'
+          VITE_MAP_CENTER_LNG: '6.23'
+          VITE_MAP_CENTER_LAT: '48.225'
+          VITE_MAP_ZOOM: '12.5'
 
       - name: Désactiver Jekyll
         run: touch dist/.nojekyll

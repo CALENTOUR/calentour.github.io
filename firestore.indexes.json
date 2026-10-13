@@ -1,15 +1,8 @@
 {
   "indexes": [],
   "fieldOverrides": [
-    {
-      "collectionGroup": "sectorAddresses",
-      "fieldPath": "addresses",
-      "indexes": []
-    },
-    {
-      "collectionGroup": "sectorVisits",
-      "fieldPath": "visits",
-      "indexes": []
-    }
+    { "collectionGroup": "tours", "fieldPath": "houses", "indexes": [] },
+    { "collectionGroup": "tours", "fieldPath": "pieces", "indexes": [] },
+    { "collectionGroup": "state", "fieldPath": "h", "indexes": [] }
   ]
 }
