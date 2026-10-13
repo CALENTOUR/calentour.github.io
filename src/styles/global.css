@@ -780,3 +780,195 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .tours-map-top .tour-places button { box-shadow: none; background: var(--card-2); }
 .tours-map-top .tour-places button.on { background: var(--ink); border-color: var(--ink); color: #fff; }
 .tour-panel .btn-big { width: 100%; }
+
+/* ---------- Retours n°7 ---------- */
+
+/* Gros boutons d'édition : bien détachés du reste. */
+.btn-hero-edit { min-height: 84px; border: 2px solid #8d2f20; box-shadow: 0 6px 0 #8d2f20, 0 10px 22px rgba(184, 67, 47, .28); margin-bottom: 6px; }
+.btn-hero-edit:active { transform: translateY(4px); box-shadow: 0 2px 0 #8d2f20; }
+.btn-hero-edit strong { font-size: 1.25rem; }
+.btn-hero-go { flex: none; padding: .45rem .8rem; border-radius: 8px; background: #fff; color: var(--brand); font-size: .95rem; font-weight: 800; }
+.tour-panel .btn-big { min-height: 58px; border: 2px solid #8d2f20; box-shadow: 0 4px 0 #8d2f20; font-size: 1.12rem; }
+.tour-panel .btn-big:active { transform: translateY(3px); box-shadow: 0 1px 0 #8d2f20; }
+
+/* Éditeur : barre du haut avec le gros « Terminer », puis les secteurs. */
+.editor-head { position: absolute; left: .6rem; right: .6rem; top: calc(.6rem + var(--safe-top)); z-index: 3; display: flex; flex-direction: column; gap: .4rem; pointer-events: none; }
+.editor-head > * { pointer-events: auto; }
+.editor-head .editor-top { position: static; }
+.btn-done { min-height: 46px; padding: .3rem 1.1rem; border-radius: 10px; background: var(--green); border: 2px solid #2f5a2e; color: #fff; font-size: 1.05rem; font-weight: 900; box-shadow: 0 3px 0 #2f5a2e; white-space: nowrap; }
+.btn-done:active { transform: translateY(2px); box-shadow: 0 1px 0 #2f5a2e; }
+.editor-houses { cursor: pointer; min-height: 38px; }
+.editor-houses input { width: 18px; height: 18px; margin: 0; accent-color: var(--ink); }
+.editor-houses.busy { animation: pulse 1.2s infinite; }
+.editor-head .sector-tabs { align-self: flex-start; max-width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: .3rem; box-shadow: var(--float); }
+.editor .maplibregl-ctrl-top-right { top: calc(124px + var(--safe-top)); }
+.check-line { display: flex; align-items: center; gap: .5rem; cursor: pointer; font-weight: 700; }
+.check-line input { width: 18px; height: 18px; margin: 0; accent-color: var(--ink); }
+.card .sector-tabs { flex-wrap: wrap; }
+
+/* Binôme : sur chaque rue, l'invitation à ouvrir la carte. */
+.sector-go { display: flex; flex-direction: column; align-items: center; gap: .1rem; padding: .35rem .5rem; border-radius: 8px; background: var(--card-2); color: var(--ink); font-size: 1.15rem; }
+.sector-go small { font-size: .66rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+
+/* Binôme : boutons du bas transparents, posés sur la page ou la carte. */
+.shell-member .tabbar { background: linear-gradient(to top, rgba(242, 237, 226, .85), rgba(242, 237, 226, 0)); border-top: none; box-shadow: none; height: auto; padding: 6px 12px calc(8px + var(--safe-bottom)); }
+.shell-member .tab { min-height: 46px; background: rgba(251, 249, 244, .72); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border-color: rgba(31, 42, 36, .14); }
+.shell-member .tab.active { background: rgba(31, 42, 36, .86); }
+.shell-member.shell-fullmap .tabbar { background: none; }
+.shell-member .fullmap { bottom: 0; }
+.shell-member .fullmap .map-side { bottom: calc(70px + var(--safe-bottom)); }
+.shell-member .fullmap .map-note-action { bottom: calc(72px + var(--safe-bottom)); }
+.shell-member .fullmap .maplibregl-ctrl-bottom-right, .shell-member .fullmap .maplibregl-ctrl-bottom-left { margin-bottom: calc(60px + var(--safe-bottom)); }
+.shell-member .main { padding-bottom: calc(70px + var(--safe-bottom)); }
+
+/* Fiche d'une maison : petit panneau en bas, la carte reste visible et touchable. */
+.sheet-backdrop.sheet-compact { background: none; pointer-events: none; align-items: flex-end; animation: none; }
+.sheet-compact .sheet { pointer-events: auto; max-width: 520px; max-height: 52vh; gap: .5rem; padding: .55rem .7rem calc(.6rem + var(--safe-bottom)); border: 1px solid var(--border); box-shadow: 0 -4px 22px rgba(31, 42, 36, .22); border-radius: 14px 14px 0 0; }
+.sheet-compact .sheet-header { align-items: center; }
+.sheet-compact .sheet-header h2 { font-size: 1.02rem; }
+.sheet-compact .btn-round { width: 36px; height: 36px; }
+.sheet-compact .sheet-route { min-height: 36px; }
+.sheet-compact .stack { gap: .5rem; }
+.sheet-compact .status-grid { grid-template-columns: repeat(4, 1fr); gap: .35rem; }
+.sheet-compact .status-btn { min-height: 62px; padding: .3rem .2rem; gap: .1rem; }
+.sheet-compact .status-btn-icon { font-size: 1.35rem; }
+.sheet-compact .status-btn-label { font-size: .78rem; line-height: 1.1; }
+.sheet-compact .status-btn-hint { display: none; }
+.sheet-compact .amount-input, .sheet-compact .amount-input input { font-size: 1.9rem; }
+.sheet-compact .chips { gap: .3rem; }
+.sheet-compact .btn-big { min-height: 46px; }
+@media (min-width: 700px) {
+  .sheet-backdrop.sheet-compact { align-items: flex-end; }
+  .sheet-compact .sheet { border-radius: 14px; margin-bottom: 1rem; }
+}
+.shell-member .fullmap .maplibregl-ctrl-scale { display: none; }
+.editor-head .editor-houses { display: inline-flex; flex-direction: row; align-items: center; gap: .4rem; padding: .25rem .65rem; border: 1px solid var(--border); border-radius: 8px; background: var(--card-2); font-weight: 800; white-space: nowrap; }
+
+/* ---------- Espace admin, piste A ---------- */
+
+/* Menu de gauche : une tuile par rubrique, icône colorée et chiffre clé. */
+@media (min-width: 900px) {
+  .shell-admin .sidebar { gap: .6rem; padding: 1rem .85rem; }
+  .side-tile { display: flex; align-items: center; gap: .75rem; padding: .6rem; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); text-decoration: none; transition: transform .12s ease; }
+  .side-tile:hover { transform: translateY(-1px); border-color: var(--muted); }
+  .side-tile-icon { flex: none; width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; }
+  .side-tile-icon svg { width: 22px; height: 22px; }
+  .side-tile-text { display: flex; flex-direction: column; min-width: 0; }
+  .side-tile-text strong { font-size: .95rem; }
+  .side-tile-text small { font-size: .75rem; font-weight: 700; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .side-tile.active { background: var(--ink); border-color: var(--ink); color: #fff; box-shadow: 0 4px 0 #0e1511; }
+  .side-tile.active small { color: #d6cfbf; }
+  .side-tile.active .side-tile-icon { background: var(--brand) !important; color: #fff !important; }
+  .side-goal { margin-top: auto; padding: .75rem; border-radius: 12px; background: var(--card-2); display: flex; flex-direction: column; gap: .4rem; }
+  .side-goal-label { font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .side-goal-bar { height: 10px; border-radius: 4px; background: var(--border); overflow: hidden; }
+  .side-goal-bar i { display: block; height: 100%; background: var(--green); }
+  .side-goal strong { font-size: .85rem; }
+}
+.side-goal { display: none; }
+@media (min-width: 900px) { .side-goal { display: flex; } }
+.tone-green .side-tile-icon, .tone-green .tab-icon { background: #e1ecdc; color: #2f5a2e; }
+.tone-brand .side-tile-icon, .tone-brand .tab-icon { background: var(--brand-soft); color: var(--brand); }
+.tone-ocre .side-tile-icon, .tone-ocre .tab-icon { background: #f6ead0; color: #8a5f12; }
+.tone-blue .side-tile-icon, .tone-blue .tab-icon { background: #e3ebf3; color: var(--blue); }
+
+/* Onglets du bas de l'admin sur téléphone : mêmes icônes colorées, flottants. */
+.shell-admin .tabbar { left: .6rem; right: .6rem; bottom: calc(.5rem + var(--safe-bottom)); height: auto; padding: .35rem; gap: .35rem; border: 1px solid var(--border); border-radius: 16px; background: rgba(251, 249, 244, .88); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: var(--float); }
+.shell-admin .tab { gap: .2rem; padding: .35rem 0; border-radius: 10px; font-size: .7rem; font-weight: 800; color: var(--text); }
+.shell-admin .tab .tab-icon { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-size: 1rem; }
+.shell-admin .tab .tab-icon svg { width: 19px; height: 19px; }
+.shell-admin .tab.active { background: var(--ink); color: #fff; }
+.shell-admin .tab.active::before { display: none; }
+.shell-admin .tab.active .tab-icon { background: var(--brand); color: #fff; }
+@media (max-width: 899px) {
+  .shell-admin .main { padding-bottom: calc(86px + var(--safe-bottom)); }
+  .shell-admin .fullmap { bottom: 0; }
+}
+
+/* Liste des tournées : des cartes avec anneau d'avancement. */
+.tours-panel { width: 312px; background: var(--bg); gap: .55rem; padding-bottom: .5rem; }
+.tours-panel-head { padding: .85rem .85rem 0; }
+.tours-count { font-size: 1.2rem; font-weight: 900; }
+.tours-count .small { font-weight: 700; margin-left: .3rem; }
+.tours-search { flex-direction: row; align-items: center; gap: .5rem; margin: 0 .85rem; height: 40px; padding: 0 .7rem; border-radius: 10px; background: var(--card); border: 1px solid var(--border); color: var(--muted); }
+.tours-search input { flex: 1; min-width: 0; border: none; background: none; outline: none; padding: 0; box-shadow: none; font: inherit; font-size: .9rem; color: var(--text); min-height: 0; }
+.tours-filters { display: flex; gap: .35rem; padding: 0 .85rem; }
+.tours-filters button { min-height: 32px; padding: 0 .75rem; border-radius: 99px; border: 1px solid var(--border); background: var(--card); font-size: .8rem; font-weight: 700; }
+.tours-filters button.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.tour-cards { list-style: none; margin: 0; padding: .15rem .85rem .5rem; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: .45rem; }
+.tour-card { border-radius: 12px; border: 1px solid var(--border); background: var(--card); transition: transform .12s ease, box-shadow .12s ease; }
+.tour-card:hover { transform: translateY(-1px); }
+.tour-card.sel { border: 2px solid var(--tour); box-shadow: 0 4px 0 color-mix(in srgb, var(--tour) 70%, #000); }
+.tour-card.off { opacity: .55; }
+.tour-card-row { display: flex; align-items: center; }
+.tour-card-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: .6rem; padding: .55rem .2rem .55rem .6rem; border: none; background: none; text-align: left; justify-content: flex-start; min-height: 58px; }
+.tour-num { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--tour); color: #fff; display: grid; place-items: center; font-weight: 900; font-size: .9rem; }
+.tour-card-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .1rem; }
+.tour-card-text strong { font-size: .93rem; }
+.tour-ring-pct { font-size: .72rem !important; font-weight: 800 !important; }
+.tour-ring-done { flex: none; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: #e1ecdc; color: #2f5a2e; border: 4px solid var(--green); }
+.tour-eye { flex: none; width: 36px; height: 44px; padding: 0; border: none; background: none; color: var(--muted); display: grid; place-items: center; margin-right: .2rem; }
+.tour-card.off .tour-eye { color: var(--brand); }
+.tour-card-sectors { display: flex; flex-wrap: wrap; gap: .3rem; padding: 0 .6rem .6rem; }
+.tour-card-sectors button { min-height: 30px; padding: 0 .55rem; border-radius: 6px; border: none; background: #f8e3df; color: #8d2f20; font-size: .75rem; font-weight: 800; }
+.tour-card-sectors button.on { background: #c0392b; color: #fff; }
+.tour-cards-empty { padding: .5rem; }
+.tours-map.panel-open .tours-map-top { left: calc(312px + .8rem); }
+@media (min-width: 900px) { .tours-map.panel-open .fullmap-map { left: 312px; } }
+
+/* Outils de la carte : une colonne de boutons ronds à droite. */
+.tours-map-top { right: 120px; }
+.tours-map-tools { position: absolute; z-index: 3; top: .6rem; right: .6rem; display: flex; flex-direction: column; gap: .45rem; }
+.map-tool { width: 46px; height: 46px; padding: 0; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); display: grid; place-items: center; box-shadow: var(--float); }
+.map-tool.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.map-tool-add { background: var(--brand); border-color: #8d2f20; color: #fff; }
+.map-tool-wrap { position: relative; }
+.layers-pop { position: absolute; right: calc(100% + .45rem); top: 0; display: flex; flex-direction: column; gap: .45rem; padding: .7rem .8rem; border-radius: 10px; border: 1px solid var(--border); background: var(--card); box-shadow: var(--float); white-space: nowrap; }
+.tours-map .maplibregl-ctrl-top-right { top: 222px !important; right: 2px; }
+@media (min-width: 900px) { .tours-map .tours-panel-btn { display: none; } .tours-map .maplibregl-ctrl-top-right { top: 172px !important; } }
+.tours-map .map-btns { display: flex; }
+
+/* Fiche flottante de la tournée choisie. */
+.tour-float { flex-direction: column; align-items: stretch; gap: .7rem; padding: .9rem; border-radius: 14px; border: 1px solid var(--border); background: var(--card); box-shadow: 0 10px 30px rgba(31, 42, 36, .22); max-width: 420px; }
+.tour-float-close { position: absolute; top: .4rem; right: .4rem; width: 34px; height: 34px; }
+.tour-float-head { display: flex; align-items: center; gap: .75rem; padding-right: 1.8rem; }
+.tour-float-head .ring-center strong { font-size: .95rem; }
+.tour-float-title { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
+.tour-float-title > strong { font-size: 1.2rem; font-weight: 900; }
+.tour-float-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+.tour-float-stats div { display: flex; flex-direction: column; padding: .45rem .55rem; border-radius: 8px; }
+.tour-float-stats strong { font-size: 1.1rem; font-weight: 900; }
+.tour-float-stats span { font-size: .7rem; font-weight: 800; }
+.tf-given { background: #e1ecdc; color: #2f5a2e; }
+.tf-again { background: #f6ead0; color: #8a5f12; }
+.tf-todo { background: #e3ebf3; color: var(--blue); }
+.tour-float-edit { width: 100%; gap: .5rem; min-height: 54px; border: 2px solid #8d2f20; box-shadow: 0 4px 0 #8d2f20; font-size: 1.05rem; font-weight: 900; }
+.tour-float-edit:active { transform: translateY(3px); box-shadow: 0 1px 0 #8d2f20; }
+@media (min-width: 900px) {
+  .tours-map .tour-float { left: auto; right: 64px; top: .6rem; bottom: auto; width: 320px; margin: 0; }
+}
+@media (max-width: 899px) {
+  .tours-map .tour-float { bottom: calc(88px + var(--safe-bottom)); gap: .55rem; padding: .7rem; }
+  .tours-map .tour-float-stats { display: none; }
+  body.immersive .tours-map .tour-float { bottom: .6rem; }
+}
+
+/* Légende des secteurs. */
+.map-legend { position: absolute; z-index: 2; left: .6rem; bottom: .6rem; display: flex; gap: .9rem; align-items: center; padding: .45rem .7rem; border-radius: 10px; border: 1px solid var(--border); background: var(--card); font-size: .75rem; font-weight: 800; }
+.map-legend span { display: flex; align-items: center; gap: .4rem; }
+.map-legend i { width: 18px; border-top: 3px dashed #c0392b; }
+.map-legend .lg-other { border-top-color: #b9b19f; }
+.tours-map .map-btns { left: .6rem; right: auto; top: auto; bottom: 3.2rem; }
+@media (max-width: 899px) { .tours-map .map-btns { bottom: calc(96px + var(--safe-bottom)); } .tours-map:has(.tour-float) .map-btns { display: none; } }
+.tour-cards { overflow-x: hidden; }
+.tour-card { display: flex; flex-direction: column; flex: none; }
+.tour-card-main { white-space: normal; }
+.tour-card-text > * { display: block; max-width: 100%; }
+.tour-card-sectors button { white-space: nowrap; }
+@media (min-width: 900px) { .tours-map.has-float .tours-map-top { right: 400px; } }
+.map-legend { z-index: 3; }
+.tour-card-main { overflow: hidden; } .tour-card-text { overflow: hidden; }
+.tour-card-row { width: 100%; min-width: 0; } .tour-card { min-width: 0; max-width: 100%; }
+.tour-cards .tour-card { padding: 0; gap: 0; border-top-width: 1px; border-top-color: var(--border); align-items: stretch; }
+.tour-cards .tour-card.sel { border-color: var(--tour); border-width: 2px; }
+.tour-card-main { min-height: 56px; }

@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import TourMap, { piecesGeoJSON } from '../../components/map/TourMap'
+import TourMap, { piecesGeoJSON, tourPoints } from '../../components/map/TourMap'
 import { pickStreet, touchTolerance } from '../../components/map/streetPicker'
 import { roadGraph, snapToRoads } from '../../components/map/snapToRoads'
-import { setGeoJSON } from '../../components/map/useMapLibre'
+import { fitPoints, setGeoJSON } from '../../components/map/useMapLibre'
+import SectorTabs from '../../components/SectorTabs'
 import AddHouseSheet from '../../components/AddHouseSheet'
 import { useToast } from '../../components/ui/Toast'
 import { useData } from '../../context/DataContext'
 import { newId } from '../../lib/format'
 import { chainLines, distance, flatten, lineLength, projectOnLine, samplePoints, sliceLine, unflatten } from '../../lib/geo'
+import { tourAreas } from '../../lib/places'
 import { addFoundHouses, searchHouses } from '../../lib/tourBuilder'
 import { saveTour } from '../../services/tours'
 
@@ -112,12 +114,12 @@ function ensureEditorLayers(map) {
   setGeoJSON(map, 'adjust', EMPTY)
   setGeoJSON(map, 'eraser', EMPTY)
   const below = map.getLayer('pieces-casing') ? 'pieces-casing' : undefined
-  map.addLayer({ id: 'others', type: 'line', source: 'others', layout: { 'line-cap': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': 3, 'line-opacity': 0.35, 'line-dasharray': [1.5, 1.5] } }, below)
+  map.addLayer({ id: 'others', type: 'line', source: 'others', layout: { 'line-cap': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': 2.5, 'line-opacity': 0.22, 'line-dasharray': [1.5, 1.5] } }, below)
   map.addLayer({ id: 'preview-casing', type: 'line', source: 'preview', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': 14 } })
   map.addLayer({ id: 'preview', type: 'line', source: 'preview', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#f97316', 'line-width': 8 } })
   map.addLayer({ id: 'adjust', type: 'line', source: 'adjust', layout: { 'line-cap': 'round' }, paint: { 'line-color': '#f97316', 'line-width': 8, 'line-opacity': 0.9 } })
   map.addLayer({ id: 'eraser', type: 'line', source: 'eraser', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#c0492f', 'line-width': 40, 'line-opacity': 0.3 } })
-  map.addLayer({ id: 'handles', type: 'circle', source: 'handles', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 8, 17, 13], 'circle-color': ['case', ['==', ['get', 'picked'], 1], '#f97316', '#ffffff'], 'circle-stroke-color': '#1f2a24', 'circle-stroke-width': 3 } })
+  map.addLayer({ id: 'handles', type: 'circle', source: 'handles', minzoom: 14.5, paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 8, 17, 13], 'circle-color': ['case', ['==', ['get', 'picked'], 1], '#f97316', '#ffffff'], 'circle-stroke-color': '#1f2a24', 'circle-stroke-width': 3 } })
   map.addLayer({ id: 'draft-points', type: 'circle', source: 'draft', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 7, 'circle-color': '#0f172a', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } })
 }
 
@@ -135,6 +137,11 @@ export default function TourMapEditor({ tour, onClose }) {
   const [history, setHistory] = useState([])
   const [map, setMap] = useState(null)
   const tours = useMemo(() => [tour], [tour])
+  // Les pastilles des maisons restent cachées sauf demande, ou quand on travaille sur les maisons.
+  const [housesOn, setHousesOn] = useState(false)
+  const [areaSel, setAreaSel] = useState(null)
+  const areas = useMemo(() => tourAreas(tour), [tour])
+  const mapAreas = useMemo(() => (areas.length > 1 ? areas.map((a) => ({ ...a, active: a.id === areaSel })) : null), [areas, areaSel])
   const others = useMemo(() => allTours.filter((t) => t.id !== tour.id), [allTours, tour.id])
 
   const tourRef = useRef(tour)
@@ -468,6 +475,13 @@ export default function TourMapEditor({ tour, onClose }) {
     setPicked(null)
   }
   const activeMode = MODES.find((m) => m.key === mode)
+  const showHouses = housesOn || mode === 'house' || (mode === 'eraser' && eraser === 'delete')
+  const EDIT_PAD = { top: 170, bottom: 230, left: 40, right: 60 }
+  const chooseArea = (a) => {
+    setAreaSel(a?.id ?? null)
+    const pts = a ? tour.pieces.filter((p) => a.pieceIds.includes(p.id)).flatMap((p) => tourPoints([{ pieces: [p] }])) : tourPoints(tours)
+    fitPoints(map, pts, { padding: EDIT_PAD, maxZoom: 18.5 })
+  }
   const help = mode === 'eraser' ? ERASERS.find((x) => x.key === eraser).help
     : picked ? 'Touche l’endroit où la rue doit s’arrêter (sur la rue pour raccourcir, plus loin pour l’allonger).'
       : mode === 'draw' && drawStart ? 'Touche maintenant le point d’arrivée.'
@@ -477,18 +491,25 @@ export default function TourMapEditor({ tour, onClose }) {
     <div className="editor">
       <TourMap
         tours={tours} statesById={statesById} flat
-        fitPadding={{ top: 120, bottom: 210, left: 40, right: 60 }}
+        showHouses={showHouses} streetLabels areas={mapAreas}
+        fitPadding={{ top: 170, bottom: 230, left: 40, right: 60 }}
         onMapClick={onMapClick}
         onHouseClick={mode === 'eraser' && eraser === 'delete' ? onHouseClick : undefined}
         onReady={setMap}
         className="editor-map"
       />
 
-      <div className="editor-top">
-        <button type="button" className="btn-primary btn-sm" onClick={onClose}>✓ Terminé</button>
-        <strong className="spacer ellipsis">N°{tour.number} <span className="small muted">· {tour.pieces.length} rue{tour.pieces.length > 1 ? 's' : ''}</span></strong>
-        <button type="button" className="btn-sm" disabled={!history.length} onClick={undo}>↶ Annuler</button>
-        <span className={`editor-count${finding ? ' busy' : ''}`} title="Maisons de la tournée">🏠 {finding ? '…' : tour.houses.length}</span>
+      <div className="editor-head">
+        <div className="editor-top">
+          <button type="button" className="btn-done" onClick={onClose}>✓ Terminer</button>
+          <strong className="spacer ellipsis">N°{tour.number} {tour.name} <span className="small muted">· {tour.pieces.length} rue{tour.pieces.length > 1 ? 's' : ''}</span></strong>
+          <button type="button" className="btn-sm" disabled={!history.length} onClick={undo}>↶ Annuler</button>
+          <label className={`layer-btn editor-houses${showHouses ? ' on' : ''}${finding ? ' busy' : ''}`} title="Afficher les maisons sur la carte">
+            <input type="checkbox" checked={showHouses} disabled={showHouses && !housesOn} onChange={(e) => setHousesOn(e.target.checked)} />
+            🏠 <span className="hide-mobile">Maisons </span>{finding ? '…' : tour.houses.length}
+          </label>
+        </div>
+        <SectorTabs areas={areas} active={areaSel} onChoose={chooseArea} />
       </div>
 
       <div className="editor-bottom">

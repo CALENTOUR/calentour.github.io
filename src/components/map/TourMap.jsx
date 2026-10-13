@@ -3,8 +3,10 @@ import { bounds, lineLength, pointAt, unflatten } from '../../lib/geo'
 import { tourStats } from '../../lib/stats'
 import { IconGps } from '../ui/Icons'
 import { dwellingKey } from '../../services/state'
+import { drawLitHouses, litHouses } from './houseBuildings'
 import { addStatusIcons } from './icons'
-import { setGeoJSON, toggle3D, useMapLibre } from './useMapLibre'
+import { circlePolygon, pieceLabels } from '../../lib/places'
+import { fitPoints, setGeoJSON, toggle3D, useMapLibre } from './useMapLibre'
 
 // État affiché d'un immeuble : le plus urgent de ses logements.
 export function buildingStatus(house, h) {
@@ -16,6 +18,7 @@ export function buildingStatus(house, h) {
 const inFocus = (t, pieceId, focusPieceId, focusTourId) => ((!focusPieceId || pieceId === focusPieceId) && (!focusTourId || t.id === focusTourId) ? 1 : 0)
 
 export function piecesGeoJSON(tours, focusPieceId, focusTourId, statesById = null) {
+  const names = Object.assign({}, ...tours.map((t) => pieceLabels(t)))
   return {
     type: 'FeatureCollection',
     features: tours.flatMap((t) => {
@@ -23,7 +26,7 @@ export function piecesGeoJSON(tours, focusPieceId, focusTourId, statesById = nul
       return (t.pieces ?? []).flatMap((p) => p.lines.map((l, i) => ({
       type: 'Feature',
       id: undefined,
-      properties: { tourId: t.id, pieceId: p.id, lineIndex: i, color: t.color, progress, focus: inFocus(t, p.id, focusPieceId, focusTourId), label: p.name },
+      properties: { tourId: t.id, pieceId: p.id, lineIndex: i, color: t.color, progress, focus: inFocus(t, p.id, focusPieceId, focusTourId), label: names[p.id]?.street ?? p.name },
       geometry: { type: 'LineString', coordinates: unflatten(l.c) },
     })))
     }),
@@ -55,11 +58,41 @@ export function housesGeoJSON(tours, statesById, focusPieceId, focusTourId) {
   }
 }
 
+export const tourPoints = (tours, pieceId) => tours.flatMap((t) => (t.pieces ?? [])
+  .filter((p) => !pieceId || p.id === pieceId)
+  .flatMap((p) => p.lines.flatMap((l) => unflatten(l.c))))
+
 export function tourBounds(tours, pieceId) {
-  const pts = tours.flatMap((t) => (t.pieces ?? [])
-    .filter((p) => !pieceId || p.id === pieceId)
-    .flatMap((p) => p.lines.flatMap((l) => unflatten(l.c))))
-  return bounds(pts)
+  return bounds(tourPoints(tours, pieceId))
+}
+
+// Secteurs entourés en rouge : un cercle et son nom par endroit de la tournée.
+function areasGeoJSON(areas) {
+  return {
+    type: 'FeatureCollection',
+    features: areas.flatMap((a) => {
+      const top = [a.center[0], a.center[1] + a.radius / 110540]
+      return [
+        { type: 'Feature', properties: { areaId: a.id, active: a.active ? 1 : 0 }, geometry: circlePolygon(a.center, a.radius) },
+        { type: 'Feature', properties: { areaId: a.id, label: a.name, active: a.active ? 1 : 0 }, geometry: { type: 'Point', coordinates: top } },
+      ]
+    }),
+  }
+}
+
+function ensureAreaLayers(map) {
+  if (map.getLayer('areas-fill')) return
+  const before = map.getLayer('pieces-casing') ? 'pieces-casing' : undefined
+  map.addLayer({ id: 'areas-fill', type: 'fill', source: 'areas', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': '#c0392b', 'fill-opacity': ['case', ['==', ['get', 'active'], 1], 0, 0.08] } }, before)
+  map.addLayer({
+    id: 'areas-line', type: 'line', source: 'areas', filter: ['==', ['geometry-type'], 'Polygon'],
+    paint: { 'line-color': '#c0392b', 'line-width': 3, 'line-dasharray': [2, 1.2], 'line-opacity': ['case', ['==', ['get', 'active'], 1], 0.3, 0.95] },
+  }, before)
+  map.addLayer({
+    id: 'areas-label', type: 'symbol', source: 'areas', filter: ['==', ['geometry-type'], 'Point'],
+    layout: { 'text-field': ['get', 'label'], 'text-font': ['Noto Sans Bold'], 'text-size': 14, 'text-anchor': 'bottom', 'text-offset': [0, -0.3], 'text-allow-overlap': true, 'text-max-width': 30 },
+    paint: { 'text-color': '#ffffff', 'text-halo-color': '#c0392b', 'text-halo-width': 3 },
+  })
 }
 
 function ensureLayers(map) {
@@ -131,20 +164,30 @@ function ensureLabelLayer(map) {
 }
 
 // Carte d'une ou plusieurs tournées : rues tracées et maisons colorées par statut.
-export default function TourMap({ tours, statesById, focusPieceId = null, focusTourId = null, onHouseClick, onMapClick, onReady, flat = false, fitPadding = 50, expandable = false, showMe = false, showHouses = true, showProgress = false, showLabels = false, autoFit = true, className = '' }) {
+export default function TourMap({ tours, statesById, focusPieceId = null, focusTourId = null, onHouseClick, onMapClick, onReady, flat = false, fitPadding = 50, expandable = false, showMe = false, showHouses = true, showProgress = false, showLabels = false, streetLabels = false, autoFit = true, areas = null, className = '' }) {
   const containerRef = useRef(null)
-  const initial = tourBounds(tours, focusPieceId)
-  const map = useMapLibre(containerRef, { initialBounds: initial, flat, fitPadding, geolocate: !showMe })
+  const initial = tourPoints(tours, focusPieceId)
+  const map = useMapLibre(containerRef, { initialPoints: initial, flat, fitPadding, geolocate: !showMe })
   const [full, setFull] = useState(false)
   const handlers = useRef({})
   handlers.current = { onHouseClick, onMapClick }
+  const housesRef = useRef(null)
 
   useEffect(() => {
     if (!map) return
     setGeoJSON(map, 'pieces', piecesGeoJSON(tours, focusPieceId, focusTourId, showProgress ? statesById : null))
-    setGeoJSON(map, 'houses', housesGeoJSON(tours, statesById, focusPieceId, focusTourId))
+    housesRef.current = housesGeoJSON(tours, statesById, focusPieceId, focusTourId)
+    setGeoJSON(map, 'houses', housesRef.current)
     ensureLayers(map)
     map.setLayoutProperty('houses', 'visibility', showHouses ? 'visible' : 'none')
+    if (streetLabels && !map.getLayer('street-labels')) {
+      // Nom de chaque rue écrit le long de son tracé.
+      map.addLayer({
+        id: 'street-labels', type: 'symbol', source: 'pieces', filter: ['==', ['get', 'focus'], 1],
+        layout: { 'symbol-placement': 'line', 'text-field': ['get', 'label'], 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 13, 11, 17, 15], 'text-max-angle': 40, 'symbol-spacing': 320, 'text-padding': 4 },
+        paint: { 'text-color': '#1f2a24', 'text-halo-color': '#ffffff', 'text-halo-width': 2.4 },
+      })
+    }
     map.setPaintProperty('pieces', 'line-color', showProgress ? PROGRESS_COLOR : ['get', 'color'])
     if (showLabels || showProgress) {
       setGeoJSON(map, 'tour-labels', labelsGeoJSON(tours, statesById, showProgress))
@@ -152,7 +195,43 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
     } else if (map.getLayer('tour-labels')) {
       setGeoJSON(map, 'tour-labels', { type: 'FeatureCollection', features: [] })
     }
-  }, [map, tours, statesById, focusPieceId, focusTourId, showHouses, showProgress, showLabels])
+  }, [map, tours, statesById, focusPieceId, focusTourId, showHouses, showProgress, showLabels, streetLabels])
+
+  useEffect(() => {
+    if (!map || (!areas && !map.getSource('areas'))) return
+    setGeoJSON(map, 'areas', areasGeoJSON(areas ?? []))
+    ensureAreaLayers(map)
+  }, [map, areas])
+
+  // Maisons allumées : le bâtiment de chaque maison prend la couleur de son statut
+  // (recalculé quand la carte a fini de charger ce qu'elle montre).
+  const litSig = useRef({ sig: null, lit: null })
+  useEffect(() => {
+    if (!map) return undefined
+    const run = () => {
+      if (!map.getLayer('houses')) return
+      const on = showHouses
+      const { lit, features, sig } = on ? litHouses(map, housesRef.current?.features ?? []) : { lit: new Set(), features: [], sig: '' }
+      if (sig !== litSig.current.sig) {
+        litSig.current.sig = sig
+        drawLitHouses(map, features)
+      }
+      map.setLayoutProperty('lit-houses', 'visibility', on ? 'visible' : 'none')
+      const key = [...lit].sort().join(',')
+      if (key !== litSig.current.lit) {
+        litSig.current.lit = key
+        map.setPaintProperty('houses', 'icon-opacity', ['case', ['in', ['get', 'houseId'], ['literal', [...lit]]], 0, ['==', ['get', 'focus'], 1], 1, 0.3])
+      }
+    }
+    let timer = 0
+    const later = () => { clearTimeout(timer); timer = setTimeout(run, 120) }
+    run()
+    map.on('idle', later)
+    return () => {
+      clearTimeout(timer)
+      map.off('idle', later)
+    }
+  }, [map, tours, statesById, focusPieceId, focusTourId, showHouses])
 
   // Recentrage quand on change de morceau.
   const lastFocus = useRef(focusPieceId)
@@ -160,8 +239,7 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
     if (!map || lastFocus.current === focusPieceId) return
     lastFocus.current = focusPieceId
     if (!autoFit) return
-    const b = tourBounds(tours, focusPieceId)
-    if (b) map.fitBounds(b, { padding: fitPadding, maxZoom: 18, duration: 700, pitch: map.getPitch() })
+    fitPoints(map, tourPoints(tours, focusPieceId), { padding: fitPadding, maxZoom: 18 })
     // fitPadding est fixe pour une carte donnée.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, focusPieceId, tours])
@@ -175,12 +253,14 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
         const p = map.project(f.geometry.coordinates)
         return Math.hypot(p.x - e.point.x, p.y - 12 - e.point.y) - f.properties.focus * 30
       }
-      const hit = hits.sort((a, b) => near(a) - near(b))[0]
+      // Un bâtiment allumé sous le doigt passe avant la pastille la plus proche.
+      const litHit = map.getLayer('lit-houses') ? map.queryRenderedFeatures(e.point, { layers: ['lit-houses'] })[0] : null
+      const hit = litHit ?? hits.sort((a, b) => near(a) - near(b))[0]
       if (hit && handlers.current.onHouseClick) handlers.current.onHouseClick(hit.properties)
       else handlers.current.onMapClick?.(e, map)
     }
     const pointer = (e) => {
-      const hit = map.queryRenderedFeatures(e.point, { layers: ['houses'] }).length
+      const hit = map.queryRenderedFeatures(e.point, { layers: map.getLayer('lit-houses') ? ['houses', 'lit-houses'] : ['houses'] }).length
       map.getCanvas().style.cursor = hit ? 'pointer' : ''
     }
     map.on('click', onClick)

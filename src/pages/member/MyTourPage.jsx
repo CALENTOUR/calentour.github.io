@@ -69,7 +69,7 @@ export default function MyTourPage() {
                   {ps.done}/{ps.total} faites{ps.counts.again ? ` · ${ps.counts.again} à repasser` : ''}{ps.amount ? ` · ${formatEuro(ps.amount)}` : ''}
                 </div>
               </div>
-              <span className="sector-go">🗺️</span>
+              <span className="sector-go" aria-hidden="true">🗺️<small>Ouvrir</small></span>
             </Link>
           )
         })}
@@ -77,7 +77,7 @@ export default function MyTourPage() {
           <Link to={`${base}/tout`} className="sector-card sector-all">
             <div className="sector-count"><strong>{s.counts.todo}</strong><span>à faire</span></div>
             <strong className="spacer sector-name">Toute ma tournée</strong>
-            <span className="sector-go">🗺️</span>
+            <span className="sector-go" aria-hidden="true">🗺️<small>Ouvrir</small></span>
           </Link>
         )}
         {!tour.pieces.length && <p className="muted">Aucune rue pour l’instant. Un administrateur doit tracer la tournée.</p>}

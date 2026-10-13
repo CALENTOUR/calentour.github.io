@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import TourMap, { buildingStatus, tourBounds } from '../../components/map/TourMap'
+import TourMap, { buildingStatus, tourPoints } from '../../components/map/TourMap'
+import { fitPoints } from '../../components/map/useMapLibre'
 import AddHouseSheet from '../../components/AddHouseSheet'
 import HouseSheet from '../../components/HouseSheet'
 import NoTour from '../../components/NoTour'
@@ -11,7 +12,7 @@ import { useToast } from '../../components/ui/Toast'
 import { STATUSES } from '../../config/constants'
 import { useTourContext } from '../../hooks/useTourContext'
 import { formatEuro, formatPercent } from '../../lib/format'
-import { bounds, unflatten } from '../../lib/geo'
+import { unflatten } from '../../lib/geo'
 import { pieceLabels } from '../../lib/places'
 import { sortHouses, tourStats } from '../../lib/stats'
 import { dwellingKey } from '../../services/state'
@@ -56,8 +57,7 @@ export default function PiecePage() {
     const map = mapRef.current
     if (!map || !village || focus) return
     const pts = tour.pieces.filter((p) => labels[p.id]?.village === village).flatMap((p) => p.lines.flatMap((l) => unflatten(l.c)))
-    const b = bounds(pts)
-    if (b) map.fitBounds(b, { padding: FIT_PADDING, maxZoom: 18, duration: 700, pitch: map.getPitch() })
+    fitPoints(map, pts, { padding: FIT_PADDING, maxZoom: 18 })
   }, [village, focus, tour, labels])
 
   if (!tour) return <NoTour />
@@ -80,8 +80,7 @@ export default function PiecePage() {
   const title = focus ? labels[focus]?.full : village ?? 'Toute ma tournée'
 
   const fit = (id) => {
-    const b = tourBounds(tours, id)
-    if (b && mapRef.current) mapRef.current.fitBounds(b, { padding: FIT_PADDING, maxZoom: 18, duration: 700, pitch: mapRef.current.getPitch() })
+    fitPoints(mapRef.current, tourPoints(tours, id), { padding: FIT_PADDING, maxZoom: 18 })
   }
   const choosePiece = (id) => {
     if (id === focus) fit(id)

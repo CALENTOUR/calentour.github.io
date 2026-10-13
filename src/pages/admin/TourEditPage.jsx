@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import TourMap from '../../components/map/TourMap'
+import TourMap, { tourPoints } from '../../components/map/TourMap'
+import { fitPoints } from '../../components/map/useMapLibre'
+import SectorTabs from '../../components/SectorTabs'
+import { tourAreas } from '../../lib/places'
 import AccessCard from '../../components/AccessCard'
 import TourForm from '../../components/TourForm'
 import { useToast } from '../../components/ui/Toast'
@@ -75,6 +78,11 @@ export default function TourEditPage() {
   const [editing, setEditing] = useState(Boolean(location.state?.edit))
   const [progress, setProgress] = useState(null)
   const tours = useMemo(() => (tour ? [tour] : []), [tour])
+  const [previewHouses, setPreviewHouses] = useState(false)
+  const [areaSel, setAreaSel] = useState(null)
+  const [previewMap, setPreviewMap] = useState(null)
+  const areas = useMemo(() => (tour ? tourAreas(tour) : []), [tour])
+  const mapAreas = useMemo(() => (areas.length > 1 ? areas.map((a) => ({ ...a, active: a.id === areaSel })) : null), [areas, areaSel])
 
   if (!tour) return <div className="page"><p className="muted">Tournée introuvable.</p><Link to="/admin/carte">← Tournées</Link></div>
 
@@ -131,6 +139,11 @@ export default function TourEditPage() {
   }
 
   const housesByPiece = sortHouses(tour.houses, tour.pieces)
+  const chooseArea = (a) => {
+    setAreaSel(a?.id ?? null)
+    const pts = a ? tour.pieces.filter((p) => a.pieceIds.includes(p.id)).flatMap((p) => tourPoints([{ pieces: [p] }])) : tourPoints(tours)
+    fitPoints(previewMap, pts, { padding: 40, maxZoom: 18 })
+  }
 
   return (
     <div className="page stack-lg">
@@ -140,13 +153,13 @@ export default function TourEditPage() {
         <Link to={`/admin/tournees/${tour.id}/terrain`} className="btn btn-sm">📱 Vue terrain</Link>
       </div>
 
-      <button type="button" className="btn-primary btn-hero" onClick={() => setEditing(true)}>
+      <button type="button" className="btn-primary btn-hero btn-hero-edit" onClick={() => setEditing(true)}>
         <span className="btn-hero-icon" aria-hidden="true">✏️</span>
         <span className="spacer">
-          <strong>Modifier la tournée</strong>
+          <strong>Modifier la tournée sur la carte</strong>
           <span>Ajouter ou retirer des rues, ajuster leurs bouts, ajouter une maison oubliée</span>
         </span>
-        <span aria-hidden="true">›</span>
+        <span className="btn-hero-go" aria-hidden="true">Ouvrir ›</span>
       </button>
 
       <div className="edit-layout">
@@ -162,7 +175,12 @@ export default function TourEditPage() {
               {progress != null ? `Recherche ${Math.round(progress * 100)} %` : '🏠 Chercher les maisons'}
             </button>
           </div>
-          <TourMap tours={tours} statesById={statesById} flat expandable className="edit-map" />
+          <SectorTabs areas={areas} active={areaSel} onChoose={chooseArea} />
+          <TourMap tours={tours} statesById={statesById} flat expandable streetLabels showHouses={previewHouses} areas={mapAreas} onReady={setPreviewMap} className="edit-map" />
+          <label className="check-line small">
+            <input type="checkbox" checked={previewHouses} onChange={(e) => setPreviewHouses(e.target.checked)} />
+            Afficher les maisons sur la carte
+          </label>
         </div>
       </div>
 

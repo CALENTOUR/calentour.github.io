@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import TourMap, { tourBounds } from '../../components/map/TourMap'
+import TourMap, { tourPoints } from '../../components/map/TourMap'
+import { fitPoints } from '../../components/map/useMapLibre'
 import TourForm from '../../components/TourForm'
+import ProgressRing from '../../components/ui/ProgressRing'
 import Sheet from '../../components/ui/Sheet'
+import { IconCheck, IconExpand, IconEye, IconEyeOff, IconLayers, IconList, IconPencil, IconPlus, IconSearch, IconShrink } from '../../components/ui/Icons'
 import { useToast } from '../../components/ui/Toast'
 import { TOUR_COLORS } from '../../config/constants'
 import { useData } from '../../context/DataContext'
 import { formatEuro, formatPercent } from '../../lib/format'
 import { globalStats, tourStats } from '../../lib/stats'
-import { pieceLabels, villagesOf } from '../../lib/places'
+import { tourAreas, villagesOf } from '../../lib/places'
 import { findHouses } from '../../lib/tourBuilder'
-import { bounds, unflatten } from '../../lib/geo'
 import { createTour, loadInitialTours, nameInitialTours, saveTour } from '../../services/tours'
 import TourMapEditor from './TourMapEditor'
 
@@ -101,31 +103,60 @@ export default function ToursMapPage() {
   const stats = useMemo(() => (selected ? tourStats(selected, statesById[selected.id]) : null), [selected, statesById])
   const perTour = useMemo(() => Object.fromEntries(tours.map((t) => [t.id, tourStats(t, statesById[t.id])])), [tours, statesById])
   const villages = useMemo(() => villagesOf(shown), [shown])
-  // Villages de la tournée choisie, avec l'emprise de ses rues dans chacun.
-  const tourPlaces = useMemo(() => {
-    if (!selected) return []
-    const labels = pieceLabels(selected)
-    const byPlace = new Map()
-    for (const p of selected.pieces) {
-      const name = labels[p.id]?.place || 'Autres rues'
-      byPlace.set(name, [...(byPlace.get(name) ?? []), p])
+  // Secteurs de la tournée choisie : ses rues regroupées par endroit, chacun nommé
+  // d'après son ou ses villages.
+  const areasById = useMemo(() => Object.fromEntries(tours.map((t) => [t.id, tourAreas(t)])), [tours])
+  const tourPlaces = useMemo(() => (selected ? (areasById[selected.id] ?? []).map((a, i) => ({ ...a, num: i + 1, pieceIds: new Set(a.pieceIds) })) : []), [selected, areasById])
+  const place = tourPlaces.find((x) => x.id === placeSel) ?? null
+  const mapAreas = useMemo(() => (tourPlaces.length > 1 ? tourPlaces.map((a) => ({ ...a, name: `${a.num} · ${a.name}`, active: a.id === placeSel })) : null), [tourPlaces, placeSel])
+  // Chiffres de la tournée choisie, ou de son secteur choisi.
+  const shownStats = useMemo(() => {
+    if (!stats) return null
+    if (!place) return { done: stats.done, total: stats.total, amount: stats.amount, progress: stats.progress, counts: stats.counts }
+    const r = { done: 0, total: 0, amount: 0, counts: { todo: 0, given: 0, again: 0, refused: 0, empty: 0 } }
+    for (const id of place.pieceIds) {
+      const x = stats.byPiece[id]
+      if (!x) continue
+      r.done += x.done; r.total += x.total; r.amount += x.amount
+      for (const k of Object.keys(r.counts)) r.counts[k] += x.counts[k] ?? 0
     }
-    return [...byPlace.entries()].map(([name, list]) => ({
-      name,
-      pieceIds: new Set(list.map((p) => p.id)),
-      bounds: bounds(list.flatMap((p) => p.lines.flatMap((l) => unflatten(l.c)))),
-    }))
-  }, [selected])
-  const place = tourPlaces.find((x) => x.name === placeSel) ?? null
-  const placeStats = place && stats ? [...place.pieceIds].reduce((r, id) => {
-    const x = stats.byPiece[id]
-    return x ? { done: r.done + x.done, total: r.total + x.total, amount: r.amount + x.amount } : r
-  }, { done: 0, total: 0, amount: 0 }) : null
+    return { ...r, progress: r.total ? r.done / r.total : 0 }
+  }, [stats, place])
 
-  const PAD = { top: 150, bottom: 150, left: 40, right: 70 }
-  const fitBox = (b, maxZoom = 17) => { if (b && map) map.fitBounds(b, { padding: PAD, maxZoom, duration: 700, pitch: map.getPitch() }) }
-  const fitTo = (list) => fitBox(list.length && tourBounds(list), 17)
-  // Choix d'une tournée : on oublie le village choisi dans la précédente.
+  // Liste des tournées : recherche par binôme, numéro ou village, et filtres.
+  const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState('all')
+  const LATE = 0.3
+  const doneCount = tours.filter((t) => perTour[t.id].total && perTour[t.id].progress >= 1).length
+  const listed = tours.filter((t) => {
+    const st = perTour[t.id]
+    if (filter === 'late' && !(st.progress < LATE)) return false
+    if (filter === 'done' && !(st.total && st.progress >= 1)) return false
+    const q = query.trim().toLowerCase()
+    if (!q) return true
+    return `${t.number} ${t.name} ${(areasById[t.id] ?? []).map((a) => a.name).join(' ')}`.toLowerCase().includes(q)
+  })
+  const [layersOpen, setLayersOpen] = useState(false)
+
+  // Marges du cadrage : la place laissée libre par les bandeaux et la fiche de la
+  // tournée (en bas sur téléphone, à droite sur ordinateur).
+  const padding = () => {
+    const c = map.getContainer().getBoundingClientRect()
+    const top = document.querySelector('.tours-map-top')?.getBoundingClientRect()
+    const card = document.querySelector('.tours-map .map-panel')?.getBoundingClientRect()
+    const side = card && card.left > c.left + c.width * 0.4 && card.bottom < c.top + c.height * 0.6
+    return {
+      top: top ? Math.max(30, top.bottom - c.top + 24) : 60,
+      bottom: card && !side ? Math.max(40, c.bottom - card.top + 24) : 50,
+      left: 30,
+      right: card && side ? Math.max(70, c.right - card.left + 24) : 70,
+    }
+  }
+  // Après un changement d'affichage, on attend que le panneau soit en place pour le mesurer.
+  const fitLater = (points, maxZoom) => setTimeout(() => { if (map) fitPoints(map, points, { padding: padding(), maxZoom }) }, 60)
+  const fitBox = (b, maxZoom) => b && fitLater([b[0], [b[1][0], b[0][1]], b[1], [b[0][0], b[1][1]]], maxZoom)
+  const fitTo = (list) => list.length && fitLater(tourPoints(list), 17.5)
+  // Choix d'une tournée : on oublie le secteur choisi dans la précédente.
   const pick = (id) => {
     setSelectedId(id)
     setPlaceSel(null)
@@ -136,8 +167,8 @@ export default function ToursMapPage() {
       fitTo([selected])
       return
     }
-    setPlaceSel(p.name)
-    fitBox(p.bounds, 18)
+    setPlaceSel(p.id)
+    fitLater(selected.pieces.filter((x) => p.pieceIds.has(x.id)).flatMap((x) => tourPoints([{ pieces: [x] }])), 18.5)
   }
   const toggle = (id) => setHidden((h) => {
     const next = new Set(h)
@@ -145,19 +176,30 @@ export default function ToursMapPage() {
     else next.add(id)
     return next
   })
-  const only = (id) => {
-    setHidden(new Set(tours.filter((t) => t.id !== id).map((t) => t.id)))
+  // Toucher une carte de la liste : la tournée passe au premier plan et la carte s'y cadre.
+  const focus = (id) => {
+    setHidden((h) => { if (!h.has(id)) return h; const next = new Set(h); next.delete(id); return next })
+    if (id === selectedId) { choosePlace(null); return }
     pick(id)
     fitTo([toursById[id]])
     if (!window.matchMedia?.('(min-width: 900px)').matches) setPanelOpen(false)
   }
-  const showAll = () => { setHidden(new Set()); fitTo(tours) }
+  const choosePlaceOf = (id, p) => {
+    if (id !== selectedId) { setSelectedId(id); setHidden((h) => { const next = new Set(h); next.delete(id); return next }) }
+    setPlaceSel(p.id)
+    fitLater(toursById[id].pieces.filter((x) => p.pieceIds.includes(x.id)).flatMap((x) => tourPoints([{ pieces: [x] }])), 18.5)
+    if (!window.matchMedia?.('(min-width: 900px)').matches) setPanelOpen(false)
+  }
+  const ringColor = (st) => (st.progress >= 0.5 ? 'var(--green)' : st.progress >= LATE ? 'var(--orange)' : 'var(--brand)')
 
   // Toucher un trait de rue sélectionne sa tournée ; toucher ailleurs désélectionne.
   const onMapClick = (e, m) => {
     const box = [[e.point.x - 16, e.point.y - 16], [e.point.x + 16, e.point.y + 16]]
     const hit = m.queryRenderedFeatures(box, { layers: ['pieces'] })[0]
     const id = hit?.properties.tourId ?? null
+    // Toucher dans un cercle rouge zoome sur ce secteur de la tournée choisie.
+    const area = !hit && m.getLayer('areas-fill') ? m.queryRenderedFeatures(e.point, { layers: ['areas-fill'] })[0] : null
+    if (area) return choosePlace(tourPlaces.find((a) => a.id === area.properties.areaId))
     if (id !== selectedId) pick(id)
   }
 
@@ -173,10 +215,10 @@ export default function ToursMapPage() {
 
 
   return (
-    <div className={`fullmap tours-map${panelOpen ? ' panel-open' : ''}${full ? ' is-full' : ''}`}>
+    <div className={`fullmap tours-map${panelOpen ? ' panel-open' : ''}${full ? ' is-full' : ''}${selected ? ' has-float' : ''}`}>
       <TourMap
         tours={shown} statesById={statesById} focusTourId={selected?.id ?? null} autoFit={false}
-        showHouses={showHouses} showProgress={showProgress} showLabels
+        showHouses={showHouses} showProgress={showProgress} showLabels areas={mapAreas}
         fitPadding={{ top: 80, bottom: 60, left: 30, right: 60 }}
         onMapClick={onMapClick}
         onHouseClick={(p) => { if (p.tourId !== selectedId) pick(p.tourId) }}
@@ -184,64 +226,98 @@ export default function ToursMapPage() {
         className="fullmap-map"
       />
 
-      <aside className="tours-panel" aria-label="Tournées affichées">
+      <aside className="tours-panel" aria-label="Liste des tournées">
         <div className="tours-panel-head">
-          <strong className="spacer">Tournées affichées <span className="muted small">{shown.length}/{tours.length}</span></strong>
-          <button type="button" className="btn-round btn-ghost tours-panel-close" onClick={() => setPanelOpen(false)} aria-label="Fermer le bandeau">✕</button>
+          <strong className="spacer tours-count">{tours.length} tournées <span className="small muted">{doneCount} terminée{doneCount > 1 ? 's' : ''}</span></strong>
+          <button type="button" className="btn-round btn-ghost tours-panel-close" onClick={() => setPanelOpen(false)} aria-label="Fermer la liste">✕</button>
         </div>
-        <div className="row tours-panel-all">
-          <button type="button" className="btn-sm spacer" onClick={showAll}>Toutes</button>
-          <button type="button" className="btn-sm spacer" onClick={() => { setHidden(new Set(tours.map((t) => t.id))); pick(null) }}>Aucune</button>
+        <label className="tours-search">
+          <IconSearch width={16} height={16} />
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Chercher un binôme, un village" aria-label="Chercher une tournée" />
+        </label>
+        <div className="tours-filters" role="group" aria-label="Filtrer les tournées">
+          {[['all', 'Toutes'], ['late', 'À relancer'], ['done', 'Terminées']].map(([k, label]) => (
+            <button key={k} type="button" className={filter === k ? 'on' : ''} aria-pressed={filter === k} onClick={() => setFilter(k)}>{label}</button>
+          ))}
         </div>
-        <ul className="tours-panel-list">
-          {tours.map((t) => {
-            const on = !hidden.has(t.id)
+        <ul className="tour-cards">
+          {listed.map((t) => {
+            const st = perTour[t.id]
+            const areas = areasById[t.id] ?? []
+            const isSel = selected?.id === t.id
+            const off = hidden.has(t.id)
+            const finished = st.total && st.progress >= 1
             return (
-              <li key={t.id} className={`${on ? 'on' : ''}${selected?.id === t.id ? ' sel' : ''}`} style={{ '--tour': t.color }}>
-                <label className="tour-check">
-                  <input type="checkbox" checked={on} onChange={() => toggle(t.id)} />
-                  <span className="tour-check-box" aria-hidden="true">{on ? '✓' : ''}</span>
-                </label>
-                <button type="button" className="tour-row" onClick={() => only(t.id)} title="Afficher seulement cette tournée">
-                  <strong className="ellipsis">{t.number}. {t.name}</strong>
-                  <span className="small muted">{formatPercent(perTour[t.id].progress)} · {t.houses.length} maisons</span>
-                </button>
+              <li key={t.id} className={`tour-card${isSel ? ' sel' : ''}${off ? ' off' : ''}`} style={{ '--tour': t.color }}>
+                <div className="tour-card-row">
+                  <button type="button" className="tour-card-main" onClick={() => focus(t.id)} aria-pressed={isSel}>
+                    <span className="tour-num">{t.number}</span>
+                    <span className="tour-card-text">
+                      <strong className="ellipsis">{t.name}</strong>
+                      <span className="small muted ellipsis">{areas.length > 1 ? `${areas.length} secteurs` : areas[0]?.name ?? 'Pas de rue'} · {t.houses.length} maisons</span>
+                    </span>
+                    {finished
+                      ? <span className="tour-ring-done" aria-label="Terminée"><IconCheck width={20} height={20} /></span>
+                      : <ProgressRing value={st.progress} size={42} stroke={5} color={ringColor(st)}><strong className="tour-ring-pct">{Math.round(st.progress * 100)}</strong></ProgressRing>}
+                  </button>
+                  <button type="button" className="tour-eye" onClick={() => toggle(t.id)} aria-pressed={!off} aria-label={off ? 'Afficher sur la carte' : 'Masquer de la carte'} title={off ? 'Afficher sur la carte' : 'Masquer de la carte'}>
+                    {off ? <IconEyeOff width={18} height={18} /> : <IconEye width={18} height={18} />}
+                  </button>
+                </div>
+                {isSel && areas.length > 1 && (
+                  <div className="tour-card-sectors">
+                    {areas.map((a, i) => (
+                      <button key={a.id} type="button" className={placeSel === a.id ? 'on' : ''} onClick={() => choosePlaceOf(t.id, a)}>{i + 1} {a.name}</button>
+                    ))}
+                  </div>
+                )}
               </li>
             )
           })}
-          {!tours.length && <li className="muted small">Aucune tournée pour l’instant.</li>}
+          {!listed.length && <li className="muted small tour-cards-empty">{tours.length ? 'Aucune tournée ne correspond.' : 'Aucune tournée pour l’instant.'}</li>}
         </ul>
       </aside>
 
       <div className="tours-map-top">
-        <button type="button" className={`full-btn${full ? ' on' : ''}`} onClick={toggleFull} aria-pressed={full} aria-label={full ? 'Quitter le plein écran' : 'Plein écran'} title={full ? 'Quitter le plein écran' : 'Plein écran'}>
-          <span aria-hidden="true">{full ? '✕' : '⛶'}</span><span className="hide-mobile">{full ? 'Quitter le plein écran' : 'Plein écran'}</span>
-        </button>
-        <button type="button" className={`layer-btn tours-panel-btn${panelOpen ? ' on' : ''}`} onClick={() => setPanelOpen((v) => !v)}>☰ Tournées <span className="chip-pct">{shown.length}/{tours.length}</span></button>
-        <button type="button" className="btn-primary" onClick={() => setCreating(true)}>＋ <span className="hide-mobile">Nouvelle </span>tournée</button>
-        <button type="button" className={`layer-btn${showHouses ? ' on' : ''}`} aria-pressed={showHouses} onClick={() => setShowHouses((v) => !v)}>
-          <span className="check">{showHouses ? '✓' : ''}</span>Maisons
-        </button>
-        <button type="button" className={`layer-btn${showProgress ? ' on' : ''}`} aria-pressed={showProgress} onClick={() => setShowProgress((v) => !v)}>
-          <span className="check">{showProgress ? '✓' : ''}</span>Avancement
-        </button>
         {selected && tourPlaces.length > 1 ? (
-          <div className="village-chips tour-places" aria-label={`Villages de la tournée ${selected.number}`}>
-            <span className="tour-places-label"><span className="swatch" style={{ background: selected.color }} /><span className="hide-mobile">Villages de la tournée </span>{selected.number}</span>
-            <button type="button" className={!place ? 'on' : ''} onClick={() => choosePlace(null)}>Tous</button>
+          <div className="village-chips tour-places" aria-label={`Secteurs de la tournée ${selected.number}`}>
+            <span className="tour-places-label">Secteurs</span>
+            <button type="button" className={!place ? 'on' : ''} onClick={() => choosePlace(null)}>Toute la tournée</button>
             {tourPlaces.map((p) => (
-              <button key={p.name} type="button" className={place?.name === p.name ? 'on' : ''} onClick={() => choosePlace(p)}>📍 {p.name}</button>
+              <button key={p.id} type="button" className={place?.id === p.id ? 'on' : ''} onClick={() => choosePlace(p)}>{p.num} · {p.name}</button>
             ))}
           </div>
         ) : !selected && villages.length > 1 && (
           <div className="village-chips" aria-label="Aller à un village">
             {villages.map((v) => (
-              <button key={v.name} type="button" onClick={() => fitBox(v.bounds, 16)}>📍 {v.name}</button>
+              <button key={v.name} type="button" onClick={() => fitBox(v.bounds, 16.5)}>{v.name}</button>
             ))}
           </div>
         )}
       </div>
 
+      <div className="tours-map-tools">
+        <button type="button" className={`map-tool${full ? ' on' : ''}`} onClick={toggleFull} aria-pressed={full} aria-label={full ? 'Quitter le plein écran' : 'Plein écran'} title={full ? 'Quitter le plein écran' : 'Plein écran'}>
+          {full ? <IconShrink width={20} height={20} /> : <IconExpand width={20} height={20} />}
+        </button>
+        <button type="button" className={`map-tool tours-panel-btn${panelOpen ? ' on' : ''}`} onClick={() => setPanelOpen((v) => !v)} aria-pressed={panelOpen} aria-label="Liste des tournées" title="Liste des tournées">
+          <IconList width={20} height={20} />
+        </button>
+        <div className="map-tool-wrap">
+          <button type="button" className={`map-tool${layersOpen || showHouses || showProgress ? ' on' : ''}`} onClick={() => setLayersOpen((v) => !v)} aria-expanded={layersOpen} aria-label="Calques" title="Calques">
+            <IconLayers width={20} height={20} />
+          </button>
+          {layersOpen && (
+            <div className="layers-pop">
+              <label className="check-line"><input type="checkbox" checked={showHouses} onChange={(e) => setShowHouses(e.target.checked)} />Maisons</label>
+              <label className="check-line"><input type="checkbox" checked={showProgress} onChange={(e) => setShowProgress(e.target.checked)} />Avancement</label>
+            </div>
+          )}
+        </div>
+        <button type="button" className="map-tool map-tool-add" onClick={() => setCreating(true)} aria-label="Nouvelle tournée" title="Nouvelle tournée">
+          <IconPlus width={20} height={20} />
+        </button>
+      </div>
 
       {searching && <div className="map-note">Recherche des maisons · tournée {searching.number} ({searching.left} restante{searching.left > 1 ? 's' : ''})</div>}
 
@@ -257,19 +333,29 @@ export default function ToursMapPage() {
       )}
 
       {selected && (
-        <div className="map-panel tour-panel">
-          <div className="map-panel-info">
-            <strong className="ellipsis"><span className="swatch" style={{ background: selected.color }} />{selected.number}. {selected.name}</strong>
-            <div className="map-panel-line">
-              <div className="map-panel-bar"><i style={{ width: `${Math.round(stats.progress * 100)}%` }} /></div>
-              <strong className="small">{formatPercent(stats.progress)}</strong>
-            </div>
-            <div className="small muted ellipsis">
-              {place ? `${place.name} : ${placeStats.done}/${placeStats.total} faites · ` : `${stats.done}/${stats.total} faites · `}
-              {formatEuro(place ? placeStats.amount : stats.amount)}
+        <div className="map-panel tour-float" style={{ '--tour': selected.color }}>
+          <button type="button" className="btn-round btn-ghost tour-float-close" onClick={() => pick(null)} aria-label="Fermer la fiche">✕</button>
+          <div className="tour-float-head">
+            <ProgressRing value={shownStats.progress} size={64} stroke={8} color="var(--green)"><strong>{Math.round(shownStats.progress * 100)}%</strong></ProgressRing>
+            <div className="tour-float-title">
+              <span className="kicker">Tournée {selected.number}{place ? ` · secteur ${place.num}` : ''}</span>
+              <strong className="ellipsis">{selected.name}</strong>
+              <span className="small muted">{shownStats.done} / {shownStats.total} maisons · {formatEuro(shownStats.amount)}</span>
             </div>
           </div>
-          <Link to={`/admin/tournees/${selected.id}`} className="btn btn-primary btn-big">⚙️ Modifier les infos de la tournée</Link>
+          <div className="tour-float-stats">
+            <div className="tf-given"><strong>{shownStats.counts.given}</strong><span>Dons</span></div>
+            <div className="tf-again"><strong>{shownStats.counts.again}</strong><span>À repasser</span></div>
+            <div className="tf-todo"><strong>{shownStats.counts.todo}</strong><span>À faire</span></div>
+          </div>
+          <Link to={`/admin/tournees/${selected.id}`} className="btn btn-primary btn-big tour-float-edit"><IconPencil width={18} height={18} />Modifier la tournée</Link>
+        </div>
+      )}
+
+      {selected && tourPlaces.length > 1 && (
+        <div className="map-legend hide-mobile" aria-hidden="true">
+          <span><i className="lg-sector" />Secteur de la tournée</span>
+          <span><i className="lg-other" />Autres tournées</span>
         </div>
       )}
 
