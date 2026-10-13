@@ -65,12 +65,29 @@ export async function importTours(parsed, existing = []) {
 export async function loadInitialTours(existing = []) {
   const parsed = INITIAL_TOURS.map((t) => ({
     number: t.number,
-    name: `Tournée ${t.number}`,
-    members: [],
+    name: t.name ?? `Tournée ${t.number}`,
+    members: t.members ?? [],
     color: t.color,
     pieces: t.lines.map((line) => ({ line })),
   }))
   await importTours(parsed, existing)
-  await setDoc(settingsRef(), { toursLoaded: true }, { merge: true })
+  await setDoc(settingsRef(), { toursLoaded: true, toursNamed: true }, { merge: true })
   return parsed.length
+}
+
+// Tournées chargées avant que les noms des équipes soient connus (« Tournée N », sans
+// pompier) : elles reçoivent une fois les vrais noms de src/config/tours.json.
+export async function nameInitialTours(existing) {
+  const official = new Map(INITIAL_TOURS.map((t) => [t.number, t]))
+  const batch = writeBatch(db)
+  let count = 0
+  for (const t of existing) {
+    const o = official.get(t.number)
+    if (!o?.name || t.name !== `Tournée ${t.number}` || t.members?.length) continue
+    batch.set(tourRef(t.id), { name: o.name, members: o.members, updatedAt: serverTimestamp() }, { merge: true })
+    count++
+  }
+  batch.set(settingsRef(), { toursNamed: true }, { merge: true })
+  await batch.commit()
+  return count
 }

@@ -712,3 +712,46 @@ li.on .tour-check-box { background: var(--tour); border-color: var(--tour); }
 body.immersive .topbar, body.immersive .sidebar, body.immersive .tabbar { display: none !important; }
 body.immersive .fullmap { inset: 0 !important; left: 0 !important; top: 0 !important; bottom: 0 !important; }
 body.immersive .main { margin: 0 !important; padding: 0 !important; }
+
+/* ---------- Retours n°5 ---------- */
+
+/* Bouton 2D / 3D : deux moitiés, la vue en cours en noir. */
+.map-btns .dim-toggle { display: inline-flex; padding: 3px; gap: 3px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--float); }
+.map-btns .dim-toggle button { min-height: 38px; min-width: 46px; padding: 0 .6rem; border: none; box-shadow: none; border-radius: 7px; background: transparent; font-weight: 800; font-size: .95rem; color: var(--muted); }
+.map-btns .dim-toggle button.on { background: var(--ink); color: #fff; }
+
+/* Onglet Tournées : raccourcis vers les villages et secteurs de la tournée choisie. */
+.village-chips { flex-basis: 100%; display: flex; gap: .35rem; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.village-chips::-webkit-scrollbar { display: none; }
+.tours-map-top .village-chips button { flex: none; min-height: 32px; padding: .15rem .65rem; font-size: .8rem; font-weight: 700; border-radius: 99px; background: var(--card); }
+.sector-tabs { display: flex; gap: .35rem; overflow-x: auto; scrollbar-width: none; margin: 0 -.2rem; padding: 0 .2rem 2px; }
+.sector-tabs::-webkit-scrollbar { display: none; }
+.sector-tabs button { flex: none; min-height: 36px; padding: .2rem .4rem .2rem .7rem; gap: .35rem; font-size: .82rem; font-weight: 700; border-radius: 8px; background: var(--card-2); border: 1px solid var(--border); }
+.sector-tabs button.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.sector-tabs button.on .chip-pct { background: rgba(255, 255, 255, .18); color: #fff; }
+.sector-tabs button.on .chip-village { color: rgba(255, 255, 255, .7); }
+
+/* Ma tournée : onglets des villages. */
+.village-tabs { display: flex; gap: .4rem; overflow-x: auto; scrollbar-width: none; }
+.village-tabs::-webkit-scrollbar { display: none; }
+.village-tabs button { flex: none; min-height: 40px; padding: .2rem .45rem .2rem .85rem; gap: .45rem; font-weight: 800; font-size: .85rem; letter-spacing: .04em; text-transform: uppercase; border-radius: 10px; border: 1px solid var(--border); background: var(--card); }
+.village-tabs button.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.village-tabs .chip-pct { letter-spacing: 0; }
+.village-tabs button.on .chip-pct { background: rgba(255, 255, 255, .18); color: #fff; }
+.map-chips .chip-village-tab { text-transform: uppercase; letter-spacing: .05em; font-weight: 800; }
+
+/* Carte binôme : plus de bandeau en bas ; camembert et bouton + à droite. */
+.map-side { position: absolute; z-index: 3; right: .6rem; bottom: .7rem; display: flex; flex-direction: column; align-items: center; gap: .55rem; }
+.mini-pie { padding: 0; border: 1px solid var(--border); background: var(--card); border-radius: 50%; width: 66px; height: 66px; box-shadow: var(--float); display: grid; place-items: center; }
+.mini-pie .ring-center strong { font-size: .85rem; font-weight: 800; }
+.fab-add { width: 58px; height: 58px; padding: 0; border-radius: 50%; background: var(--brand); border: none; color: #fff; font-size: 1.9rem; font-weight: 400; line-height: 1; box-shadow: 0 4px 14px rgba(184, 67, 47, .45); }
+.fab-add.on { background: var(--ink); box-shadow: var(--float); font-size: 1.3rem; }
+.shell-member .fullmap .map-note-action { bottom: .9rem; left: .6rem; right: 5.2rem; transform: none; max-width: none; }
+.shell-member .fullmap .map-btns { bottom: 16px; }
+@media (max-width: 700px) {
+  .shell-member .fullmap .map-btns { top: calc(var(--safe-top) + 196px); bottom: auto; }
+}
+@media (min-width: 900px) { .sector-tabs { flex-wrap: wrap; overflow: visible; } }
+@media (max-width: 700px) {
+  .shell-admin .fullmap .map-btns { top: 262px; left: 10px; right: auto; align-items: flex-start; }
+}

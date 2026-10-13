@@ -23,9 +23,9 @@ src/
 
 | Chemin | Contenu |
 | --- | --- |
-| `settings/app` | `amicale`, `year` (campagne en cours), `rankingForMembers` |
+| `settings/app` | `amicale`, `year` (campagne en cours), `rankingForMembers`, `toursLoaded` et `toursNamed` (tournées officielles chargées et nommées) |
 | `users/{uid}` | `login`, `name`, `role` (`admin` / `member`), `tourId`, `active` |
-| `tours/{id}` (au départ : `src/config/tours.json`, tracés de la carte Google, chargés automatiquement) | `number`, `name`, `members`, `color`, `pieces` [{ `id`, `name`, `lines` [{ `c`: [lng, lat, …], `r`? }] }], `houses` [{ `id`, `label`, `lng`, `lat`, `pieceId`, `along`, `units`?, `added`? }] |
+| `tours/{id}` (au départ : `src/config/tours.json`, tracés et équipes de la carte Google, chargés automatiquement) | `number`, `name`, `members`, `color`, `pieces` [{ `id`, `name`, `lines` [{ `c`: [lng, lat, …], `r`? }] }], `houses` [{ `id`, `label`, `lng`, `lat`, `pieceId`, `along`, `units`?, `added`? }] |
 | `campaigns/{année}/state/{tourId}` | `h` : { cléHabitation: { `s`, `amount`, `mode`, `at`, `by` } } |
 | `campaigns/{année}/passages/{id}` | journal de tous les passages (historique) |
 

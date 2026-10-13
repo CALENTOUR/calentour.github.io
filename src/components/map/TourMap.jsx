@@ -130,7 +130,7 @@ function ensureLabelLayer(map) {
 }
 
 // Carte d'une ou plusieurs tournées : rues tracées et maisons colorées par statut.
-export default function TourMap({ tours, statesById, focusPieceId = null, focusTourId = null, onHouseClick, onMapClick, onReady, flat = false, fitPadding = 50, expandable = false, showMe = false, showHouses = true, showProgress = false, showLabels = false, className = '' }) {
+export default function TourMap({ tours, statesById, focusPieceId = null, focusTourId = null, onHouseClick, onMapClick, onReady, flat = false, fitPadding = 50, expandable = false, showMe = false, showHouses = true, showProgress = false, showLabels = false, autoFit = true, className = '' }) {
   const containerRef = useRef(null)
   const initial = tourBounds(tours, focusPieceId)
   const map = useMapLibre(containerRef, { initialBounds: initial, flat, fitPadding, geolocate: !showMe })
@@ -158,6 +158,7 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
   useEffect(() => {
     if (!map || lastFocus.current === focusPieceId) return
     lastFocus.current = focusPieceId
+    if (!autoFit) return
     const b = tourBounds(tours, focusPieceId)
     if (b) map.fitBounds(b, { padding: fitPadding, maxZoom: 18, duration: 700, pitch: map.getPitch() })
     // fitPadding est fixe pour une carte donnée.
@@ -229,12 +230,25 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
     return () => window.removeEventListener('keydown', onKey)
   }, [map, full])
 
+  // Vue 2D ou 3D en cours, pour le bouton.
+  const [is3D, setIs3D] = useState(false)
+  useEffect(() => {
+    if (!map) return undefined
+    const sync = () => setIs3D(map.getPitch() > 5)
+    sync()
+    map.on('pitchend', sync)
+    return () => map.off('pitchend', sync)
+  }, [map])
+
   return (
     <div className={`map-wrap ${className}${full ? ' map-wrap-full' : ''}`}>
       <div ref={containerRef} className="map-container" />
       {map && (
         <div className="map-btns">
-          <button type="button" onClick={() => toggle3D(map)} aria-label="Basculer 2D / 3D">2D / 3D</button>
+          <div className="dim-toggle" role="group" aria-label="Vue 2D ou 3D">
+            <button type="button" className={is3D ? '' : 'on'} aria-pressed={!is3D} onClick={() => is3D && toggle3D(map)}>2D</button>
+            <button type="button" className={is3D ? 'on' : ''} aria-pressed={is3D} onClick={() => !is3D && toggle3D(map)}>3D</button>
+          </div>
           {showMe && <button type="button" className={me ? 'me-on' : ''} onClick={goToMe} aria-label="Me localiser">📍 Moi</button>}
           {expandable && (
             <button type="button" onClick={() => setFull((f) => !f)} aria-label={full ? 'Quitter le plein écran' : 'Plein écran'}>{full ? '✕ Réduire' : '⛶ Plein écran'}</button>

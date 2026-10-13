@@ -23,3 +23,22 @@ export function pieceLabels(tour) {
   }
   return out
 }
+
+// Villages traversés par les tournées (d'après les adresses des maisons), avec leur
+// emprise pour y aller d'un geste. Classés par nombre de maisons.
+export function villagesOf(tours) {
+  const byName = new Map()
+  for (const t of tours) {
+    for (const h of t.houses ?? []) {
+      if (!h.city) continue
+      const v = byName.get(h.city) ?? { name: h.city, count: 0, w: 180, e: -180, s: 90, n: -90 }
+      v.count++
+      v.w = Math.min(v.w, h.lng); v.e = Math.max(v.e, h.lng)
+      v.s = Math.min(v.s, h.lat); v.n = Math.max(v.n, h.lat)
+      byName.set(h.city, v)
+    }
+  }
+  return [...byName.values()]
+    .sort((a, b) => b.count - a.count)
+    .map((v) => ({ name: v.name, count: v.count, bounds: [[v.w, v.s], [v.e, v.n]] }))
+}

@@ -52,7 +52,7 @@ export async function seedDemo() {
   let streetIndex = 0
   TOURS.forEach((t, ti) => {
     const id = `t${t.number}`
-    const members = [FIRST_NAMES[(ti * 2) % FIRST_NAMES.length], FIRST_NAMES[(ti * 2 + 1) % FIRST_NAMES.length]]
+    const members = t.members ?? [FIRST_NAMES[(ti * 2) % FIRST_NAMES.length], FIRST_NAMES[(ti * 2 + 1) % FIRST_NAMES.length]]
     const pieces = []
     const houses = []
     t.lines.forEach((line, li) => {
@@ -74,7 +74,7 @@ export async function seedDemo() {
         n++
       }
     })
-    docs[`tours/${id}`] = { number: t.number, name: members.join(' / '), members, color: t.color, pieces, houses }
+    docs[`tours/${id}`] = { number: t.number, name: t.name ?? members.join(' / '), members, color: t.color, pieces, houses }
 
     // Avancement différent d'une tournée à l'autre.
     const progress = 0.15 + random() * 0.7
