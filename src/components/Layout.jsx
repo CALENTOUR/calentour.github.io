@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import OfflineBanner from './OfflineBanner'
 import Logo from './ui/Logo'
+import { IconDashboard, IconTour } from './ui/Icons'
 import { useAuth } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { IS_DEMO } from '../demo/demoInfo'
@@ -8,8 +9,8 @@ import { resetDemo } from '../demo/reset'
 import { logout } from '../services/users'
 
 const MEMBER_NAV = [
-  { to: '/tournee', icon: '🗺️', label: 'Ma tournée' },
-  { to: '/stats', icon: '📊', label: 'Mes stats' },
+  { to: '/tournee', icon: <IconTour />, label: 'Ma tournée' },
+  { to: '/stats', icon: <IconDashboard />, label: 'Tableau de bord' },
 ]
 const ADMIN_NAV = [
   { to: '/admin', icon: '📈', label: 'Tableau de bord', end: true },

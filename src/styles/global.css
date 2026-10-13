@@ -755,3 +755,28 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 @media (max-width: 700px) {
   .shell-admin .fullmap .map-btns { top: 262px; left: 10px; right: auto; align-items: flex-start; }
 }
+
+/* ---------- Retours n°6 ---------- */
+
+/* Onglets du bas côté binôme : deux vrais boutons, l'actif en noir. */
+.shell-member .tabbar { gap: 10px; padding: 8px 12px calc(8px + var(--safe-bottom)); }
+.shell-member .tab { flex-direction: row; gap: .5rem; border: 1px solid var(--border); border-radius: 12px; background: var(--card-2); color: var(--muted); font-size: .9rem; font-weight: 800; }
+.shell-member .tab .tab-icon { width: auto; height: auto; background: none !important; transform: none !important; display: grid; }
+.shell-member .tab .tab-icon svg { width: 22px; height: 22px; }
+.shell-member .tab.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+.shell-member .tab:active { transform: scale(.97); }
+
+/* Ma tournée : villages en plus petit, sur plusieurs lignes, noms entiers. */
+.village-tabs { flex-wrap: wrap; overflow: visible; gap: .35rem; }
+.village-tabs button { min-height: 34px; font-size: .72rem; letter-spacing: .03em; padding: .15rem .35rem .15rem .65rem; gap: .35rem; }
+
+/* Bouton « Ma position ». */
+.map-btns button svg { flex: none; }
+.map-btns button.me-on { color: var(--blue); }
+
+/* Onglet Tournées : villages de la tournée choisie en tête, panneau réduit. */
+.tours-map-top .tour-places { order: -1; align-items: center; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: .3rem .35rem; box-shadow: var(--float); }
+.tour-places-label { flex: none; display: inline-flex; align-items: center; gap: .35rem; font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 0 .3rem; }
+.tours-map-top .tour-places button { box-shadow: none; background: var(--card-2); }
+.tours-map-top .tour-places button.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.tour-panel .btn-big { width: 100%; }

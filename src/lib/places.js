@@ -19,7 +19,8 @@ export function pieceLabels(tour) {
   const out = {}
   for (const [id, x] of Object.entries(raw)) {
     const village = several ? x.village.toUpperCase() : ''
-    out[id] = { ...x, village, full: village ? `${village} : ${x.street}` : x.street }
+    // `place` : le village même quand la tournée n'en traverse qu'un.
+    out[id] = { ...x, village, place: x.village, full: village ? `${village} : ${x.street}` : x.street }
   }
   return out
 }
