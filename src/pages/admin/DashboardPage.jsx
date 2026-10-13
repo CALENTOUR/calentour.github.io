@@ -1,27 +1,11 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import StatTile from '../../components/ui/StatTile'
+import StreetArt from '../../components/ui/StreetArt'
 import StatusBar from '../../components/ui/StatusBar'
-import TourMap from '../../components/map/TourMap'
 import { useData } from '../../context/DataContext'
 import { formatEuro, formatPercent } from '../../lib/format'
 import { globalStats } from '../../lib/stats'
-
-function DailyChart({ days }) {
-  if (!days.length) return <p className="muted small">Les dons apparaîtront ici jour par jour.</p>
-  const max = Math.max(...days.map((d) => d.amount), 1)
-  return (
-    <div className="bars" role="img" aria-label="Dons par jour">
-      {days.map((d) => (
-        <div key={d.day} className="bar-col" title={`${d.day} : ${formatEuro(d.amount)} (${d.count} dons)`}>
-          <span className="bar-value">{Math.round(d.amount)}</span>
-          <div className="bar" style={{ height: `${(d.amount / max) * 100}%` }} />
-          <span className="bar-label">{d.day.slice(8, 10)}/{d.day.slice(5, 7)}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
 
 export default function DashboardPage() {
   const { tours, statesById, settings, year } = useData()
@@ -32,17 +16,21 @@ export default function DashboardPage() {
       <div className="page"><div className="card empty">
         <div className="empty-icon">🚒</div>
         <h2>Bienvenue sur CalenTour</h2>
-        <p className="muted">Commence par créer les tournées : le plus simple est d’importer votre carte Google My Maps.</p>
-        <Link className="btn btn-primary" to="/admin/tournees">Créer les tournées</Link>
+        <p className="muted">Commence par créer les tournées dans l’onglet Carte.</p>
+        <Link className="btn btn-primary" to="/admin/carte">Créer les tournées</Link>
       </div></div>
     )
   }
 
   return (
     <div className="page stack-lg">
-      <div className="row">
-        <h1 className="spacer">{settings?.amicale || 'Tableau de bord'} · {year}</h1>
-        <span className="live">● en direct</span>
+      <div className="dash-head">
+        <div className="spacer">
+          <span className="kicker">Campagne des calendriers {year} <span className="live">● en direct</span></span>
+          <h1>{settings?.amicale || 'Tableau de bord'}</h1>
+          <p className="muted small">{g.done} maisons faites sur {g.total} · {tours.length} tournées</p>
+        </div>
+        <StreetArt className="dash-art" />
       </div>
       <div className="tiles tiles-wide">
         <StatTile icon="💰" label="Total collecté" value={formatEuro(g.amount)} tone="brand" />
@@ -54,11 +42,6 @@ export default function DashboardPage() {
         <StatTile icon="🔁" label="À repasser" value={formatPercent(g.againRate)} sub={`${g.counts.again} maisons`} tone="orange" />
         <StatTile icon="⭐" label="Don moyen" value={formatEuro(g.average)} sub={`${formatEuro(g.perVisit)} par maison visitée`} />
       </div>
-
-      <section className="card stack">
-        <h2>Dons par jour</h2>
-        <DailyChart days={g.perDay} />
-      </section>
 
       <section className="card stack">
         <h2>Tournées <span className="muted small">(classées par montant)</span></h2>
@@ -88,10 +71,6 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="card stack">
-        <h2>Carte des tournées</h2>
-        <TourMap tours={tours} statesById={statesById} expandable className="dash-map" />
-      </section>
     </div>
   )
 }

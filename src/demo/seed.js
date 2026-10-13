@@ -1,6 +1,6 @@
 // Données fictives de la démo : les vraies rues des tournées (tracés de la carte,
 // sans les noms des pompiers), des maisons et des passages inventés.
-import TOURS from './tours.json'
+import TOURS from '../config/tours.json'
 import { flatten, lineLength, offsetPoint, projectOnLine } from '../lib/geo'
 
 const FIRST_NAMES = ['Alex', 'Camille', 'Sam', 'Charlie', 'Jules', 'Lou', 'Max', 'Noa', 'Robin', 'Sasha', 'Eden', 'Morgan', 'Andréa', 'Lucie', 'Hugo', 'Inès', 'Léo', 'Manon', 'Tom', 'Zoé', 'Nina', 'Théo', 'Emma', 'Paul', 'Jade', 'Louis', 'Rose', 'Enzo', 'Mila', 'Yanis']

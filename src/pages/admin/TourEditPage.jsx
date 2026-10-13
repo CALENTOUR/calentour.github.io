@@ -74,7 +74,7 @@ export default function TourEditPage() {
   const [progress, setProgress] = useState(null)
   const tours = useMemo(() => (tour ? [tour] : []), [tour])
 
-  if (!tour) return <div className="page"><p className="muted">Tournée introuvable.</p><Link to="/admin/tournees">← Tournées</Link></div>
+  if (!tour) return <div className="page"><p className="muted">Tournée introuvable.</p><Link to="/admin/carte">← Carte</Link></div>
 
   const update = (data) => saveTour(tourId, data).catch((err) => toast(`Erreur : ${err.message}`))
 
@@ -120,7 +120,7 @@ export default function TourEditPage() {
     if (!window.confirm(`Supprimer définitivement la tournée ${tour.number} (${tour.name}) ? Ses rues, ses maisons et ses dons seront supprimés, ses accès désactivés.`)) return
     await removeTour(tour, users)
     toast(`Tournée ${tour.number} supprimée`)
-    navigate('/admin/tournees')
+    navigate('/admin/carte')
   }
 
   const housesByPiece = sortHouses(tour.houses, tour.pieces)
@@ -128,7 +128,7 @@ export default function TourEditPage() {
   return (
     <div className="page stack-lg">
       <div className="row">
-        <Link to="/admin/tournees" className="btn btn-ghost btn-sm">←</Link>
+        <Link to="/admin/carte" className="btn btn-ghost btn-sm">←</Link>
         <h1 className="spacer"><span className="swatch" style={{ background: tour.color }} />Tournée {tour.number} · {tour.name}</h1>
         <Link to={`/admin/tournees/${tour.id}/terrain`} className="btn btn-sm">📱 Vue terrain</Link>
       </div>

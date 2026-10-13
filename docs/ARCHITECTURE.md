@@ -25,7 +25,7 @@ src/
 | --- | --- |
 | `settings/app` | `amicale`, `year` (campagne en cours), `rankingForMembers` |
 | `users/{uid}` | `login`, `name`, `role` (`admin` / `member`), `tourId`, `active` |
-| `tours/{id}` | `number`, `name`, `members`, `color`, `pieces` [{ `id`, `name`, `lines` [{ `c`: [lng, lat, …], `r`? }] }], `houses` [{ `id`, `label`, `lng`, `lat`, `pieceId`, `along`, `units`? }] |
+| `tours/{id}` (au départ : `src/config/tours.json`, tracés de la carte Google, chargés automatiquement) | `number`, `name`, `members`, `color`, `pieces` [{ `id`, `name`, `lines` [{ `c`: [lng, lat, …], `r`? }] }], `houses` [{ `id`, `label`, `lng`, `lat`, `pieceId`, `along`, `units`? }] |
 | `campaigns/{année}/state/{tourId}` | `h` : { cléHabitation: { `s`, `amount`, `mode`, `at`, `by` } } |
 | `campaigns/{année}/passages/{id}` | journal de tous les passages (historique) |
 
