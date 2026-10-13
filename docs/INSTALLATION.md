@@ -12,8 +12,8 @@ Durée : 20 minutes environ. Tout est gratuit (plan Firebase « Spark », GitHub
 
 ## 2. Installer les règles de sécurité et les exemptions d'index
 
-Les règles empêchent toute personne non invitée de lire ou d'écrire les données. Les exemptions d'index sont
-obligatoires : sans elles, un secteur de plus de ~1 000 adresses dépasse la limite d'index de Firestore.
+Les règles empêchent toute personne sans compte de lire ou d'écrire les données. Les exemptions d'index évitent
+de dépasser la limite d'index de Firestore sur les gros documents (maisons d'une tournée, état d'une campagne).
 
 Depuis le Codespace :
 
@@ -25,19 +25,13 @@ firebase deploy --only firestore
 ```
 
 Sans la ligne de commande : copier le contenu de `firestore.rules` dans **Firestore** > **Règles** > **Publier**,
-puis dans **Firestore** > **Index** > **Exemptions** ajouter deux exemptions sans aucun index :
-collection `sectorAddresses` champ `addresses`, et collection `sectorVisits` (groupe de collections) champ `visits`.
+puis dans **Firestore** > **Index** > **Exemptions** ajouter trois exemptions sans aucun index :
+collection `tours` champs `houses` et `pieces`, groupe de collections `state` champ `h`.
 
-## 3. Créer le premier administrateur
+## 3. Créer l'amicale et le premier administrateur
 
-Les comptes ne peuvent être créés que sur invitation. La toute première invitation se crée à la main :
-
-1. **Firestore** > **Démarrer une collection** : ID `invitations`.
-2. ID du document : votre email **en minuscules** (ex. `dylan@exemple.fr`).
-3. Champs : `name` (string) = votre nom, `role` (string) = `admin`.
-4. Ouvrir l'application, cliquer **Première connexion**, saisir ce même email et un mot de passe.
-
-Ensuite, les autres membres s'invitent depuis l'écran **Administration** de l'application.
+Ouvrir l'application : au tout premier lancement, elle propose de créer l'amicale (nom, identifiant et mot de passe
+du premier administrateur). Ensuite, ce premier administrateur crée tous les autres accès depuis l'application.
 
 ## 4. Configurer l'application
 
@@ -72,32 +66,13 @@ Chaque push sur `main` lance `.github/workflows/deploy.yml` qui publie :
 - l'application sur https://calentour.github.io/
 - la démo sur https://calentour.github.io/demo/
 
-## 6. Préparer la première tournée
+## 6. Préparer les tournées
 
-1. **Administration** > **Communes** : ajouter vos communes.
-2. **Campagnes** : créer la campagne de l'année (la première créée devient active).
-3. **Secteurs** > **Nouveau secteur** : dessiner le contour sur la carte, choisir la commune et les membres.
-4. Sur chaque secteur : **Importer OSM** récupère toutes les adresses numérotées d'OpenStreetMap.
-   Compléter les maisons manquantes depuis la carte avec le bouton **＋**.
-5. Inviter les membres dans **Administration**. Ils installent l'application depuis leur navigateur :
-   - Android (Chrome) : menu ⋮ > **Installer l'application** ;
-   - iPhone (Safari) : bouton Partager > **Sur l'écran d'accueil** ;
-   - PC (Chrome / Edge) : icône d'installation dans la barre d'adresse.
-
-## Hors ligne
-
-- Il faut s'être connecté une première fois avec du réseau.
-- Les zones de carte déjà affichées restent visibles sans réseau. Avant de partir, parcourir son secteur
-  sur la carte (zooms 14 à 18) pour le garder en cache.
-- Les passages saisis hors ligne sont gardés sur le téléphone (indicateur orange dans le menu)
-  et envoyés automatiquement dès que le réseau revient.
-
-## Limites du plan gratuit
-
-| Limite Firebase Spark | Consommation CalenTour |
-| --- | --- |
-| 50 000 lectures / jour | ~100 lectures à l'ouverture de l'application (données regroupées par secteur), puis 1 lecture par passage saisi par appareil connecté |
-| 20 000 écritures / jour | 1 écriture par passage |
-| 1 Go stocké | quelques Mo pour 10 000 adresses et 10 campagnes |
-
-Gardez chaque secteur sous ~2 500 adresses (limite de 1 Mo par document Firestore).
+1. **Tournées** > **Choisir le fichier KML** : importer l'export de la carte Google My Maps
+   (menu ⋮ > Télécharger le fichier KML > cocher « Exporter au format .KML »). Chaque trait devient une rue,
+   chaque nom de trait (« 6 Aude / Logan ») une tournée et son binôme.
+2. **Chercher les maisons** : les adresses officielles (Base Adresse Nationale) le long de chaque rue sont ajoutées.
+3. Ouvrir chaque tournée pour corriger : ajouter une rue d'un clic, retirer un trait ou une maison, déclarer un immeuble
+   et son nombre de logements, ranger les rues dans l'ordre de passage.
+4. **Créer l'accès** de chaque binôme et imprimer sa carte d'accès.
+5. Avant de partir, chaque binôme ouvre l'application avec du réseau et touche **Préparer le hors ligne**.

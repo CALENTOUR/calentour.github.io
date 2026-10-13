@@ -2,52 +2,63 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { DataProvider, useData } from './context/DataContext'
 import { ToastProvider } from './components/ui/Toast'
+import Layout from './components/Layout'
 import { isFirebaseConfigured } from './lib/firebase'
 import { logout } from './services/users'
-import AppLayout from './components/layout/AppLayout'
 import LoginPage from './pages/LoginPage'
-import MapPage from './pages/MapPage'
-import AddressesPage from './pages/AddressesPage'
-import SectorsPage from './pages/SectorsPage'
-import StatsPage from './pages/StatsPage'
-import CampaignsPage from './pages/CampaignsPage'
-import AdminPage from './pages/AdminPage'
+import SetupPage from './pages/SetupPage'
+import MyTourPage from './pages/member/MyTourPage'
+import PiecePage from './pages/member/PiecePage'
+import MyStatsPage from './pages/member/MyStatsPage'
+import DashboardPage from './pages/admin/DashboardPage'
+import ToursPage from './pages/admin/ToursPage'
+import TourEditPage from './pages/admin/TourEditPage'
+import DonsPage from './pages/admin/DonsPage'
+import SettingsPage from './pages/admin/SettingsPage'
 
 function Screen({ children }) {
-  return <div className="center-screen"><div className="card auth-card stack" style={{ textAlign: 'center' }}>{children}</div></div>
+  return <div className="login-screen"><div className="login-card stack">{children}</div></div>
 }
 
 function Gate() {
   const { status, isAdmin } = useAuth()
-  const { loading } = useData()
+  const { settings, loading } = useData()
 
-  if (status === 'loading') return <Screen><p className="muted">Chargement…</p></Screen>
-  if (status === 'signedOut') return <LoginPage />
+  if (status === 'loading' || settings === undefined) return <Screen><div className="logo-big spin">🚒</div><p className="muted">Chargement…</p></Screen>
+  if (status === 'signedOut') return settings === null ? <SetupPage /> : <LoginPage />
   if (status === 'noProfile' || status === 'inactive') {
     return (
       <Screen>
         <h2>Accès non autorisé</h2>
-        <p className="muted">
-          {status === 'inactive'
-            ? 'Votre compte a été désactivé par un administrateur.'
-            : 'Votre compte n’est pas encore rattaché à l’amicale. Demandez une invitation à un administrateur.'}
-        </p>
+        <p className="muted">{status === 'inactive' ? 'Cet accès a été désactivé. Demande ton nouvel identifiant à un administrateur.' : 'Ce compte n’est pas rattaché à l’amicale.'}</p>
         <button onClick={logout}>Se déconnecter</button>
       </Screen>
     )
   }
-  if (loading) return <Screen><p className="muted">Chargement des données…</p></Screen>
+  if (loading) return <Screen><div className="logo-big spin">🚒</div><p className="muted">Chargement de la tournée…</p></Screen>
 
   return (
     <Routes>
-      <Route element={<AppLayout />}>
-        <Route path="/carte" element={<MapPage />} />
-        <Route path="/adresses" element={<AddressesPage />} />
-        <Route path="/secteurs" element={<SectorsPage />} />
-        <Route path="/statistiques" element={<StatsPage />} />
-        <Route path="/campagnes" element={<CampaignsPage />} />
-        {isAdmin && <Route path="/administration" element={<AdminPage />} />}
-        <Route path="*" element={<Navigate to="/carte" replace />} />
+      <Route element={<Layout />}>
+        {!isAdmin && (
+          <>
+            <Route path="/tournee" element={<MyTourPage />} />
+            <Route path="/tournee/:pieceId" element={<PiecePage />} />
+            <Route path="/stats" element={<MyStatsPage />} />
+          </>
+        )}
+        {isAdmin && (
+          <>
+            <Route path="/admin" element={<DashboardPage />} />
+            <Route path="/admin/tournees" element={<ToursPage />} />
+            <Route path="/admin/tournees/:tourId" element={<TourEditPage />} />
+            <Route path="/admin/tournees/:tourId/terrain" element={<MyTourPage />} />
+            <Route path="/admin/tournees/:tourId/terrain/:pieceId" element={<PiecePage />} />
+            <Route path="/admin/dons" element={<DonsPage />} />
+            <Route path="/admin/reglages" element={<SettingsPage />} />
+          </>
+        )}
+        <Route path="*" element={<Navigate to={isAdmin ? '/admin' : '/tournee'} replace />} />
       </Route>
     </Routes>
   )
@@ -57,13 +68,10 @@ export default function App() {
   if (!isFirebaseConfigured) {
     return (
       <Screen>
+        <div className="logo-big">🚒</div>
         <h2>Configuration Firebase manquante</h2>
-        <p className="muted">
-          Copiez <code>.env.example</code> en <code>.env.local</code> et renseignez les clés de votre projet Firebase,
-          puis relancez <code>npm run dev</code>. Voir <code>docs/INSTALLATION.md</code>.
-        </p>
+        <p className="muted">Renseignez les clés Firebase (voir <code>docs/INSTALLATION.md</code>).</p>
         <a className="btn btn-primary" href={`${import.meta.env.BASE_URL}demo/`}>Voir la démonstration</a>
-        <p className="muted small">En local, sans Firebase : <code>npm run dev:demo</code>.</p>
       </Screen>
     )
   }

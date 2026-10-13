@@ -1,106 +1,69 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { collection, onSnapshot } from 'firebase/firestore'
-import { db } from '../lib/firebase'
-import { COL } from '../services/paths'
+import { onSnapshot } from 'firebase/firestore'
 import { useAuth } from './AuthContext'
+import { settingsRef, stateRef, statesCol, tourRef, toursCol, usersCol } from '../services/paths'
 
 const DataContext = createContext(null)
 
-export function useCollection(path, enabled, mapDoc = (d) => ({ id: d.id, ...d.data() })) {
-  const [state, setState] = useState({ items: [], loading: true, pending: false })
-  useEffect(() => {
-    if (!enabled || !path) {
-      setState({ items: [], loading: !enabled, pending: false })
-      return undefined
-    }
-    setState((s) => ({ ...s, loading: true }))
-    return onSnapshot(
-      collection(db, ...path.split('/')),
-      { includeMetadataChanges: true },
-      (snap) => setState({
-        items: snap.docs.map(mapDoc),
-        loading: false,
-        pending: snap.metadata.hasPendingWrites,
-      }),
-      (error) => {
-        console.error(`Lecture ${path} impossible`, error)
-        setState({ items: [], loading: false, pending: false })
-      },
-    )
-    // mapDoc est stable par appelant.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path, enabled])
-  return state
-}
+const docsToList = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+const docsToMap = (snap) => Object.fromEntries(snap.docs.map((d) => [d.id, d.data()]))
 
-// Transforme les documents "un par secteur" en une liste plate indexée par adresse.
-export function flattenVisits(sectorVisitDocs) {
-  const byAddress = {}
-  for (const d of sectorVisitDocs) {
-    for (const [addressId, visit] of Object.entries(d.visits ?? {})) {
-      byAddress[addressId] = { ...visit, addressId, sectorId: d.id }
-    }
-  }
-  return byAddress
-}
-
-export function useCampaignVisits(year) {
-  const { status } = useAuth()
-  const { items, loading, pending } = useCollection(
-    year ? `${COL.campaigns}/${year}/${COL.sectorVisits}` : null,
-    status === 'ready' && Boolean(year),
-  )
-  const visitsByAddress = useMemo(() => flattenVisits(items), [items])
-  return { visitsByAddress, loading, pending }
-}
-
+// Abonnements temps réel. Un membre ne lit que sa tournée (2 documents),
+// sauf si le classement lui est ouvert. L'administrateur lit tout.
 export function DataProvider({ children }) {
-  const { status } = useAuth()
-  const enabled = status === 'ready'
+  const { status, profile, isAdmin } = useAuth()
+  const [settings, setSettings] = useState(undefined)
+  const [tours, setTours] = useState(null)
+  const [states, setStates] = useState(null)
+  const [users, setUsers] = useState([])
 
-  const users = useCollection(COL.users, enabled)
-  const communes = useCollection(COL.communes, enabled)
-  const sectors = useCollection(COL.sectors, enabled)
-  const sectorAddresses = useCollection(COL.sectorAddresses, enabled)
-  const campaigns = useCollection(COL.campaigns, enabled)
+  useEffect(() => onSnapshot(
+    settingsRef(),
+    (snap) => setSettings(snap.exists() ? snap.data() : null),
+    () => setSettings(null),
+  ), [])
 
-  const sortedCampaigns = useMemo(
-    () => [...campaigns.items].sort((a, b) => b.year - a.year),
-    [campaigns.items],
-  )
-  const activeCampaign = sortedCampaigns.find((c) => c.active) ?? null
-  const activeVisits = useCampaignVisits(activeCampaign?.year)
+  const ready = status === 'ready' && settings
+  const year = settings?.year
+  const wantsAll = isAdmin || Boolean(settings?.rankingForMembers)
+  const myTourId = profile?.tourId ?? null
+
+  useEffect(() => {
+    if (!ready) return undefined
+    setTours(null)
+    setStates(null)
+    const subs = []
+    if (wantsAll) {
+      subs.push(onSnapshot(toursCol(), (s) => setTours(docsToList(s)), () => setTours([])))
+      subs.push(onSnapshot(statesCol(year), (s) => setStates(docsToMap(s)), () => setStates({})))
+    } else if (myTourId) {
+      subs.push(onSnapshot(tourRef(myTourId), (s) => setTours(s.exists() ? [{ id: s.id, ...s.data() }] : []), () => setTours([])))
+      subs.push(onSnapshot(stateRef(year, myTourId), (s) => setStates(s.exists() ? { [s.id]: s.data() } : {}), () => setStates({})))
+    } else {
+      setTours([])
+      setStates({})
+    }
+    return () => subs.forEach((u) => u())
+  }, [ready, wantsAll, myTourId, year])
+
+  useEffect(() => {
+    if (!ready || !isAdmin) return undefined
+    return onSnapshot(usersCol(), (s) => setUsers(docsToList(s)), () => setUsers([]))
+  }, [ready, isAdmin])
 
   const value = useMemo(() => {
-    const addresses = []
-    for (const d of sectorAddresses.items) {
-      for (const [id, a] of Object.entries(d.addresses ?? {})) {
-        addresses.push({ id, sectorId: d.id, ...a })
-      }
-    }
-    addresses.sort((a, b) => a.label.localeCompare(b.label, 'fr', { numeric: true }))
-
-    const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]))
-    const sortedSectors = [...sectors.items].sort((a, b) => a.name.localeCompare(b.name, 'fr', { numeric: true }))
-    const sortedCommunes = [...communes.items].sort((a, b) => a.name.localeCompare(b.name, 'fr'))
-    const sortedUsers = [...users.items].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'fr'))
-
+    const sortedTours = (tours ?? []).slice().sort((a, b) => (a.number ?? 0) - (b.number ?? 0))
     return {
-      loading: users.loading || communes.loading || sectors.loading || sectorAddresses.loading || campaigns.loading,
-      pendingWrites: activeVisits.pending || sectorAddresses.pending || sectors.pending,
-      users: sortedUsers,
-      usersById: byId(users.items),
-      communes: sortedCommunes,
-      communesById: byId(communes.items),
-      sectors: sortedSectors,
-      sectorsById: byId(sectors.items),
-      addresses,
-      addressesById: byId(addresses),
-      campaigns: sortedCampaigns,
-      activeCampaign,
-      activeVisits: activeVisits.visitsByAddress,
+      settings,
+      year,
+      loading: settings === undefined || (ready && (tours === null || states === null)),
+      tours: sortedTours,
+      toursById: Object.fromEntries(sortedTours.map((t) => [t.id, t])),
+      statesById: states ?? {},
+      myTour: sortedTours.find((t) => t.id === myTourId) ?? null,
+      users,
     }
-  }, [users, communes, sectors, sectorAddresses, campaigns, sortedCampaigns, activeCampaign, activeVisits])
+  }, [settings, year, ready, tours, states, myTourId, users])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

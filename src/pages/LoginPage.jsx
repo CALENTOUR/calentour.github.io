@@ -1,77 +1,53 @@
 import { useState } from 'react'
 import { APP_NAME, APP_SLOGAN } from '../config/constants'
-import { authErrorMessage, login, register, resetPassword } from '../services/users'
+import { useData } from '../context/DataContext'
 import { IS_DEMO, DEMO_ACCOUNTS } from '../demo/demoInfo'
+import { authErrorMessage, login } from '../services/users'
 
 export default function LoginPage() {
-  const [mode, setMode] = useState('login') // login | register | reset
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const { settings } = useData()
+  const [form, setForm] = useState({ login: '', password: '' })
+  const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState(null)
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
-  const run = async (fn, success) => {
+  const submit = async (credentials) => {
     setBusy(true)
-    setMessage(null)
+    setError('')
     try {
-      await fn()
-      if (success) setMessage({ ok: true, text: success })
+      await login(credentials.login, credentials.password)
     } catch (err) {
-      setMessage({ ok: false, text: authErrorMessage(err) })
+      setError(authErrorMessage(err))
+      setBusy(false)
     }
-    setBusy(false)
-  }
-
-  const onSubmit = (e) => {
-    e.preventDefault()
-    if (mode === 'login') run(() => login(form.email, form.password))
-    if (mode === 'register') run(() => register(form))
-    if (mode === 'reset') run(() => resetPassword(form.email), 'Email de réinitialisation envoyé.')
   }
 
   return (
-    <div className="center-screen">
-      <div className="card auth-card">
-        <div className="auth-brand">
-          <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" />
-          <h1>{APP_NAME}</h1>
-          <p className="muted">{APP_SLOGAN}</p>
-        </div>
-
+    <div className="login-screen">
+      <div className="login-card">
+        <div className="logo-big">🚒</div>
+        <h1>{APP_NAME}</h1>
+        <p className="muted">{settings?.amicale || APP_SLOGAN}</p>
         {IS_DEMO && (
-          <div className="stack" style={{ marginBottom: '1rem' }}>
-            <div className="badge" style={{ justifySelf: 'center' }}>Version de démonstration, données fictives</div>
+          <div className="stack demo-box">
+            <strong>Démonstration (données fictives)</strong>
             {DEMO_ACCOUNTS.map((a) => (
-              <button key={a.email} className="btn-blue" disabled={busy} onClick={() => run(() => login(a.email, a.password))}>
+              <button key={a.login} type="button" className={a.role === 'admin' ? 'btn-primary' : 'btn-blue'} disabled={busy} onClick={() => submit(a)}>
                 Entrer comme {a.label}
               </button>
             ))}
           </div>
         )}
-
-        <form className="stack" onSubmit={onSubmit}>
-          {mode === 'register' && (
-            <label>Nom<input required value={form.name} onChange={set('name')} autoComplete="name" /></label>
-          )}
-          <label>Email<input required type="email" value={form.email} onChange={set('email')} autoComplete="email" /></label>
-          {mode !== 'reset' && (
-            <label>
-              Mot de passe
-              <input required type="password" minLength={6} value={form.password} onChange={set('password')}
-                autoComplete={mode === 'register' ? 'new-password' : 'current-password'} />
-            </label>
-          )}
-          {message && <p className={message.ok ? 'success' : 'error'}>{message.text}</p>}
-          <button type="submit" className="btn-primary" disabled={busy}>
-            {busy ? '…' : mode === 'login' ? 'Se connecter' : mode === 'register' ? 'Créer mon compte' : 'Envoyer le lien'}
-          </button>
+        <form className="stack" onSubmit={(e) => { e.preventDefault(); submit(form) }}>
+          <label>Identifiant
+            <input autoComplete="username" autoCapitalize="none" required value={form.login} onChange={(e) => setForm((f) => ({ ...f, login: e.target.value }))} placeholder="ex. tournee7" />
+          </label>
+          <label>Mot de passe
+            <input type="password" autoComplete="current-password" required value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
+          </label>
+          {error && <p className="error">{error}</p>}
+          <button type="submit" className="btn-primary btn-big" disabled={busy}>{busy ? 'Connexion…' : 'Se connecter'}</button>
         </form>
-
-        <div className="row" style={{ justifyContent: 'center', marginTop: '1rem' }}>
-          {mode !== 'login' && <button className="btn-ghost btn-sm" onClick={() => setMode('login')}>J’ai déjà un compte</button>}
-          {mode !== 'register' && <button className="btn-ghost btn-sm" onClick={() => setMode('register')}>Première connexion</button>}
-          {mode !== 'reset' && <button className="btn-ghost btn-sm" onClick={() => setMode('reset')}>Mot de passe oublié</button>}
-        </div>
+        <p className="small muted">Identifiant oublié ? Demande à un administrateur de l’amicale.</p>
       </div>
     </div>
   )

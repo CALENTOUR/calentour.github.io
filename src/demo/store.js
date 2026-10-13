@@ -2,8 +2,9 @@
 // Imite le strict nécessaire de Firestore : documents rangés par chemin,
 // écritures fusionnées, écouteurs temps réel. Persistée dans localStorage.
 import { seedDemo } from './seed'
+import { DEMO_STORAGE_KEY } from './reset'
 
-const STORAGE_KEY = 'calentour-demo-v1'
+const STORAGE_KEY = DEMO_STORAGE_KEY
 export const DELETE = { __op: 'delete' }
 export const TIMESTAMP = { __op: 'timestamp' }
 
@@ -81,16 +82,6 @@ export function write(ops) {
 export function subscribe(listener) {
   listeners.add(listener)
   return () => listeners.delete(listener)
-}
-
-export function resetDemo() {
-  try {
-    localStorage.removeItem(STORAGE_KEY)
-    localStorage.removeItem('calentour-demo-session')
-  } catch {
-    // ignore
-  }
-  window.location.reload()
 }
 
 // Données de départ : chargées depuis localStorage, sinon générées.
