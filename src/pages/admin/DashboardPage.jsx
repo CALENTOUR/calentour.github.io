@@ -90,7 +90,7 @@ export default function DashboardPage() {
 
       <section className="card stack">
         <h2>Carte des tournées</h2>
-        <TourMap tours={tours} statesById={statesById} className="dash-map" />
+        <TourMap tours={tours} statesById={statesById} expandable className="dash-map" />
       </section>
     </div>
   )

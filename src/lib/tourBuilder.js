@@ -3,7 +3,7 @@ import { fetchHousesAlongPieces } from './addresses'
 import { newId } from './format'
 import { projectOnLine, unflatten } from './geo'
 
-const isDefaultName = (name) => /^Morceau \d+$/.test(name ?? '')
+const isDefaultName = (name) => /^(Morceau|Rue tracée) \d+$/.test(name ?? '')
 
 // Rue la plus proche d'un point, et position le long de cette rue (pour l'ordre de visite).
 export function locateOnPieces(lng, lat, pieces) {
@@ -42,17 +42,27 @@ export function mergeSameName(pieces, houses) {
   return { pieces: out, houses: relocated }
 }
 
-// Cherche les maisons le long des rues d'une tournée et les ajoute à celles déjà connues.
-export async function findHouses(tour, onProgress) {
-  const lines = tour.pieces.flatMap((p) => p.lines.map((l) => ({ id: p.id, line: unflatten(l.c) })))
-  const { houses: found, pieceNames } = await fetchHousesAlongPieces(lines, onProgress)
+// Cherche les maisons le long de traits de rue ([{ id: pieceId, line }]).
+export async function searchHouses(lines, onProgress) {
+  const { houses, pieceNames } = await fetchHousesAlongPieces(lines, onProgress)
+  return { found: houses, pieceNames }
+}
 
+// Ajoute à une tournée les maisons trouvées qu'elle n'a pas encore, et nomme ses rues.
+export function addFoundHouses(tour, found, pieceNames) {
   const known = new Set((tour.houses ?? []).map((h) => h.banId).filter(Boolean))
+  const ids = new Set(tour.pieces.map((p) => p.id))
   const added = found
-    .filter((h) => !known.has(h.banId))
+    .filter((h) => !known.has(h.banId) && ids.has(h.pieceId))
     .map((h) => ({ id: newId().slice(0, 12), ...h }))
-
   const pieces = tour.pieces.map((p) => (isDefaultName(p.name) && pieceNames[p.id] ? { ...p, name: pieceNames[p.id] } : p))
   const merged = mergeSameName(pieces, [...(tour.houses ?? []), ...added])
   return { ...merged, addedCount: added.length }
+}
+
+// Cherche les maisons le long de toutes les rues d'une tournée.
+export async function findHouses(tour, onProgress) {
+  const lines = tour.pieces.flatMap((p) => p.lines.map((l) => ({ id: p.id, line: unflatten(l.c) })))
+  const { found, pieceNames } = await searchHouses(lines, onProgress)
+  return addFoundHouses(tour, found, pieceNames)
 }

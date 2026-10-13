@@ -1,51 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import TourMap from '../../components/map/TourMap'
 import AccessCard from '../../components/AccessCard'
-import { pickStreet } from '../../components/map/streetPicker'
-import { setGeoJSON } from '../../components/map/useMapLibre'
+import TourForm from '../../components/TourForm'
 import { useToast } from '../../components/ui/Toast'
-import { TOUR_COLORS } from '../../config/constants'
 import { useData } from '../../context/DataContext'
-import { newId } from '../../lib/format'
-import { projectOnLine, unflatten } from '../../lib/geo'
 import { sortHouses } from '../../lib/stats'
-import { findHouses, locateOnPieces, mergeSameName } from '../../lib/tourBuilder'
-import { deleteTour, newPiece, saveTour } from '../../services/tours'
+import { findHouses, mergeSameName } from '../../lib/tourBuilder'
+import { removeTour, saveTour } from '../../services/tours'
+import TourMapEditor from './TourMapEditor'
 import { authErrorMessage, createAccount, generatePassword, updateUser } from '../../services/users'
-
-const MODES = [
-  { key: 'street', label: '➕ Rue (clic)', help: 'Touche une rue sur la carte : elle est ajoutée en entier à la tournée.' },
-  { key: 'draw', label: '✏️ Tracer', help: 'Touche la carte point par point pour tracer un chemin, puis « Terminer ».' },
-  { key: 'house', label: '🏠 Maison', help: 'Touche la carte à l’endroit d’une maison qui manque.' },
-  { key: 'erase', label: '🗑️ Retirer', help: 'Touche une maison ou un trait de rue pour le retirer.' },
-]
 
 function Identity({ tour }) {
   const toast = useToast()
-  const [form, setForm] = useState({ number: tour.number, a: tour.members?.[0] ?? '', b: tour.members?.[1] ?? '', color: tour.color })
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
-  const save = async (e) => {
-    e.preventDefault()
-    const members = [form.a, form.b].map((x) => x.trim()).filter(Boolean)
-    await saveTour(tour.id, { number: Number(form.number) || tour.number, members, name: members.join(' / ') || tour.name, color: form.color })
+  const { tours } = useData()
+  const save = async (values) => {
+    await saveTour(tour.id, values)
     toast('Tournée enregistrée')
   }
   return (
-    <form className="card stack" onSubmit={save}>
-      <h2>Binôme</h2>
-      <div className="form-grid">
-        <label>N° de tournée<input type="number" min="1" value={form.number} onChange={set('number')} /></label>
-        <label>Pompier 1<input value={form.a} onChange={set('a')} placeholder="Prénom" /></label>
-        <label>Pompier 2<input value={form.b} onChange={set('b')} placeholder="Prénom (facultatif)" /></label>
-      </div>
-      <div className="chips">
-        {TOUR_COLORS.map((c) => (
-          <button key={c} type="button" className={`color-dot ${form.color === c ? 'on' : ''}`} style={{ background: c }} onClick={() => setForm((f) => ({ ...f, color: c }))} aria-label={`Couleur ${c}`} />
-        ))}
-      </div>
-      <button type="submit" className="btn-primary">Enregistrer</button>
-    </form>
+    <div className="card stack">
+      <h2>Équipe</h2>
+      <TourForm initial={tour} tours={tours} onSubmit={save} />
+    </div>
   )
 }
 
@@ -91,84 +68,15 @@ export default function TourEditPage() {
   const { tourId } = useParams()
   const navigate = useNavigate()
   const toast = useToast()
-  const { toursById, statesById } = useData()
+  const { toursById, statesById, users } = useData()
   const tour = toursById[tourId]
-  const [mode, setMode] = useState(null)
-  const [draft, setDraft] = useState([])
+  const [editing, setEditing] = useState(false)
   const [progress, setProgress] = useState(null)
-  const mapRef = useRef(null)
   const tours = useMemo(() => (tour ? [tour] : []), [tour])
-
-  const update = (data) => saveTour(tourId, data).catch((err) => toast(`Erreur : ${err.message}`))
-
-  // Tracé en cours affiché sur la carte.
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map) return
-    setGeoJSON(map, 'draft', {
-      type: 'FeatureCollection',
-      features: draft.length > 1
-        ? [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: draft } }]
-        : draft.map((c) => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: c } })),
-    })
-    if (!map.getLayer('draft')) {
-      map.addLayer({ id: 'draft', type: 'line', source: 'draft', paint: { 'line-color': '#0f172a', 'line-width': 4, 'line-dasharray': [2, 1] } })
-      map.addLayer({ id: 'draft-points', type: 'circle', source: 'draft', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 6, 'circle-color': '#0f172a' } })
-    }
-  }, [draft])
 
   if (!tour) return <div className="page"><p className="muted">Tournée introuvable.</p><Link to="/admin/tournees">← Tournées</Link></div>
 
-  const addLines = (name, lines) => {
-    const label = name ?? `Rue tracée ${tour.pieces.length + 1}`
-    const existing = tour.pieces.find((p) => p.name === label)
-    const pieces = existing
-      ? tour.pieces.map((p) => (p === existing ? { ...p, lines: [...p.lines, ...newPiece(label, lines).lines] } : p))
-      : [...tour.pieces, newPiece(label, lines)]
-    update({ pieces })
-    toast(`${label} ajoutée`)
-  }
-
-  const onMapClick = (e, map) => {
-    if (mode === 'street') {
-      const street = pickStreet(map, e.lngLat)
-      if (!street) return toast('Pas de rue ici. Zoome davantage ou utilise « Tracer ».')
-      addLines(street.name, street.lines)
-    } else if (mode === 'draw') {
-      setDraft((d) => [...d, [e.lngLat.lng, e.lngLat.lat]])
-    } else if (mode === 'house') {
-      if (!tour.pieces.length) return toast('Ajoute d’abord une rue.')
-      const label = window.prompt('Adresse de la maison (ex. 12 rue de la Gare) :')
-      if (!label) return
-      const loc = locateOnPieces(e.lngLat.lng, e.lngLat.lat, tour.pieces)
-      const house = { id: newId().slice(0, 12), label: label.trim(), number: label.trim().split(' ')[0], lng: e.lngLat.lng, lat: e.lngLat.lat, pieceId: loc.pieceId, along: loc.along }
-      update({ houses: [...tour.houses, house] })
-    } else if (mode === 'erase') {
-      const click = [e.lngLat.lng, e.lngLat.lat]
-      for (const p of tour.pieces) {
-        const index = p.lines.findIndex((l) => projectOnLine(click, unflatten(l.c)).dist < 15)
-        if (index < 0) continue
-        if (!window.confirm(`Retirer ce trait de « ${p.name} » ?`)) return
-        const lines = p.lines.filter((_, i) => i !== index)
-        const pieces = lines.length ? tour.pieces.map((x) => (x === p ? { ...x, lines } : x)) : tour.pieces.filter((x) => x !== p)
-        const houses = lines.length ? tour.houses : tour.houses.filter((h) => h.pieceId !== p.id)
-        update({ pieces, houses })
-        return
-      }
-    }
-  }
-
-  const onHouseClick = (props) => {
-    if (mode === 'erase') {
-      const house = tour.houses.find((h) => h.id === props.houseId)
-      if (house && window.confirm(`Retirer « ${house.label} » ?`)) update({ houses: tour.houses.filter((h) => h.id !== house.id) })
-    }
-  }
-
-  const finishDraft = () => {
-    if (draft.length > 1) addLines(null, [draft])
-    setDraft([])
-  }
+  const update = (data) => saveTour(tourId, data).catch((err) => toast(`Erreur : ${err.message}`))
 
   const runFind = async () => {
     setProgress(0)
@@ -209,20 +117,20 @@ export default function TourEditPage() {
   const removeHouse = (house) => update({ houses: tour.houses.filter((h) => h !== house) })
 
   const remove = async () => {
-    if (!window.confirm(`Supprimer définitivement la tournée ${tour.number} (${tour.name}) ?`)) return
-    await deleteTour(tour.id)
+    if (!window.confirm(`Supprimer définitivement la tournée ${tour.number} (${tour.name}) ? Ses rues, ses maisons et ses dons seront supprimés, ses accès désactivés.`)) return
+    await removeTour(tour, users)
+    toast(`Tournée ${tour.number} supprimée`)
     navigate('/admin/tournees')
   }
 
   const housesByPiece = sortHouses(tour.houses, tour.pieces)
-  const activeMode = MODES.find((m) => m.key === mode)
 
   return (
     <div className="page stack-lg">
       <div className="row">
         <Link to="/admin/tournees" className="btn btn-ghost btn-sm">←</Link>
         <h1 className="spacer"><span className="swatch" style={{ background: tour.color }} />Tournée {tour.number} · {tour.name}</h1>
-        <Link to={`/admin/tournees/${tour.id}/terrain/tout`} className="btn btn-sm">📱 Vue terrain</Link>
+        <Link to={`/admin/tournees/${tour.id}/terrain`} className="btn btn-sm">📱 Vue terrain</Link>
       </div>
 
       <div className="edit-layout">
@@ -238,24 +146,8 @@ export default function TourEditPage() {
               {progress != null ? `Recherche ${Math.round(progress * 100)} %` : '🏠 Chercher les maisons'}
             </button>
           </div>
-          <div className="segmented wrap">
-            {MODES.map((m) => (
-              <button key={m.key} type="button" className={mode === m.key ? 'on' : ''} onClick={() => { setMode(mode === m.key ? null : m.key); setDraft([]) }}>{m.label}</button>
-            ))}
-          </div>
-          {activeMode && (
-            <div className="row small hint">
-              <span className="spacer">{activeMode.help}</span>
-              {mode === 'draw' && <button type="button" className="btn-sm btn-primary" disabled={draft.length < 2} onClick={finishDraft}>Terminer</button>}
-            </div>
-          )}
-          <TourMap
-            tours={tours} statesById={statesById} flat
-            onMapClick={mode ? onMapClick : undefined}
-            onHouseClick={mode === 'erase' ? onHouseClick : undefined}
-            onReady={(m) => { mapRef.current = m }}
-            className="edit-map"
-          />
+          <button type="button" className="btn-primary btn-big" onClick={() => setEditing(true)}>✏️ Modifier les rues sur la carte</button>
+          <TourMap tours={tours} statesById={statesById} flat expandable className="edit-map" />
         </div>
       </div>
 
@@ -289,7 +181,14 @@ export default function TourEditPage() {
         })}
       </div>
 
-      <button type="button" className="btn-ghost danger" onClick={remove}>Supprimer cette tournée</button>
+      <div className="card row wrap">
+        <div className="spacer">
+          <strong>Supprimer la tournée</strong>
+          <div className="small muted">Ses accès sont désactivés. Les dons déjà saisis sur cette tournée sortent des stats et de l’export compta : fais l’export avant.</div>
+        </div>
+        <button type="button" className="btn-danger" onClick={remove}>🗑️ Supprimer</button>
+      </div>
+      {editing && <TourMapEditor tour={tour} onClose={() => setEditing(false)} />}
     </div>
   )
 }

@@ -4,6 +4,12 @@ import { distance, projectOnLine } from '../../lib/geo'
 
 const NEAR = 25 // mètres
 
+// Tolérance du toucher : 22 px à l'écran, convertis en mètres au zoom courant (au moins NEAR).
+export function touchTolerance(map, lat) {
+  const metersPerPixel = (156543.03 * Math.cos((lat * Math.PI) / 180)) / 2 ** map.getZoom()
+  return Math.max(NEAR, 22 * metersPerPixel)
+}
+
 function vectorSourceId(map) {
   return Object.entries(map.getStyle().sources).find(([, s]) => s.type === 'vector')?.[0]
 }
@@ -19,6 +25,7 @@ export function pickStreet(map, lngLat) {
   const source = vectorSourceId(map)
   if (!source) return null
   const click = [lngLat.lng, lngLat.lat]
+  const tol = touchTolerance(map, lngLat.lat)
   const named = map.querySourceFeatures(source, { sourceLayer: 'transportation_name' })
     .flatMap((f) => parts(f).map((line) => ({ name: f.properties.name, line })))
     .filter((p) => p.name && p.line.length > 1)
@@ -26,7 +33,7 @@ export function pickStreet(map, lngLat) {
   let start = null
   for (const p of named) {
     const d = projectOnLine(click, p.line).dist
-    if (d <= NEAR && (!start || d < start.d)) start = { ...p, d }
+    if (d <= tol && (!start || d < start.d)) start = { ...p, d }
   }
 
   if (!start) {
@@ -35,9 +42,9 @@ export function pickStreet(map, lngLat) {
     let best = null
     for (const line of roads) {
       const d = projectOnLine(click, line).dist
-      if (d <= NEAR && (!best || d < best.d)) best = { line, d }
+      if (d <= tol && (!best || d < best.d)) best = { line, d }
     }
-    return best ? { name: null, lines: [best.line] } : null
+    return best ? { name: null, lines: [best.line], segment: best.line } : null
   }
 
   // Tronçons de même nom reliés de proche en proche au tronçon cliqué.
@@ -59,5 +66,5 @@ export function pickStreet(map, lngLat) {
       }
     }
   }
-  return { name: start.name, lines: picked }
+  return { name: start.name, lines: picked, segment: start.line }
 }

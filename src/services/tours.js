@@ -4,6 +4,7 @@ import { newId } from '../lib/format'
 import { flatten } from '../lib/geo'
 import { TOUR_COLORS } from '../config/constants'
 import { tourRef, toursCol } from './paths'
+import { updateUser } from './users'
 
 export function saveTour(id, data) {
   return setDoc(tourRef(id), { ...data, updatedAt: serverTimestamp() }, { merge: true })
@@ -11,6 +12,19 @@ export function saveTour(id, data) {
 
 export function deleteTour(id) {
   return deleteDoc(tourRef(id))
+}
+
+// Suppression d'une tournée : ses accès sont désactivés.
+export async function removeTour(tour, users) {
+  await Promise.all(users.filter((u) => u.tourId === tour.id && u.active).map((u) => updateUser(u.id, { active: false })))
+  await deleteTour(tour.id)
+}
+
+// Création d'une tournée vide ; renvoie son identifiant.
+export async function createTour(values) {
+  const ref = doc(toursCol())
+  await setDoc(ref, { ...newTourDoc(values), updatedAt: serverTimestamp() })
+  return ref.id
 }
 
 export function newTourDoc({ number, name, members = [], color }) {

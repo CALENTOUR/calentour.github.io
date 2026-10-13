@@ -50,12 +50,12 @@ function ensure3DBuildings(map) {
 
 // Crée une carte MapLibre 3D (OpenStreetMap via OpenFreeMap) dans le conteneur
 // donné et renvoie l'instance une fois le style chargé.
-export function useMapLibre(containerRef, { rememberView = false, initialBounds = null, geolocate = true, flat = false } = {}) {
+export function useMapLibre(containerRef, { rememberView = false, initialBounds = null, geolocate = true, flat = false, fitPadding = 40 } = {}) {
   const [map, setMap] = useState(null)
-  const optionsRef = useRef({ rememberView, initialBounds, geolocate, flat })
+  const optionsRef = useRef({ rememberView, initialBounds, geolocate, flat, fitPadding })
 
   useEffect(() => {
-    const { rememberView: remember, initialBounds: bounds, geolocate: withGps, flat: isFlat } = optionsRef.current
+    const { rememberView: remember, initialBounds: bounds, geolocate: withGps, flat: isFlat, fitPadding: padding } = optionsRef.current
     const last = remember ? readLastView() : null
     const instance = new maplibregl.Map({
       container: containerRef.current,
@@ -90,7 +90,7 @@ export function useMapLibre(containerRef, { rememberView = false, initialBounds 
       ready = true
       clearTimeout(fallbackTimer)
       ensure3DBuildings(instance)
-      if (!last && bounds) instance.fitBounds(bounds, { padding: 40, duration: 0 })
+      if (!last && bounds) instance.fitBounds(bounds, { padding, duration: 0 })
       setMap(instance)
     }
     const applyFallback = () => {
