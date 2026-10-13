@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { bounds, unflatten } from '../../lib/geo'
+import { bounds, lineLength, pointAt, unflatten } from '../../lib/geo'
+import { tourStats } from '../../lib/stats'
 import { dwellingKey } from '../../services/state'
 import { addStatusIcons } from './icons'
 import { setGeoJSON, toggle3D, useMapLibre } from './useMapLibre'
@@ -13,15 +14,18 @@ export function buildingStatus(house, h) {
 
 const inFocus = (t, pieceId, focusPieceId, focusTourId) => ((!focusPieceId || pieceId === focusPieceId) && (!focusTourId || t.id === focusTourId) ? 1 : 0)
 
-export function piecesGeoJSON(tours, focusPieceId, focusTourId) {
+export function piecesGeoJSON(tours, focusPieceId, focusTourId, statesById = null) {
   return {
     type: 'FeatureCollection',
-    features: tours.flatMap((t) => (t.pieces ?? []).flatMap((p) => p.lines.map((l, i) => ({
+    features: tours.flatMap((t) => {
+      const progress = statesById ? tourStats(t, statesById[t.id]).progress : 0
+      return (t.pieces ?? []).flatMap((p) => p.lines.map((l, i) => ({
       type: 'Feature',
       id: undefined,
-      properties: { tourId: t.id, pieceId: p.id, lineIndex: i, color: t.color, focus: inFocus(t, p.id, focusPieceId, focusTourId), label: p.name },
+      properties: { tourId: t.id, pieceId: p.id, lineIndex: i, color: t.color, progress, focus: inFocus(t, p.id, focusPieceId, focusTourId), label: p.name },
       geometry: { type: 'LineString', coordinates: unflatten(l.c) },
-    })))),
+    })))
+    }),
   }
 }
 
@@ -68,7 +72,7 @@ function ensureLayers(map) {
   map.addLayer({
     id: 'pieces', type: 'line', source: 'pieces',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 2.5, 17, 9], 'line-opacity': ['case', ['==', ['get', 'focus'], 1], 0.95, 0.25] },
+    paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 3, 14, 5, 17, 9], 'line-opacity': ['case', ['==', ['get', 'focus'], 1], 0.95, 0.25] },
   })
   map.addLayer({
     id: 'houses', type: 'symbol', source: 'houses',
@@ -88,28 +92,66 @@ function ensureLayers(map) {
     },
     paint: {
       'icon-opacity': ['case', ['==', ['get', 'focus'], 1], 1, 0.3],
-      'text-color': '#0f172a',
+      'text-color': '#1f2a24',
       'text-halo-color': '#ffffff',
       'text-halo-width': 1.6,
     },
   })
 }
 
+// Étiquette de chaque tournée (numéro, et avancement si demandé), au milieu de sa plus longue rue.
+function labelsGeoJSON(tours, statesById, withProgress) {
+  return {
+    type: 'FeatureCollection',
+    features: tours.flatMap((t) => {
+      const lines = (t.pieces ?? []).flatMap((p) => p.lines.map((l) => unflatten(l.c))).filter((l) => l.length > 1)
+      if (!lines.length) return []
+      const longest = lines.reduce((a, b) => (lineLength(b) > lineLength(a) ? b : a))
+      const pct = Math.round(tourStats(t, statesById[t.id]).progress * 100)
+      return [{
+        type: 'Feature',
+        properties: { tourId: t.id, text: withProgress ? `${t.number} · ${pct} %` : String(t.number), color: t.color, progress: pct / 100 },
+        geometry: { type: 'Point', coordinates: pointAt(longest, lineLength(longest) / 2) },
+      }]
+    }),
+  }
+}
+
+// Couleur d'avancement : terre cuite (rien de fait), ocre, puis vert (tout est fait).
+const PROGRESS_COLOR = ['interpolate', ['linear'], ['get', 'progress'], 0, '#c0492f', 0.5, '#d39b2a', 1, '#4f8a4c']
+
+function ensureLabelLayer(map) {
+  if (map.getLayer('tour-labels')) return
+  map.addLayer({
+    id: 'tour-labels', type: 'symbol', source: 'tour-labels',
+    layout: { 'text-field': ['get', 'text'], 'text-font': ['Noto Sans Bold'], 'text-size': 14, 'text-allow-overlap': false, 'text-padding': 2 },
+    paint: { 'text-color': '#1f2a24', 'text-halo-color': '#fbf9f4', 'text-halo-width': 2.5 },
+  })
+}
+
 // Carte d'une ou plusieurs tournées : rues tracées et maisons colorées par statut.
-export default function TourMap({ tours, statesById, focusPieceId = null, focusTourId = null, onHouseClick, onMapClick, onReady, flat = false, fitPadding = 50, expandable = false, className = '' }) {
+export default function TourMap({ tours, statesById, focusPieceId = null, focusTourId = null, onHouseClick, onMapClick, onReady, flat = false, fitPadding = 50, expandable = false, showMe = false, showHouses = true, showProgress = false, showLabels = false, className = '' }) {
   const containerRef = useRef(null)
   const initial = tourBounds(tours, focusPieceId)
-  const map = useMapLibre(containerRef, { initialBounds: initial, flat, fitPadding })
+  const map = useMapLibre(containerRef, { initialBounds: initial, flat, fitPadding, geolocate: !showMe })
   const [full, setFull] = useState(false)
   const handlers = useRef({})
   handlers.current = { onHouseClick, onMapClick }
 
   useEffect(() => {
     if (!map) return
-    setGeoJSON(map, 'pieces', piecesGeoJSON(tours, focusPieceId, focusTourId))
+    setGeoJSON(map, 'pieces', piecesGeoJSON(tours, focusPieceId, focusTourId, showProgress ? statesById : null))
     setGeoJSON(map, 'houses', housesGeoJSON(tours, statesById, focusPieceId, focusTourId))
     ensureLayers(map)
-  }, [map, tours, statesById, focusPieceId, focusTourId])
+    map.setLayoutProperty('houses', 'visibility', showHouses ? 'visible' : 'none')
+    map.setPaintProperty('pieces', 'line-color', showProgress ? PROGRESS_COLOR : ['get', 'color'])
+    if (showLabels || showProgress) {
+      setGeoJSON(map, 'tour-labels', labelsGeoJSON(tours, statesById, showProgress))
+      ensureLabelLayer(map)
+    } else if (map.getLayer('tour-labels')) {
+      setGeoJSON(map, 'tour-labels', { type: 'FeatureCollection', features: [] })
+    }
+  }, [map, tours, statesById, focusPieceId, focusTourId, showHouses, showProgress, showLabels])
 
   // Recentrage quand on change de morceau.
   const lastFocus = useRef(focusPieceId)
@@ -150,6 +192,33 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map])
 
+  // Position GPS du téléphone : point bleu suivi en continu, bouton pour s'y recentrer.
+  const [me, setMe] = useState(null)
+  useEffect(() => {
+    if (!showMe || !navigator.geolocation) return undefined
+    const id = navigator.geolocation.watchPosition(
+      (pos) => setMe({ lng: pos.coords.longitude, lat: pos.coords.latitude, accuracy: pos.coords.accuracy }),
+      () => setMe(null),
+      { enableHighAccuracy: true, maximumAge: 5000 },
+    )
+    return () => navigator.geolocation.clearWatch(id)
+  }, [showMe])
+  useEffect(() => {
+    if (!map || !showMe) return
+    setGeoJSON(map, 'me', {
+      type: 'FeatureCollection',
+      features: me ? [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [me.lng, me.lat] } }] : [],
+    })
+    if (!map.getLayer('me-halo')) {
+      map.addLayer({ id: 'me-halo', type: 'circle', source: 'me', paint: { 'circle-radius': 22, 'circle-color': '#2f5f8f', 'circle-opacity': 0.18, 'circle-pitch-alignment': 'map' } })
+      map.addLayer({ id: 'me-dot', type: 'circle', source: 'me', paint: { 'circle-radius': 8, 'circle-color': '#2f5f8f', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 3 } })
+    }
+  }, [map, me, showMe])
+  const goToMe = () => {
+    if (!me) return window.alert('Position GPS pas encore trouvée. Vérifie que la localisation est autorisée pour ce site.')
+    map.flyTo({ center: [me.lng, me.lat], zoom: Math.max(map.getZoom(), 17.5), duration: 800 })
+  }
+
   // Plein écran : la carte recouvre toute la page, Échap pour revenir.
   useEffect(() => {
     if (!map) return undefined
@@ -166,6 +235,7 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
       {map && (
         <div className="map-btns">
           <button type="button" onClick={() => toggle3D(map)} aria-label="Basculer 2D / 3D">2D / 3D</button>
+          {showMe && <button type="button" className={me ? 'me-on' : ''} onClick={goToMe} aria-label="Me localiser">📍 Moi</button>}
           {expandable && (
             <button type="button" onClick={() => setFull((f) => !f)} aria-label={full ? 'Quitter le plein écran' : 'Plein écran'}>{full ? '✕ Réduire' : '⛶ Plein écran'}</button>
           )}

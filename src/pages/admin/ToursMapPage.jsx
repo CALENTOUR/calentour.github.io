@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import TourMap, { tourBounds } from '../../components/map/TourMap'
 import TourForm from '../../components/TourForm'
@@ -7,17 +7,48 @@ import { useToast } from '../../components/ui/Toast'
 import { TOUR_COLORS } from '../../config/constants'
 import { useData } from '../../context/DataContext'
 import { formatEuro, formatPercent } from '../../lib/format'
-import { tourStats } from '../../lib/stats'
-import { createTour, removeTour } from '../../services/tours'
+import { globalStats, tourStats } from '../../lib/stats'
+import { findHouses } from '../../lib/tourBuilder'
+import { createTour, loadInitialTours, removeTour, saveTour } from '../../services/tours'
 import TourMapEditor from './TourMapEditor'
 
 // Carte de toutes les tournées, en plein écran : on en touche une pour la modifier,
 // on en crée une nouvelle directement.
 export default function ToursMapPage() {
-  const { tours, toursById, statesById, users } = useData()
+  const { tours, toursById, statesById, users, settings } = useData()
   const toast = useToast()
   const [selectedId, setSelectedId] = useState(null)
   const [editId, setEditId] = useState(null)
+  const [showHouses, setShowHouses] = useState(false)
+  const [showProgress, setShowProgress] = useState(false)
+  const global = useMemo(() => (showProgress ? globalStats(tours, statesById) : null), [showProgress, tours, statesById])
+
+  // Les tournées de l'amicale sont chargées d'office la première fois.
+  const loading = useRef(false)
+  useEffect(() => {
+    if (loading.current || !settings || settings.toursLoaded || tours.length) return
+    loading.current = true
+    loadInitialTours(tours)
+      .then((n) => toast(`${n} tournées chargées. Recherche des maisons en cours…`))
+      .catch((err) => toast(`Chargement des tournées impossible : ${err.message}`))
+  }, [settings, tours, toast])
+
+  // Les tournées qui ont des rues mais pas encore de maisons sont complétées toutes seules.
+  const [searching, setSearching] = useState(null)
+  const searched = useRef(new Set())
+  useEffect(() => {
+    // Pendant l'édition d'une tournée, c'est l'éditeur qui cherche ses maisons.
+    if (searching || editId) return
+    const next = tours.find((t) => t.pieces.length && !t.houses.length && !searched.current.has(t.id))
+    if (!next) return
+    searched.current.add(next.id)
+    const left = tours.filter((t) => t.pieces.length && !t.houses.length).length
+    setSearching({ number: next.number, left })
+    findHouses(next)
+      .then((res) => saveTour(next.id, { pieces: res.pieces, houses: res.houses }))
+      .catch((err) => toast(`Tournée ${next.number} : maisons introuvables (${err.message})`))
+      .finally(() => setSearching(null))
+  }, [tours, searching, editId, toast])
   const [creating, setCreating] = useState(false)
   const [listOpen, setListOpen] = useState(false)
   const [map, setMap] = useState(null)
@@ -60,6 +91,7 @@ export default function ToursMapPage() {
     <div className="fullmap">
       <TourMap
         tours={tours} statesById={statesById} focusTourId={selectedId}
+        showHouses={showHouses} showProgress={showProgress} showLabels
         fitPadding={{ top: 80, bottom: 60, left: 30, right: 60 }}
         onMapClick={onMapClick}
         onHouseClick={(p) => setSelectedId(p.tourId)}
@@ -70,7 +102,26 @@ export default function ToursMapPage() {
       <div className="tours-map-top">
         <button type="button" className="btn-primary" onClick={() => setCreating(true)}>＋ Nouvelle tournée</button>
         <button type="button" onClick={() => setListOpen(true)}>☰ {tours.length} tournée{tours.length > 1 ? 's' : ''}</button>
+        <button type="button" className={`layer-btn${showHouses ? ' on' : ''}`} aria-pressed={showHouses} onClick={() => setShowHouses((v) => !v)}>
+          <span className="check">{showHouses ? '✓' : ''}</span>Maisons
+        </button>
+        <button type="button" className={`layer-btn${showProgress ? ' on' : ''}`} aria-pressed={showProgress} onClick={() => setShowProgress((v) => !v)}>
+          <span className="check">{showProgress ? '✓' : ''}</span>Avancement
+        </button>
       </div>
+
+      {searching && <div className="map-note">Recherche des maisons · tournée {searching.number} ({searching.left} restante{searching.left > 1 ? 's' : ''})</div>}
+
+      {global && !selected && (
+        <div className="map-panel progress-legend">
+          <div className="map-panel-info">
+            <span className="kicker">Avancement global</span>
+            <strong className="big-num">{formatPercent(global.progress)}</strong>
+            <div className="small muted">{global.done} maisons faites sur {global.total} · {formatEuro(global.amount)}</div>
+          </div>
+          <div className="legend-scale"><i /><span>0 %</span><span>50 %</span><span>100 %</span></div>
+        </div>
+      )}
 
       {selected && (
         <div className="map-panel">

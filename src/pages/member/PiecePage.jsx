@@ -51,7 +51,7 @@ export default function PiecePage() {
   }
   const choosePiece = (id) => {
     if (id === focus) fit(id)
-    else navigate(id ? `${base}/${id}` : base)
+    else navigate(`${base}/${id ?? 'tout'}`)
   }
   const goTo = (house) => {
     setListOpen(false)
@@ -76,20 +76,22 @@ export default function PiecePage() {
         statesById={statesById}
         focusPieceId={focus}
         fitPadding={FIT_PADDING}
+        showMe
         onHouseClick={(p) => { const house = tour.houses.find((x) => x.id === p.houseId); if (house) goTo(house) }}
         onReady={(m) => { mapRef.current = m }}
         className="fullmap-map"
       />
 
       <div className="map-chips" role="tablist">
-        <button type="button" className={!focus ? 'on' : ''} onClick={() => choosePiece(null)}>🗺️ Tout</button>
+        <button type="button" className="chip-back" onClick={() => navigate(base)} aria-label="Retour à la liste des rues">←</button>
+        <button type="button" className={!focus ? 'on' : ''} onClick={() => choosePiece(null)}>Tout<span className="chip-pct">{stats.counts.todo || '✓'}</span></button>
         {tour.pieces.map((p) => {
           const pp = stats.byPiece[p.id]
           const doneAll = pp?.progress >= 1
           return (
             <button key={p.id} type="button" className={`${focus === p.id ? 'on' : ''}${doneAll ? ' done' : ''}`} onClick={() => choosePiece(p.id)}>
               {p.name}
-              <span className="chip-pct">{doneAll ? '✓' : formatPercent(pp?.progress ?? 0)}</span>
+              <span className="chip-pct" title="Maisons restantes">{doneAll || !pp?.counts.todo ? '✓' : pp.counts.todo}</span>
             </button>
           )
         })}

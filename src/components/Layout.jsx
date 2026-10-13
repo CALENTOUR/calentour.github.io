@@ -12,9 +12,8 @@ const MEMBER_NAV = [
   { to: '/stats', icon: '📊', label: 'Mes stats' },
 ]
 const ADMIN_NAV = [
-  { to: '/admin', icon: '📈', label: 'Bilan', end: true },
+  { to: '/admin', icon: '📈', label: 'Tableau de bord', end: true },
   { to: '/admin/carte', icon: '🗺️', label: 'Carte' },
-  { to: '/admin/tournees', icon: '🚒', label: 'Tournées' },
   { to: '/admin/dons', icon: '💶', label: 'Dons' },
   { to: '/admin/reglages', icon: '⚙️', label: 'Réglages' },
 ]
@@ -25,12 +24,12 @@ export default function Layout() {
   const nav = isAdmin ? ADMIN_NAV : MEMBER_NAV
   // Carte de la tournée en plein écran (binôme, ou vue terrain d'un admin).
   const { pathname } = useLocation()
-  const fullMap = pathname.startsWith('/tournee') || pathname.includes('/terrain') || pathname === '/admin/carte'
+  const fullMap = /^\/tournee\/./.test(pathname) || /\/terrain\/./.test(pathname) || pathname === '/admin/carte'
 
   return (
     <div className={`shell ${isAdmin ? 'shell-admin' : 'shell-member'}${fullMap ? ' shell-fullmap' : ''}`}>
       <header className="topbar">
-        <div className="brand">🚒 <strong>{APP_NAME}</strong> <span className="brand-year">{year}</span></div>
+        <div className="brand"><span className="brand-mark" aria-hidden="true">🚒</span><strong>{APP_NAME}</strong> <span className="brand-year">{year}</span></div>
         <div className="topbar-right">
           {IS_DEMO && <button type="button" className="btn-sm btn-ghost" onClick={resetDemo} title="Réinitialiser la démo">↺ <span className="hide-mobile">Réinitialiser la démo</span></button>}
           <span className="who small hide-mobile">{profile?.name}</span>

@@ -1,27 +1,29 @@
 :root {
-  --bg: #f4f5fa;
-  --card: #ffffff;
-  --card-2: #f1f3f9;
-  --border: #e3e6ef;
-  --text: #0f172a;
-  --muted: #64748b;
-  --brand: #dc2626;
-  --brand-2: #f97316;
-  --brand-soft: #fee2e2;
-  --blue: #2563eb;
-  --green: #16a34a;
-  --orange: #f59e0b;
-  --red: #ef4444;
-  --ring-track: rgba(255, 255, 255, .25);
-  --radius: 18px;
-  --shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 6px 20px rgba(15, 23, 42, .06);
+  --bg: #f2ede2;
+  --card: #fbf9f4;
+  --card-2: #ece5d6;
+  --border: #d9cfbc;
+  --text: #1f2a24;
+  --muted: #6c685a;
+  --brand: #b8432f;
+  --brand-2: #c9822f;
+  --brand-soft: #f2dcd3;
+  --blue: #2f5f8f;
+  --green: #4f8a4c;
+  --orange: #d39b2a;
+  --red: #b8432f;
+  --ink: #1f2a24;
+  --ring-track: rgba(31, 42, 36, .12);
+  --radius: 10px;
+  --shadow: none;
+  --float: 0 2px 10px rgba(31, 42, 36, .16);
   --sidebar-w: 232px;
   --topbar-h: 56px;
   --tabbar-h: 64px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   color-scheme: light;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Archivo Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.45;
   color: var(--text);
   background: var(--bg);
@@ -388,3 +390,157 @@ label { display: flex; flex-direction: column; gap: .3rem; font-weight: 700; fon
 .tour-pick-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
 .tour-pick-list button { width: 100%; justify-content: flex-start; gap: .6rem; text-align: left; border: none; background: var(--card-2); }
 body:has(.fullmap) .toast, body:has(.editor) .toast { top: calc(var(--safe-top) + 72px); bottom: auto; }
+
+/* ---------- Ma tournée : liste des rues ---------- */
+.tour-head { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.1rem; border-radius: 22px; color: #fff; background: linear-gradient(135deg, var(--tour, var(--brand)), color-mix(in srgb, var(--tour, var(--brand)) 60%, #0f172a)); box-shadow: var(--shadow); }
+.tour-head h1 { font-size: 1.3rem; }
+.tour-head-left { display: flex; flex-direction: column; align-items: center; line-height: 1.1; text-align: center; }
+.tour-head-left strong { font-size: 2.2rem; font-weight: 900; }
+.tour-head-left span { font-size: .75rem; font-weight: 700; opacity: .9; }
+.sector-list { display: flex; flex-direction: column; gap: .65rem; }
+.sector-card { display: flex; align-items: center; gap: .9rem; padding: .8rem 1rem .8rem .8rem; background: #fff; border-radius: 20px; box-shadow: var(--shadow); color: var(--text); text-decoration: none; min-height: 84px; }
+.sector-card:active { transform: scale(.985); }
+.sector-count { flex: none; width: 64px; height: 64px; border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #eff6ff; color: #1d4ed8; line-height: 1; }
+.sector-count strong { font-size: 1.6rem; font-weight: 900; }
+.sector-count span { font-size: .68rem; font-weight: 800; margin-top: .15rem; }
+.sector-trophy { font-size: 2rem; }
+.sector-done .sector-count { background: #dcfce7; }
+.sector-name { display: block; font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sector-bar { height: 7px; border-radius: 99px; background: var(--card-2); overflow: hidden; margin: .35rem 0 .25rem; }
+.sector-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--green), #4ade80); border-radius: 99px; }
+.sector-go { font-size: 1.5rem; }
+.sector-all { background: var(--card-2); box-shadow: none; }
+.map-chips .chip-back { padding: .3rem .95rem; font-size: 1.1rem; }
+.map-chips .chip-pct { background: #dbeafe; color: #1d4ed8; }
+.map-btns button.me-on { color: #1d4ed8; }
+
+/* ==========================================================================
+   Thème sobre (inspiré d'un tableau de bord papier) : fond crème, couleurs
+   terre, filets fins, gros chiffres, aucun dégradé.
+   ========================================================================== */
+h1, h2, h3 { letter-spacing: -.02em; }
+.kicker, .hero-kicker { display: block; font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); opacity: 1; }
+.big-num { font-size: 2.2rem; font-weight: 800; line-height: 1; letter-spacing: -.03em; }
+
+button, .btn { border-radius: 8px; border-color: var(--border); background: var(--card); }
+.btn-primary { background: var(--brand); border-color: var(--brand); color: #fff; box-shadow: none; }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
+.btn-ghost { background: transparent; border-color: transparent; }
+.btn-round { border-radius: 50%; background: var(--card-2); }
+input, select, textarea { border-radius: 8px; border: 1px solid var(--border); background: #fffdf8; }
+input:focus, select:focus { box-shadow: 0 0 0 3px var(--brand-soft); }
+
+.card, .tile, .tour-card, .piece-card, .login-card, .sector-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: none; }
+.sheet { background: var(--card); border-radius: 14px 14px 0 0; }
+@media (min-width: 700px) { .sheet { border-radius: 14px; } }
+.badge { border-radius: 4px; background: var(--card-2); }
+.chip { border-radius: 6px; border: 1px solid var(--border); background: var(--card); }
+
+/* Barre du haut et onglets : papier, filet, onglet actif souligné. */
+.topbar { background: var(--card); color: var(--text); border-bottom: 1px solid var(--border); }
+.topbar .btn-ghost { color: var(--text); }
+.brand strong { letter-spacing: -.02em; }
+.brand-mark { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--brand); color: #fff; font-size: .95rem; margin-right: .45rem; vertical-align: -6px; }
+.brand-year { background: var(--card-2); color: var(--muted); border-radius: 4px; }
+.tabbar { background: var(--card); border-top: 1px solid var(--border); box-shadow: none; }
+.tab { position: relative; color: var(--muted); font-weight: 700; }
+.tab.active { color: var(--text); }
+.tab.active::before { content: ''; position: absolute; top: 0; left: 22%; right: 22%; height: 3px; background: var(--brand); border-radius: 0 0 3px 3px; }
+.tab.active .tab-icon { transform: none; }
+.sidebar { background: var(--card) !important; border-right: 1px solid var(--border) !important; }
+.side-link.active { background: transparent !important; color: var(--text) !important; box-shadow: inset 3px 0 0 var(--brand); border-radius: 0 !important; }
+.side-link:hover { background: var(--card-2) !important; }
+
+/* Tuiles de chiffres : libellé en petites capitales, gros chiffre, filet de couleur. */
+.tile { padding: .9rem .9rem .8rem; display: flex; flex-direction: column; gap: .15rem; }
+.tile-icon { display: none; }
+.tile-label { order: -1; font-size: .68rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.tile-value { font-size: 1.9rem; font-weight: 800; letter-spacing: -.03em; margin: .1rem 0; }
+.tile-sub { font-size: .75rem; }
+.tile::after { content: ''; display: block; height: 3px; margin-top: .55rem; background: var(--ink); border-radius: 2px; }
+.tile-brand { background: var(--card); color: var(--text); }
+.tile-brand .tile-label, .tile-brand .tile-sub { color: var(--muted); }
+.tile-brand .tile-value { color: var(--brand); }
+.tile-brand::after { background: var(--brand); }
+.tile-green, .tile-orange, .tile-red { border-bottom: 1px solid var(--border); }
+.tile-green::after { background: var(--green); }
+.tile-orange::after { background: var(--orange); }
+.tile-red::after { background: var(--red); }
+.tile-green .tile-value { color: var(--green); }
+.tile-red .tile-value { color: var(--red); }
+
+/* Bandeau « Mes stats » : papier teinté de la couleur de la tournée. */
+.hero { background: color-mix(in srgb, var(--tour, var(--brand)) 10%, var(--card)); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: none; }
+.hero p { color: var(--muted); }
+.hero-amount { font-weight: 800; letter-spacing: -.03em; }
+.hero-amount-label { color: var(--muted); }
+.live.live-light { color: var(--green); }
+.status-btn { border-radius: 10px; border-width: 1.5px; }
+
+/* Ma tournée : en-tête illustré, cartes des rues. */
+.tour-head { position: relative; overflow: hidden; background: color-mix(in srgb, var(--tour, var(--brand)) 10%, var(--card)); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: none; padding: 1rem 1rem 0; flex-direction: column; align-items: stretch; gap: .2rem; }
+.tour-head-row { display: flex; align-items: flex-end; gap: 1rem; }
+.tour-head-left { align-items: flex-end; text-align: right; }
+.tour-head-left strong { font-size: 2.6rem; font-weight: 800; letter-spacing: -.04em; color: var(--blue); }
+.tour-head-left span { color: var(--muted); opacity: 1; }
+.street-art { display: block; width: 100%; height: auto; margin-top: .4rem; }
+.sector-card { min-height: 78px; border-left: 4px solid var(--tour, var(--blue)); }
+.sector-count { border-radius: 8px; background: #e3ebf3; color: var(--blue); width: 60px; height: 60px; }
+.sector-count strong { font-weight: 800; }
+.sector-done .sector-count { background: #e1ecdc; }
+.sector-done { border-left-color: var(--green); }
+.sector-all { background: var(--card-2); }
+.sector-bar, .map-panel-bar { border-radius: 2px; height: 6px; }
+.sector-bar i, .map-panel-bar i { background: var(--green); border-radius: 2px; }
+.sector-go { font-size: 1.1rem; color: var(--muted); }
+
+/* Éléments posés sur les cartes plein écran. */
+.map-chips { background: none; }
+.map-chips button { border-radius: 8px; border: 1px solid var(--border); background: var(--card); box-shadow: var(--float); font-weight: 700; }
+.map-chips button.on { background: var(--ink); border-color: var(--ink); color: #fff; box-shadow: var(--float); }
+.map-chips .chip-pct { border-radius: 4px; background: #e3ebf3; color: var(--blue); }
+.map-chips button.on .chip-pct { background: rgba(255, 255, 255, .18); color: #fff; }
+.map-chips button.done .chip-pct { background: #e1ecdc; color: var(--green); }
+.map-panel, .editor-bottom, .editor-top { background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--float); }
+.map-panel-next { border-radius: 8px; }
+.map-btns button { border-radius: 8px; border: 1px solid var(--border); background: var(--card); box-shadow: var(--float); }
+.tours-map-top button { border: 1px solid var(--border); box-shadow: var(--float); }
+.tours-map-top .btn-primary { border-color: var(--brand); }
+.editor-modes button { border-radius: 8px; background: var(--card-2); }
+.editor-modes button.on { background: var(--ink); color: #fff; }
+.editor-count { border-radius: 4px; background: #e1ecdc; color: var(--green); }
+.editor-count.busy { background: #f6ead0; color: #8a5f12; }
+.segmented { border-radius: 10px; background: var(--card-2); }
+.segmented button { border-radius: 8px; }
+.segmented button.on { background: var(--card); color: var(--text); box-shadow: inset 0 -3px 0 var(--brand); }
+.map-chips button.chip-back { font-weight: 800; }
+.toast { background: var(--ink); border-radius: 8px; }
+.offline-banner { background: #f6ead0; color: #6b4a10; }
+
+/* Calques de la carte admin. */
+.layer-btn { gap: .45rem; }
+.layer-btn .check { display: inline-grid; place-items: center; width: 18px; height: 18px; border: 1.5px solid var(--muted); border-radius: 4px; font-size: .75rem; color: #fff; }
+.layer-btn.on .check { background: var(--ink); border-color: var(--ink); }
+.map-note { position: absolute; left: 50%; transform: translateX(-50%); bottom: 112px; z-index: 3; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: .4rem .7rem; font-size: .8rem; font-weight: 700; box-shadow: var(--float); white-space: nowrap; }
+.progress-legend { align-items: flex-end; }
+.legend-scale { display: grid; grid-template-columns: repeat(3, auto); gap: .2rem .6rem; font-size: .7rem; color: var(--muted); }
+.legend-scale i { grid-column: 1 / -1; display: block; width: 140px; height: 8px; border-radius: 2px; background: linear-gradient(90deg, #c0492f, #d39b2a, #4f8a4c); }
+
+/* Tableau : en-têtes en petites capitales, filets fins. */
+.table th { border-bottom: 1px solid var(--ink); font-weight: 700; letter-spacing: .08em; }
+.status-bar { border-radius: 2px; }
+
+/* Écran de connexion. */
+.login-screen { background: var(--bg); }
+.login-card { border-radius: 12px; }
+.dash-head { display: flex; align-items: flex-end; gap: 1rem; padding: 1rem 1rem 0; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.dash-head h1 { font-size: 1.6rem; margin: .15rem 0 .2rem; }
+.dash-head .spacer { padding-bottom: 1rem; }
+.dash-art { width: 46%; max-width: 360px; height: auto; display: block; }
+@media (max-width: 599px) { .dash-head { flex-direction: column; align-items: stretch; } .dash-art { width: 100%; } .dash-head .spacer { padding-bottom: 0; } }
+.tile-value { font-size: clamp(1.25rem, 6vw, 1.9rem); white-space: nowrap; }
+@media (max-width: 700px) {
+  .fullmap .map-btns { left: auto; right: 10px; bottom: auto; flex-direction: column; align-items: flex-end; }
+  .shell-member .fullmap .map-btns { top: calc(var(--safe-top) + 200px); }
+  .shell-admin .fullmap .map-btns { top: 300px; }
+}

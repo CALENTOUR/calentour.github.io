@@ -5,7 +5,7 @@ import { STATUS_LIST } from '../../config/constants'
 const W = 76
 const H = 92
 const SYMBOL = { given: '€', again: '↻', refused: '✕', empty: '∅' }
-const TODO_INK = '#dc2626'
+const TODO_INK = '#2f5f8f' // bleu ardoise : bien distinct du rouge des refus
 
 function houseGlyph(g, cx, cy, s) {
   g.beginPath()
@@ -41,7 +41,7 @@ function draw(kind, status) {
   const cy = 34
 
   // Ombre portée et pointe de l'épingle.
-  g.shadowColor = 'rgba(15, 23, 42, .35)'
+  g.shadowColor = 'rgba(31, 42, 36, .35)'
   g.shadowBlur = 6
   g.shadowOffsetY = 3
   g.fillStyle = todo ? TODO_INK : status.stroke

@@ -6,11 +6,11 @@ export const ROLES = { ADMIN: 'admin', MEMBER: 'member' }
 // Statuts d'une maison (ou d'un logement) pour une campagne.
 // "todo" est l'état de départ, les quatre autres sont les résultats d'un passage.
 export const STATUSES = {
-  todo: { key: 'todo', label: 'À faire', short: 'À faire', icon: '🏠', color: '#ffffff', stroke: '#64748b' },
-  given: { key: 'given', label: 'A donné', short: 'Don', icon: '💶', color: '#22c55e', stroke: '#166534' },
-  again: { key: 'again', label: 'À repasser', short: 'Repasser', icon: '🔁', color: '#f59e0b', stroke: '#92400e', hint: 'Absent ou « repassez »' },
-  refused: { key: 'refused', label: 'Refus', short: 'Refus', icon: '✋', color: '#ef4444', stroke: '#7f1d1d' },
-  empty: { key: 'empty', label: 'Habitation vide', short: 'Vide', icon: '🚫', color: '#94a3b8', stroke: '#334155' },
+  todo: { key: 'todo', label: 'À faire', short: 'À faire', icon: '🏠', color: '#ffffff', stroke: '#2f5f8f' },
+  given: { key: 'given', label: 'A donné', short: 'Don', icon: '💶', color: '#4f8a4c', stroke: '#2f5a2e' },
+  again: { key: 'again', label: 'À repasser', short: 'Repasser', icon: '🔁', color: '#d39b2a', stroke: '#8a5f12', hint: 'Absent ou « repassez »' },
+  refused: { key: 'refused', label: 'Refus', short: 'Refus', icon: '✋', color: '#b8432f', stroke: '#7a2a1d' },
+  empty: { key: 'empty', label: 'Habitation vide', short: 'Vide', icon: '🚫', color: '#a8a294', stroke: '#5e5a50' },
 }
 export const STATUS_LIST = Object.values(STATUSES)
 export const RESULT_STATUSES = STATUS_LIST.filter((s) => s.key !== 'todo')

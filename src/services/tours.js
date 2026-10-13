@@ -3,7 +3,8 @@ import { db } from '../lib/firebase'
 import { newId } from '../lib/format'
 import { flatten } from '../lib/geo'
 import { TOUR_COLORS } from '../config/constants'
-import { tourRef, toursCol } from './paths'
+import INITIAL_TOURS from '../config/tours.json'
+import { settingsRef, tourRef, toursCol } from './paths'
 import { updateUser } from './users'
 
 export function saveTour(id, data) {
@@ -57,4 +58,19 @@ export async function importTours(parsed, existing = []) {
     })
   }
   await batch.commit()
+}
+
+// Tournées de l'amicale, tracées une fois pour toutes à partir de la carte Google My Maps
+// (src/config/tours.json). Chargées automatiquement au premier passage sur la carte admin.
+export async function loadInitialTours(existing = []) {
+  const parsed = INITIAL_TOURS.map((t) => ({
+    number: t.number,
+    name: `Tournée ${t.number}`,
+    members: [],
+    color: t.color,
+    pieces: t.lines.map((line) => ({ line })),
+  }))
+  await importTours(parsed, existing)
+  await setDoc(settingsRef(), { toursLoaded: true }, { merge: true })
+  return parsed.length
 }

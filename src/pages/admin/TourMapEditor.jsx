@@ -2,20 +2,24 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import TourMap, { piecesGeoJSON } from '../../components/map/TourMap'
 import { pickStreet, touchTolerance } from '../../components/map/streetPicker'
-import { snapToRoads } from '../../components/map/snapToRoads'
+import { roadGraph, snapToRoads } from '../../components/map/snapToRoads'
 import { setGeoJSON } from '../../components/map/useMapLibre'
 import { useToast } from '../../components/ui/Toast'
 import { useData } from '../../context/DataContext'
 import { newId } from '../../lib/format'
-import { chainLines, distance, flatten, projectOnLine, sliceLine, unflatten } from '../../lib/geo'
+import { chainLines, distance, flatten, lineLength, projectOnLine, samplePoints, sliceLine, unflatten } from '../../lib/geo'
 import { addFoundHouses, locateOnPieces, searchHouses } from '../../lib/tourBuilder'
 import { saveTour } from '../../services/tours'
 
 const MODES = [
-  { key: 'street', icon: '➕', label: 'Rue', help: 'Touche une rue : elle s’allume en orange, puis choisis « Toute la rue » ou « Ce tronçon ». Fais glisser les ronds blancs pour allonger ou raccourcir.' },
-  { key: 'draw', icon: '✏️', label: 'Tracer', help: 'Touche quelques points le long de la rue, même grossièrement : le tracé se recale sur la route (en orange). Puis « Valider le tracé ».' },
+  { key: 'street', icon: '➕', label: 'Rue', help: 'Touche une rue : elle s’allume en orange, puis choisis « Toute la rue » ou « Ce tronçon ». Pour allonger ou raccourcir, fais glisser un rond blanc, ou touche-le puis touche l’endroit voulu.' },
+  { key: 'draw', icon: '✏️', label: 'Tracer', help: 'Touche le point de départ, puis le point d’arrivée : le tracé suit la route tout seul.' },
   { key: 'house', icon: '🏠', label: 'Maison', help: 'Touche l’endroit d’une maison qui manque.' },
-  { key: 'erase', icon: '🗑️', label: 'Retirer', help: 'Touche une maison ou un trait de rue pour le retirer.' },
+  { key: 'eraser', icon: '🧽', label: 'Gomme' },
+]
+const ERASERS = [
+  { key: 'brush', label: 'Effacer un bout', help: 'Appuie sur une rue et glisse le doigt (ou la souris) le long du bout à effacer.' },
+  { key: 'delete', label: 'Supprimer une rue', help: 'Touche une rue pour la supprimer en entier, ou une maison pour la retirer.' },
 ]
 
 const EMPTY = { type: 'FeatureCollection', features: [] }
@@ -31,7 +35,8 @@ const MAX_HOUSE_DISTANCE = 45 // mètres : au-delà, une maison n'appartient plu
 const makeLine = (coords, ref) => ({ c: flatten(coords), ...(ref ? { r: flatten(ref) } : {}) })
 
 // Nouveau tracé quand on fait glisser l'extrémité `end` (0 début, 1 fin) jusqu'à `point`.
-export function moveLineEnd(line, end, point, tolerance) {
+// `route(a, b)` relie deux points par la route (recalage) quand on sort de la rue d'origine.
+export function moveLineEnd(line, end, point, tolerance, route = (a, b) => [a, b]) {
   const c = unflatten(line.c)
   const ref = line.r ? unflatten(line.r) : c
   const from = projectOnLine(c[0], ref).along
@@ -44,13 +49,36 @@ export function moveLineEnd(line, end, point, tolerance) {
     const sliced = sliceLine(ref, a, b)
     return makeLine(a <= b ? sliced : sliced.reverse(), line.r ? ref : null)
   }
-  // En dehors de la rue : on prolonge en ligne droite jusqu'au point.
-  const next = end === 0 ? [point, ...c] : [...c, point]
-  const atRefEnd = line.r && distance(end === 0 ? c[0] : c[c.length - 1], end === 0 ? ref[0] : ref[ref.length - 1]) < 2
-  return makeLine(next, atRefEnd ? (end === 0 ? [point, ...ref] : [...ref, point]) : null)
+  // En dehors de la rue d'origine : on prolonge en suivant la route jusqu'au point.
+  const tip = end === 0 ? c[0] : c[c.length - 1]
+  const path = route(tip, point).slice(1)
+  if (!path.length) return null
+  const next = end === 0 ? [...path.reverse(), ...c] : [...c, ...path]
+  const atRefEnd = line.r && distance(tip, end === 0 ? ref[0] : ref[ref.length - 1]) < 2
+  const nextRef = atRefEnd ? (end === 0 ? [...path, ...ref] : [...ref, ...path]) : next
+  return makeLine(next, nextRef)
 }
 
-function handlesGeoJSON(tour) {
+// Efface d'un trait tout ce qui passe sous la gomme (`brush`, rayon en mètres).
+// Renvoie les morceaux restants (0, 1 ou plusieurs traits), ou null si la gomme n'y touche pas.
+export function eraseFromLine(line, brush, radius) {
+  const dense = samplePoints(unflatten(line.c), 2)
+  const near = (p) => (brush.length > 1 ? projectOnLine(p, brush).dist : distance(p, brush[0])) <= radius
+  if (!dense.some(near)) return null
+  const runs = []
+  let run = []
+  for (const p of dense) {
+    if (near(p)) {
+      if (run.length) runs.push(run)
+      run = []
+    } else run.push(p)
+  }
+  if (run.length) runs.push(run)
+  const ref = line.r ?? line.c
+  return runs.filter((r) => r.length > 1 && lineLength(r) > 5).map((r) => ({ c: flatten(r), r: ref }))
+}
+
+function handlesGeoJSON(tour, picked) {
   return {
     type: 'FeatureCollection',
     features: tour.pieces.flatMap((p) => p.lines.flatMap((l, i) => {
@@ -58,7 +86,7 @@ function handlesGeoJSON(tour) {
       if (c.length < 2) return []
       return [0, 1].map((end) => ({
         type: 'Feature',
-        properties: { pieceId: p.id, line: i, end },
+        properties: { pieceId: p.id, line: i, end, picked: picked && picked.pieceId === p.id && picked.line === i && picked.end === end ? 1 : 0 },
         geometry: { type: 'Point', coordinates: end === 0 ? c[0] : c[c.length - 1] },
       }))
     })),
@@ -81,33 +109,41 @@ function ensureEditorLayers(map) {
   setGeoJSON(map, 'draft', EMPTY)
   setGeoJSON(map, 'handles', EMPTY)
   setGeoJSON(map, 'adjust', EMPTY)
+  setGeoJSON(map, 'eraser', EMPTY)
   const below = map.getLayer('pieces-casing') ? 'pieces-casing' : undefined
   map.addLayer({ id: 'others', type: 'line', source: 'others', layout: { 'line-cap': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': 3, 'line-opacity': 0.35, 'line-dasharray': [1.5, 1.5] } }, below)
   map.addLayer({ id: 'preview-casing', type: 'line', source: 'preview', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': 14 } })
   map.addLayer({ id: 'preview', type: 'line', source: 'preview', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#f97316', 'line-width': 8 } })
   map.addLayer({ id: 'adjust', type: 'line', source: 'adjust', layout: { 'line-cap': 'round' }, paint: { 'line-color': '#f97316', 'line-width': 8, 'line-opacity': 0.9 } })
-  map.addLayer({ id: 'handles', type: 'circle', source: 'handles', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 6, 17, 11], 'circle-color': '#ffffff', 'circle-stroke-color': '#0f172a', 'circle-stroke-width': 3 } })
-  map.addLayer({ id: 'draft', type: 'line', source: 'draft', paint: { 'line-color': '#0f172a', 'line-width': 4, 'line-dasharray': [2, 1] } })
+  map.addLayer({ id: 'eraser', type: 'line', source: 'eraser', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#c0492f', 'line-width': 40, 'line-opacity': 0.3 } })
+  map.addLayer({ id: 'handles', type: 'circle', source: 'handles', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 8, 17, 13], 'circle-color': ['case', ['==', ['get', 'picked'], 1], '#f97316', '#ffffff'], 'circle-stroke-color': '#1f2a24', 'circle-stroke-width': 3 } })
   map.addLayer({ id: 'draft-points', type: 'circle', source: 'draft', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 7, 'circle-color': '#0f172a', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } })
 }
 
 // Éditeur plein écran des rues d'une tournée : ajout d'une rue au toucher avec aperçu,
-// tracé libre, maisons, retrait, et retour arrière.
+// tracé qui suit la route, maisons, gomme, et retour arrière.
 export default function TourMapEditor({ tour, onClose }) {
   const toast = useToast()
   const { tours: allTours, statesById } = useData()
   const [mode, setMode] = useState('street')
-  const [draft, setDraft] = useState([])
+  const [eraser, setEraser] = useState('brush')
   const [preview, setPreview] = useState(null)
+  const [drawStart, setDrawStart] = useState(null)
+  const [picked, setPicked] = useState(null)
   const [history, setHistory] = useState([])
   const [map, setMap] = useState(null)
   const tours = useMemo(() => [tour], [tour])
   const others = useMemo(() => allTours.filter((t) => t.id !== tour.id), [allTours, tour.id])
 
+  const tourRef = useRef(tour)
+  tourRef.current = tour
+
   // Chaque modification garde l'état précédent pour « Annuler ».
   const update = (data) => {
-    setHistory((h) => [...h.slice(-19), { pieces: tour.pieces, houses: tour.houses }])
-    return saveTour(tour.id, data).catch((err) => toast(`Erreur : ${err.message}`))
+    const t = tourRef.current
+    setHistory((h) => [...h.slice(-19), { pieces: t.pieces, houses: t.houses }])
+    tourRef.current = { ...t, ...data }
+    return saveTour(t.id, data).catch((err) => toast(`Erreur : ${err.message}`))
   }
   const undo = () => {
     const last = history.at(-1)
@@ -116,44 +152,7 @@ export default function TourMapEditor({ tour, onClose }) {
     saveTour(tour.id, last).catch((err) => toast(`Erreur : ${err.message}`))
     toast('Dernière modification annulée')
   }
-
-  useEffect(() => {
-    if (!map) return
-    ensureEditorLayers(map)
-    setGeoJSON(map, 'others', piecesGeoJSON(others))
-  }, [map, others])
-
-  useEffect(() => {
-    if (!map) return
-    ensureEditorLayers(map)
-    setGeoJSON(map, 'preview', lineFeatures(preview ? (preview.only ? [preview.segment] : preview.lines) : []))
-  }, [map, preview])
-
-  // Tracé à main levée recalé sur les routes, affiché en orange.
-  const snappedDraft = useMemo(() => (map && draft.length > 1 ? snapToRoads(map, draft) : []), [map, draft])
-  useEffect(() => {
-    if (!map || mode !== 'draw') return
-    ensureEditorLayers(map)
-    setGeoJSON(map, 'preview', lineFeatures(snappedDraft.length > 1 ? [snappedDraft] : []))
-  }, [map, mode, snappedDraft])
-
-  useEffect(() => {
-    if (!map) return
-    ensureEditorLayers(map)
-    setGeoJSON(map, 'draft', {
-      type: 'FeatureCollection',
-      features: [
-        ...(draft.length > 1 ? [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: draft } }] : []),
-        ...draft.map((c) => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: c } })),
-      ],
-    })
-  }, [map, draft])
-
-  // `lines` : [{ coords, ref }]. Une rue déjà présente reçoit les nouveaux traits.
-  // Poignées aux extrémités de chaque trait, à faire glisser.
-  const tourRef = useRef(tour)
-  tourRef.current = tour
-  const updateRef = useRef(null)
+  const updateRef = useRef(update)
   updateRef.current = update
 
   // Recherche automatique des maisons le long de chaque trait ajouté ou agrandi,
@@ -178,31 +177,122 @@ export default function TourMapEditor({ tour, onClose }) {
   }
   const autoFindRef = useRef(autoFind)
   autoFindRef.current = autoFind
-  const dragged = useRef(0)
+
+  // Remplace un trait par sa nouvelle version (ou le supprime), et range les maisons.
+  const replaceLine = (pieceId, index, nextLines) => {
+    const t = tourRef.current
+    const pieces = t.pieces
+      .map((p) => (p.id === pieceId ? { ...p, lines: p.lines.flatMap((l, i) => (i === index ? nextLines : [l])) } : p))
+      .filter((p) => p.lines.length)
+    updateRef.current({ pieces, houses: keepNearHouses(t.houses, pieces) })
+  }
+
+  // Graphe des routes autour d'un point, gardé tant qu'on reste dans la zone.
+  const graphRef = useRef(null)
+  const routeFrom = (m, a, b) => {
+    const g = graphRef.current
+    const inside = (p) => g && p[0] > g.w && p[0] < g.e && p[1] > g.s && p[1] < g.n
+    if (!inside(a) || !inside(b)) {
+      const pts = [a, b]
+      const margin = 0.012
+      graphRef.current = {
+        graph: roadGraph(m, pts, margin),
+        w: Math.min(a[0], b[0]) - margin, e: Math.max(a[0], b[0]) + margin,
+        s: Math.min(a[1], b[1]) - margin * 0.66, n: Math.max(a[1], b[1]) + margin * 0.66,
+      }
+    }
+    return snapToRoads(m, [a, b], graphRef.current.graph)
+  }
+  const routeRef = useRef(routeFrom)
+  routeRef.current = routeFrom
+
   useEffect(() => {
     if (!map) return
     ensureEditorLayers(map)
-    setGeoJSON(map, 'handles', mode === 'draw' ? EMPTY : handlesGeoJSON(tour))
-  }, [map, tour, mode])
+    setGeoJSON(map, 'others', piecesGeoJSON(others))
+  }, [map, others])
 
+  useEffect(() => {
+    if (!map) return
+    ensureEditorLayers(map)
+    setGeoJSON(map, 'preview', lineFeatures(preview ? preview.lines : []))
+  }, [map, preview])
+
+  const showHandles = mode === 'street' || mode === 'house' || (mode === 'eraser' && eraser === 'delete')
+  useEffect(() => {
+    if (!map) return
+    ensureEditorLayers(map)
+    setGeoJSON(map, 'handles', showHandles ? handlesGeoJSON(tour, picked) : EMPTY)
+  }, [map, tour, showHandles, picked])
+
+  // Point de départ du tracé.
+  useEffect(() => {
+    if (!map) return
+    ensureEditorLayers(map)
+    setGeoJSON(map, 'draft', {
+      type: 'FeatureCollection',
+      features: drawStart ? [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: drawStart } }] : [],
+    })
+    if (!drawStart) setGeoJSON(map, 'adjust', EMPTY)
+  }, [map, drawStart])
+
+  // Pendant le tracé, le trait suit la route jusqu'au pointeur (souris).
+  const drawRef = useRef(drawStart)
+  drawRef.current = drawStart
+  useEffect(() => {
+    if (!map) return undefined
+    let frame = 0
+    const onMove = (e) => {
+      if (!drawRef.current) return
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        if (!drawRef.current) return
+        const path = routeRef.current(map, drawRef.current, [e.lngLat.lng, e.lngLat.lat])
+        setGeoJSON(map, 'adjust', lineFeatures([path]))
+      })
+    }
+    map.on('mousemove', onMove)
+    return () => {
+      cancelAnimationFrame(frame)
+      map.off('mousemove', onMove)
+    }
+  }, [map])
+
+  // Poignées (glisser) et gomme (appuyer et glisser).
+  const modeRef = useRef({ mode, eraser })
+  modeRef.current = { mode, eraser }
+  const dragged = useRef(0)
   useEffect(() => {
     if (!map) return undefined
     let drag = null
+    let brush = null
     const result = (lngLat) => {
       const t = tourRef.current
-      const piece = t.pieces.find((p) => p.id === drag.pieceId)
-      const line = piece?.lines[drag.line]
-      return line ? moveLineEnd(line, drag.end, [lngLat.lng, lngLat.lat], touchTolerance(map, lngLat.lat)) : null
+      const line = t.pieces.find((p) => p.id === drag.pieceId)?.lines[drag.line]
+      const point = [lngLat.lng, lngLat.lat]
+      return line ? moveLineEnd(line, drag.end, point, touchTolerance(map, lngLat.lat), (a, b) => routeRef.current(map, a, b)) : null
     }
-    const start = (e) => {
+    const startHandle = (e) => {
       const f = e.features?.[0]
       if (!f) return
       e.preventDefault()
       drag = { ...f.properties, moved: false }
-      map.dragPan.disable()
       map.getCanvas().style.cursor = 'grabbing'
     }
+    const startBrush = (e) => {
+      const { mode: m, eraser: er } = modeRef.current
+      if (m !== 'eraser' || er !== 'brush') return
+      e.preventDefault()
+      brush = [[e.lngLat.lng, e.lngLat.lat]]
+      setGeoJSON(map, 'eraser', lineFeatures([[brush[0], brush[0]]]))
+    }
     const move = (e) => {
+      const point = [e.lngLat.lng, e.lngLat.lat]
+      if (brush) {
+        brush.push(point)
+        setGeoJSON(map, 'eraser', lineFeatures([brush]))
+        return
+      }
       if (!drag) return
       drag.moved = true
       drag.last = e.lngLat
@@ -210,33 +300,56 @@ export default function TourMapEditor({ tour, onClose }) {
       setGeoJSON(map, 'adjust', lineFeatures(next ? [unflatten(next.c)] : []))
     }
     const end = () => {
+      if (brush) {
+        const b = brush
+        brush = null
+        setGeoJSON(map, 'eraser', EMPTY)
+        dragged.current = Date.now()
+        // Rayon de la gomme : moitié de son épaisseur à l'écran (40 px).
+        const radius = touchTolerance(map, b[0][1]) * (20 / 22)
+        const t = tourRef.current
+        let changed = false
+        const pieces = t.pieces.map((p) => ({
+          ...p,
+          lines: p.lines.flatMap((l) => {
+            const kept = eraseFromLine(l, b, radius)
+            if (!kept) return [l]
+            changed = true
+            return kept
+          }),
+        })).filter((p) => p.lines.length)
+        if (changed) updateRef.current({ pieces, houses: keepNearHouses(t.houses, pieces) })
+        return
+      }
       if (!drag) return
       const d = drag
-      drag = null
-      map.dragPan.enable()
       map.getCanvas().style.cursor = ''
       setGeoJSON(map, 'adjust', EMPTY)
-      if (!d.moved || !d.last) return
+      if (!d.moved || !d.last) {
+        drag = null
+        return
+      }
       dragged.current = Date.now()
-      drag = d
       const next = result(d.last)
       drag = null
       if (!next) return
-      const t = tourRef.current
-      const pieces = t.pieces.map((p) => (p.id === d.pieceId ? { ...p, lines: p.lines.map((l, i) => (i === d.line ? next : l)) } : p))
-      updateRef.current({ pieces, houses: keepNearHouses(t.houses, pieces) })
+      replaceLine(d.pieceId, d.line, [next])
       autoFindRef.current(d.pieceId, unflatten(next.c))
     }
-    map.on('mousedown', 'handles', start)
-    map.on('touchstart', 'handles', start)
+    map.on('mousedown', 'handles', startHandle)
+    map.on('touchstart', 'handles', startHandle)
+    map.on('mousedown', startBrush)
+    map.on('touchstart', startBrush)
     map.on('mousemove', move)
     map.on('touchmove', move)
     map.on('mouseup', end)
     map.on('touchend', end)
     map.on('touchcancel', end)
     return () => {
-      map.off('mousedown', 'handles', start)
-      map.off('touchstart', 'handles', start)
+      map.off('mousedown', 'handles', startHandle)
+      map.off('touchstart', 'handles', startHandle)
+      map.off('mousedown', startBrush)
+      map.off('touchstart', startBrush)
       map.off('mousemove', move)
       map.off('touchmove', move)
       map.off('mouseup', end)
@@ -245,31 +358,76 @@ export default function TourMapEditor({ tour, onClose }) {
     }
   }, [map])
 
+  // `lines` : [{ coords, ref }]. Une rue déjà présente reçoit les nouveaux traits.
   const addLines = (name, lines) => {
-    const label = name ?? `Rue tracée ${tour.pieces.length + 1}`
+    const t = tourRef.current
+    const label = name ?? `Rue tracée ${t.pieces.length + 1}`
     const made = lines.map((l) => makeLine(l.coords, l.ref))
-    const existing = tour.pieces.find((p) => p.name === label)
+    const existing = t.pieces.find((p) => p.name === label)
     const pieceId = existing?.id ?? newId().slice(0, 10)
     const pieces = existing
-      ? tour.pieces.map((p) => (p === existing ? { ...p, lines: [...p.lines, ...made] } : p))
-      : [...tour.pieces, { id: pieceId, name: label, lines: made }]
-    tourRef.current = { ...tour, pieces }
+      ? t.pieces.map((p) => (p === existing ? { ...p, lines: [...p.lines, ...made] } : p))
+      : [...t.pieces, { id: pieceId, name: label, lines: made }]
     update({ pieces })
     lines.forEach((l) => autoFind(pieceId, l.coords))
-    toast(`${label} ajoutée. Fais glisser les ronds blancs pour l’ajuster.`)
+    toast(`${label} ajoutée`)
+  }
+
+  // Ligne de la tournée la plus proche du toucher.
+  const nearestLine = (m, lngLat) => {
+    const click = [lngLat.lng, lngLat.lat]
+    const tol = touchTolerance(m, lngLat.lat)
+    let best = null
+    tour.pieces.forEach((p) => p.lines.forEach((l, index) => {
+      const d = projectOnLine(click, unflatten(l.c)).dist
+      if (d <= tol && (!best || d < best.d)) best = { p, index, d }
+    }))
+    return best
   }
 
   const onMapClick = (e, m) => {
     if (Date.now() - dragged.current < 400) return
+    const point = [e.lngLat.lng, e.lngLat.lat]
+
+    // Poignée touchée : on la choisit, puis le prochain toucher la déplace.
+    if (showHandles) {
+      const box = [[e.point.x - 20, e.point.y - 20], [e.point.x + 20, e.point.y + 20]]
+      const h = m.queryRenderedFeatures(box, { layers: ['handles'] })[0]
+      if (h) {
+        const { pieceId, line, end } = h.properties
+        const same = picked && picked.pieceId === pieceId && picked.line === line && picked.end === end
+        setPicked(same ? null : { pieceId, line, end })
+        if (!same) toast('Touche maintenant l’endroit où la rue doit s’arrêter')
+        return
+      }
+      if (picked) {
+        const line = tour.pieces.find((p) => p.id === picked.pieceId)?.lines[picked.line]
+        const next = line && moveLineEnd(line, picked.end, point, touchTolerance(m, e.lngLat.lat), (a, b) => routeFrom(m, a, b))
+        setPicked(null)
+        if (next) {
+          replaceLine(picked.pieceId, picked.line, [next])
+          autoFind(picked.pieceId, unflatten(next.c))
+        }
+        return
+      }
+    }
+
     if (mode === 'street') {
       const street = pickStreet(m, e.lngLat)
       if (!street) {
         setPreview(null)
         return toast('Pas de rue ici. Zoome davantage ou utilise « Tracer ».')
       }
-      setPreview({ ...street, only: false })
+      setPreview(street)
     } else if (mode === 'draw') {
-      setDraft((d) => [...d, [e.lngLat.lng, e.lngLat.lat]])
+      if (!drawStart) {
+        graphRef.current = null
+        setDrawStart(point)
+        return
+      }
+      const path = routeFrom(m, drawStart, point)
+      setDrawStart(null)
+      if (path.length > 1 && lineLength(path) > 5) addLines(null, [{ coords: path, ref: path }])
     } else if (mode === 'house') {
       if (!tour.pieces.length) return toast('Ajoute d’abord une rue.')
       const label = window.prompt('Adresse de la maison (ex. 12 rue de la Gare) :')
@@ -277,26 +435,15 @@ export default function TourMapEditor({ tour, onClose }) {
       const loc = locateOnPieces(e.lngLat.lng, e.lngLat.lat, tour.pieces)
       const house = { id: newId().slice(0, 12), label: label.trim(), number: label.trim().split(' ')[0], lng: e.lngLat.lng, lat: e.lngLat.lat, pieceId: loc.pieceId, along: loc.along }
       update({ houses: [...tour.houses, house] })
-    } else if (mode === 'erase') {
-      const click = [e.lngLat.lng, e.lngLat.lat]
-      const tol = touchTolerance(m, e.lngLat.lat)
-      let best = null
-      tour.pieces.forEach((p) => p.lines.forEach((l, index) => {
-        const d = projectOnLine(click, unflatten(l.c)).dist
-        if (d <= tol && (!best || d < best.d)) best = { p, index, d }
-      }))
-      if (!best) return toast('Touche un trait de rue de la tournée.')
-      const { p, index } = best
-      if (!window.confirm(`Retirer ce trait de « ${p.name} » ?`)) return
-      const lines = p.lines.filter((_, i) => i !== index)
-      const pieces = lines.length ? tour.pieces.map((x) => (x === p ? { ...x, lines } : x)) : tour.pieces.filter((x) => x !== p)
-      const houses = lines.length ? tour.houses : tour.houses.filter((h) => h.pieceId !== p.id)
-      update({ pieces, houses })
+    } else if (mode === 'eraser' && eraser === 'delete') {
+      const best = nearestLine(m, e.lngLat)
+      if (!best) return toast('Touche une rue de la tournée.')
+      if (!window.confirm(`Supprimer toute la rue « ${best.p.name} » et ses maisons ?`)) return
+      update({ pieces: tour.pieces.filter((x) => x !== best.p), houses: tour.houses.filter((h) => h.pieceId !== best.p.id) })
     }
   }
 
   const onHouseClick = (props) => {
-    if (mode !== 'erase') return
     const house = tour.houses.find((h) => h.id === props.houseId)
     if (house && window.confirm(`Retirer « ${house.label} » ?`)) update({ houses: tour.houses.filter((h) => h.id !== house.id) })
   }
@@ -315,25 +462,26 @@ export default function TourMapEditor({ tour, onClose }) {
     }
     setPreview(null)
   }
-  const finishDraft = () => {
-    if (snappedDraft.length > 1) addLines(null, [{ coords: snappedDraft, ref: snappedDraft }])
-    setDraft([])
-  }
 
   const chooseMode = (key) => {
     setMode(key)
-    setDraft([])
+    setDrawStart(null)
     setPreview(null)
+    setPicked(null)
   }
   const activeMode = MODES.find((m) => m.key === mode)
+  const help = mode === 'eraser' ? ERASERS.find((x) => x.key === eraser).help
+    : picked ? 'Touche l’endroit où la rue doit s’arrêter (sur la rue pour raccourcir, plus loin pour l’allonger).'
+      : mode === 'draw' && drawStart ? 'Touche maintenant le point d’arrivée.'
+        : activeMode.help
 
   return createPortal(
     <div className="editor">
       <TourMap
         tours={tours} statesById={statesById} flat
-        fitPadding={{ top: 120, bottom: 190, left: 40, right: 60 }}
+        fitPadding={{ top: 120, bottom: 210, left: 40, right: 60 }}
         onMapClick={onMapClick}
-        onHouseClick={mode === 'erase' ? onHouseClick : undefined}
+        onHouseClick={mode === 'eraser' && eraser === 'delete' ? onHouseClick : undefined}
         onReady={setMap}
         className="editor-map"
       />
@@ -342,7 +490,7 @@ export default function TourMapEditor({ tour, onClose }) {
         <button type="button" className="btn-primary btn-sm" onClick={onClose}>✓ Terminé</button>
         <strong className="spacer ellipsis">N°{tour.number} <span className="small muted">· {tour.pieces.length} rue{tour.pieces.length > 1 ? 's' : ''}</span></strong>
         <button type="button" className="btn-sm" disabled={!history.length} onClick={undo}>↶ Annuler</button>
-        <span className={`editor-count${finding ? ' busy' : ''}`}>🏠 {finding ? '…' : tour.houses.length}</span>
+        <span className={`editor-count${finding ? ' busy' : ''}`} title="Maisons de la tournée">🏠 {finding ? '…' : tour.houses.length}</span>
       </div>
 
       <div className="editor-bottom">
@@ -355,13 +503,18 @@ export default function TourMapEditor({ tour, onClose }) {
               <button type="button" className="btn-round btn-ghost" onClick={() => setPreview(null)} aria-label="Pas celle-ci">✕</button>
             </div>
           </div>
-        ) : mode === 'draw' && draft.length ? (
-          <div className="row">
-            <button type="button" className="spacer" onClick={() => setDraft((d) => d.slice(0, -1))}>↶ Point</button>
-            <button type="button" className="btn-primary spacer" disabled={snappedDraft.length < 2} onClick={finishDraft}>Valider le tracé</button>
-          </div>
         ) : (
-          <div className="small editor-help">{activeMode.help}</div>
+          <div className="row">
+            <div className="small editor-help spacer">{help}</div>
+            {mode === 'draw' && drawStart && <button type="button" className="btn-sm" onClick={() => setDrawStart(null)}>✕</button>}
+          </div>
+        )}
+        {mode === 'eraser' && (
+          <div className="segmented">
+            {ERASERS.map((x) => (
+              <button key={x.key} type="button" className={eraser === x.key ? 'on' : ''} onClick={() => setEraser(x.key)}>{x.label}</button>
+            ))}
+          </div>
         )}
         <div className="editor-modes">
           {MODES.map((m) => (
