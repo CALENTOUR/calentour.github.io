@@ -4,9 +4,11 @@
 // Les maisons dont le bâtiment est introuvable gardent leur pastille.
 import { setGeoJSON } from './useMapLibre'
 
-export const LIT_COLORS = { todo: '#3f77ad', given: '#4f8a4c', again: '#d39b2a', refused: '#b8432f', empty: '#a8a294' }
+export const LIT_COLORS = { todo: '#3f77ad', given: '#4f8a4c', again: '#d39b2a', refused: '#b8432f', empty: '#5e5a50' }
+// Bâtiments sans adresse de la tournée (granges, garages, maisons d'autres rues).
+export const OTHER_BUILDING = '#ebe6dc'
 const SHRINK = 0.82 // part de la taille d'origine
-const MAX_DISTANCE = 18 // mètres entre l'adresse et le bâtiment le plus proche
+const MAX_DISTANCE = 25 // mètres entre l'adresse et le bâtiment le plus proche
 const CELL = 0.0004 // ~30 à 45 m : maille de l'index des bâtiments
 
 // Couche des bâtiments du fond de carte : sa source, et sa couche dans les tuiles.
@@ -101,7 +103,7 @@ function findBuilding(cells, point) {
   return best?.b ?? null
 }
 
-const PALE = { todo: '#c9d8e6', given: '#cddbc9', again: '#ecdcb6', refused: '#e5c4bc', empty: '#d8d5cc' }
+const PALE = { todo: '#c9d8e6', given: '#cddbc9', again: '#ecdcb6', refused: '#e5c4bc', empty: '#bdb9b0' }
 
 // Bâtiments colorés des maisons (`houses` : entités de la couche des pastilles).
 // Renvoie les maisons allumées (leurs pastilles peuvent être cachées) et une
@@ -149,7 +151,7 @@ export function drawLitHouses(map, features) {
   // Les autres bâtiments passent en retrait, plus clairs.
   const src = buildingSource(map)
   if (src && map.getLayer(src.layerId)?.type === 'fill-extrusion') {
-    map.setPaintProperty(src.layerId, 'fill-extrusion-color', '#e6e1d6')
-    map.setPaintProperty(src.layerId, 'fill-extrusion-opacity', 0.55)
+    map.setPaintProperty(src.layerId, 'fill-extrusion-color', OTHER_BUILDING)
+    map.setPaintProperty(src.layerId, 'fill-extrusion-opacity', 0.5)
   }
 }

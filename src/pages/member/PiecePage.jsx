@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import TourMap, { buildingStatus, tourPoints } from '../../components/map/TourMap'
 import { fitPoints } from '../../components/map/useMapLibre'
+import MapLegend from '../../components/map/MapLegend'
 import AddHouseSheet from '../../components/AddHouseSheet'
 import HouseSheet from '../../components/HouseSheet'
 import NoTour from '../../components/NoTour'
@@ -174,6 +175,7 @@ export default function PiecePage() {
       {adding && <div className="map-note map-note-action">Touche l’endroit de la maison sur la carte <button type="button" className="btn-sm" onClick={() => setAdding(false)}>Annuler</button></div>}
 
       <div className="map-side">
+        <MapLegend />
         <button type="button" className="mini-pie" onClick={() => setListOpen(true)} aria-label={`${formatPercent(ps.progress)} fait, ouvrir la liste des maisons`} title="Liste des maisons">
           <ProgressRing value={ps.progress} size={58} stroke={7} color="var(--green)">
             <strong>{Math.round(ps.progress * 100)}%</strong>
