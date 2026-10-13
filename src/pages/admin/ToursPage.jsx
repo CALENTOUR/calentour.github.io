@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import { useToast } from '../../components/ui/Toast'
 import StatusBar from '../../components/ui/StatusBar'
@@ -7,11 +7,12 @@ import { formatPercent } from '../../lib/format'
 import { parseKml } from '../../lib/kml'
 import { tourStats } from '../../lib/stats'
 import { findHouses } from '../../lib/tourBuilder'
-import { importTours, newTourDoc, saveTour } from '../../services/tours'
-import { doc } from 'firebase/firestore'
-import { toursCol } from '../../services/paths'
+import TourForm from '../../components/TourForm'
+import Sheet from '../../components/ui/Sheet'
+import { TOUR_COLORS } from '../../config/constants'
+import { createTour, importTours, saveTour } from '../../services/tours'
 
-function ImportKml({ tours }) {
+function ImportKml({ tours, onImported }) {
   const toast = useToast()
   const input = useRef(null)
   const [preview, setPreview] = useState(null)
@@ -34,8 +35,9 @@ function ImportKml({ tours }) {
     setBusy(true)
     try {
       await importTours(preview, tours)
-      toast(`${preview.length} tournées créées. Étape suivante : chercher les maisons.`)
+      toast(`${preview.length} tournées créées. Recherche des maisons en cours…`)
       setPreview(null)
+      onImported()
     } catch (err) {
       toast(`Import impossible : ${err.message}`)
     } finally {
@@ -70,7 +72,7 @@ function ImportKml({ tours }) {
   )
 }
 
-function FindAllHouses({ tours }) {
+function FindAllHouses({ tours, autoRun }) {
   const toast = useToast()
   const [progress, setProgress] = useState(null)
   const todo = tours.filter((t) => t.pieces.length && !t.houses.length)
@@ -92,6 +94,17 @@ function FindAllHouses({ tours }) {
     toast(`${total} maisons ajoutées.`)
   }
 
+  // Lancée d'elle-même juste après un import.
+  const pending = useRef(0)
+  useEffect(() => {
+    if (autoRun && autoRun !== pending.current && todo.length && !progress) {
+      pending.current = autoRun
+      run()
+    }
+    // run lit la liste à jour des tournées sans maisons.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRun, todo.length])
+
   if (!tours.length) return null
   return (
     <div className="card stack">
@@ -112,21 +125,34 @@ export default function ToursPage() {
   const { tours, statesById, users } = useData()
   const toast = useToast()
 
-  const addTour = async () => {
-    const number = Math.max(0, ...tours.map((t) => t.number)) + 1
-    const ref = doc(toursCol())
-    await saveTour(ref.id, newTourDoc({ number, name: `Tournée ${number}` }))
-    toast(`Tournée ${number} créée`)
+  const navigate = useNavigate()
+  const [creating, setCreating] = useState(false)
+  const [autoRun, setAutoRun] = useState(0)
+  const nextNumber = Math.max(0, ...tours.map((t) => t.number)) + 1
+  const create = async (values) => {
+    const id = await createTour(values)
+    toast(`Tournée ${values.number} créée`)
+    navigate(`/admin/tournees/${id}`)
   }
 
   return (
     <div className="page stack-lg">
       <div className="row">
         <h1 className="spacer">Tournées</h1>
-        <button type="button" onClick={addTour}>＋ Nouvelle tournée</button>
+        <button type="button" className="btn-primary" onClick={() => setCreating(true)}>＋ Nouvelle tournée</button>
       </div>
-      <ImportKml tours={tours} />
-      <FindAllHouses tours={tours} />
+      {creating && (
+        <Sheet title="Nouvelle tournée" onClose={() => setCreating(false)}>
+          <TourForm
+            initial={{ number: nextNumber, members: [], color: TOUR_COLORS[(nextNumber - 1) % TOUR_COLORS.length] }}
+            tours={tours}
+            submitLabel="Créer la tournée"
+            onSubmit={create}
+          />
+        </Sheet>
+      )}
+      <ImportKml tours={tours} onImported={() => setAutoRun(Date.now())} />
+      <FindAllHouses tours={tours} autoRun={autoRun} />
       <div className="tour-grid">
         {tours.map((t) => {
           const s = tourStats(t, statesById[t.id])

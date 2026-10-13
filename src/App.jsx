@@ -7,11 +7,11 @@ import { isFirebaseConfigured } from './lib/firebase'
 import { logout } from './services/users'
 import LoginPage from './pages/LoginPage'
 import SetupPage from './pages/SetupPage'
-import MyTourPage from './pages/member/MyTourPage'
 import PiecePage from './pages/member/PiecePage'
 import MyStatsPage from './pages/member/MyStatsPage'
 import DashboardPage from './pages/admin/DashboardPage'
 import ToursPage from './pages/admin/ToursPage'
+import ToursMapPage from './pages/admin/ToursMapPage'
 import TourEditPage from './pages/admin/TourEditPage'
 import DonsPage from './pages/admin/DonsPage'
 import SettingsPage from './pages/admin/SettingsPage'
@@ -42,7 +42,7 @@ function Gate() {
       <Route element={<Layout />}>
         {!isAdmin && (
           <>
-            <Route path="/tournee" element={<MyTourPage />} />
+            <Route path="/tournee" element={<PiecePage />} />
             <Route path="/tournee/:pieceId" element={<PiecePage />} />
             <Route path="/stats" element={<MyStatsPage />} />
           </>
@@ -50,9 +50,10 @@ function Gate() {
         {isAdmin && (
           <>
             <Route path="/admin" element={<DashboardPage />} />
+            <Route path="/admin/carte" element={<ToursMapPage />} />
             <Route path="/admin/tournees" element={<ToursPage />} />
             <Route path="/admin/tournees/:tourId" element={<TourEditPage />} />
-            <Route path="/admin/tournees/:tourId/terrain" element={<MyTourPage />} />
+            <Route path="/admin/tournees/:tourId/terrain" element={<PiecePage />} />
             <Route path="/admin/tournees/:tourId/terrain/:pieceId" element={<PiecePage />} />
             <Route path="/admin/dons" element={<DonsPage />} />
             <Route path="/admin/reglages" element={<SettingsPage />} />

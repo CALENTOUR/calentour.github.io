@@ -1,3 +1,6 @@
+import NoTour from '../../components/NoTour'
+import PrepareOffline from '../../components/PrepareOffline'
+import ProgressRing from '../../components/ui/ProgressRing'
 import StatTile from '../../components/ui/StatTile'
 import StatusBar from '../../components/ui/StatusBar'
 import { STATUS_LIST } from '../../config/constants'
@@ -5,7 +8,14 @@ import { useData } from '../../context/DataContext'
 import { useTourContext } from '../../hooks/useTourContext'
 import { formatEuro, formatPercent } from '../../lib/format'
 import { globalStats, tourStats } from '../../lib/stats'
-import { NoTour } from './MyTourPage'
+
+function cheer(progress) {
+  if (progress >= 1) return 'Tournée terminée, bravo ! 🏆'
+  if (progress >= 0.75) return 'Dernière ligne droite 💪'
+  if (progress >= 0.5) return 'Plus de la moitié, continue ! 🔥'
+  if (progress > 0) return 'C’est parti, bonne tournée ! 🚒'
+  return 'Prêt pour la tournée ? 🚒'
+}
 
 // Statistiques du binôme, mises à jour à chaque saisie.
 export default function MyStatsPage() {
@@ -18,7 +28,19 @@ export default function MyStatsPage() {
 
   return (
     <div className="page stack-lg">
-      <h1>Mes stats <span className="live">● en direct</span></h1>
+      <section className="hero" style={{ '--tour': tour.color }}>
+        <div className="hero-text">
+          <div className="hero-kicker">Tournée n°{tour.number} <span className="live live-light">● en direct</span></div>
+          <h1>{tour.name}</h1>
+          <p>{cheer(s.progress)}</p>
+          <div className="hero-amount">{formatEuro(s.amount)}</div>
+          <div className="hero-amount-label">collectés</div>
+        </div>
+        <ProgressRing value={s.progress} color="#ffffff" size={128}>
+          <strong>{formatPercent(s.progress)}</strong>
+          <span>{s.done}/{s.total} faites</span>
+        </ProgressRing>
+      </section>
       <div className="tiles">
         <StatTile icon="💰" label="Collecté" value={formatEuro(s.amount)} tone="brand" />
         <StatTile icon="💶" label="Espèces" value={formatEuro(s.byMode.cash)} />
@@ -54,6 +76,8 @@ export default function MyStatsPage() {
           </tbody>
         </table>
       </section>
+
+      <PrepareOffline tour={tour} />
 
       {ranking && (
         <section className="card stack">

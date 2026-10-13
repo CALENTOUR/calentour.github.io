@@ -49,6 +49,12 @@ code { font-family: ui-monospace, Menlo, monospace; background: var(--card-2); p
 .row.wrap, .wrap { flex-wrap: wrap; }
 .stack { display: flex; flex-direction: column; gap: .75rem; }
 .stack-lg { display: flex; flex-direction: column; gap: 1.25rem; }
+.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stack-sm { display: flex; flex-direction: column; gap: .45rem; }
+.align-start { align-self: flex-start; }
+.label { font-weight: 700; font-size: .9rem; }
+.btn-danger { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+.live.live-light { color: #fff; margin-left: .4rem; }
 .live { color: var(--green); font-size: .8rem; font-weight: 700; animation: pulse 2s infinite; white-space: nowrap; }
 @keyframes pulse { 50% { opacity: .45; } }
 
@@ -227,18 +233,10 @@ label { display: flex; flex-direction: column; gap: .3rem; font-weight: 700; fon
 .rank-pos { width: 1.8rem; height: 1.8rem; display: grid; place-items: center; border-radius: 50%; background: var(--card-2); font-weight: 800; font-size: .85rem; }
 
 /* ---------- Vue d'un morceau ---------- */
-.piece-page { display: flex; flex-direction: column; }
-.subtabs { display: flex; gap: .45rem; overflow-x: auto; padding: .7rem 1rem; background: #fff; border-bottom: 1px solid var(--border); scrollbar-width: none; position: sticky; top: calc(var(--topbar-h) + var(--safe-top)); z-index: 10; }
-.subtabs::-webkit-scrollbar { display: none; }
-.subtabs button { flex: none; min-height: 38px; border-radius: 999px; padding: .3rem .9rem; font-size: .88rem; background: var(--card-2); border: none; }
-.subtabs button.on { background: var(--brand); color: #fff; box-shadow: 0 4px 12px rgba(220, 38, 38, .3); }
 .map-wrap { position: relative; }
 .map-container { position: absolute; inset: 0; }
-.piece-map { height: 52vh; min-height: 300px; }
 .dash-map { height: 420px; border-radius: 14px; overflow: hidden; }
 .edit-map { height: 60vh; min-height: 360px; border-radius: 14px; overflow: hidden; }
-.map-3d-btn { position: absolute; left: 10px; top: 10px; z-index: 2; min-height: 36px; padding: .25rem .7rem; font-size: .8rem; border-radius: 10px; box-shadow: var(--shadow); }
-.piece-panel { padding: 1rem; display: flex; flex-direction: column; gap: .75rem; max-width: 760px; width: 100%; margin: 0 auto; }
 .house-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; }
 .house-row { width: 100%; justify-content: flex-start; gap: .7rem; text-align: left; font-weight: 600; background: #fff; border: none; box-shadow: var(--shadow); border-radius: 14px; min-height: 52px; }
 
@@ -305,3 +303,88 @@ label { display: flex; flex-direction: column; gap: .3rem; font-weight: 700; fon
 
 .maplibregl-ctrl-group button { min-height: 0; border-radius: 0; }
 .maplibregl-ctrl-attrib button { min-height: 0; padding: 0; }
+
+/* ---------- Cartes plein écran ---------- */
+.map-btns { position: absolute; left: 10px; top: 10px; z-index: 2; display: flex; gap: .4rem; }
+.map-btns button { min-height: 38px; padding: .25rem .75rem; font-size: .82rem; border-radius: 11px; box-shadow: var(--shadow); border: none; }
+.map-wrap-full { position: fixed !important; inset: 0; z-index: 70; height: auto !important; border-radius: 0 !important; }
+.map-wrap-full .map-btns { top: calc(10px + var(--safe-top)); }
+
+.shell-fullmap .main { padding-bottom: 0; }
+.shell-member.shell-fullmap .topbar { display: none; }
+.fullmap {
+  position: fixed; left: 0; right: 0; z-index: 5;
+  top: calc(var(--topbar-h) + var(--safe-top));
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom));
+}
+.shell-member .fullmap { top: 0; }
+@media (min-width: 900px) {
+  .shell-admin .fullmap { left: var(--sidebar-w); bottom: 0; }
+}
+.fullmap-map { position: absolute; inset: 0; }
+.fullmap .map-btns { top: auto; bottom: 108px; left: 10px; }
+.fullmap .maplibregl-ctrl-top-right { top: calc(58px + var(--safe-top)); }
+.fullmap .maplibregl-ctrl-group button { width: 44px; height: 44px; }
+.shell-fullmap .offline-banner { position: fixed; left: 0; right: 0; bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 104px); z-index: 25; margin: 0 .75rem; border-radius: 14px; box-shadow: var(--shadow); font-size: .8rem; }
+
+.map-chips {
+  position: absolute; left: 0; right: 0; top: 0; z-index: 3;
+  display: flex; gap: .45rem; overflow-x: auto; scrollbar-width: none;
+  padding: calc(.6rem + var(--safe-top)) .75rem .6rem;
+  background: linear-gradient(rgba(15, 23, 42, .35), transparent);
+}
+.map-chips::-webkit-scrollbar { display: none; }
+.map-chips button {
+  flex: none; min-height: 42px; border-radius: 999px; padding: .3rem .5rem .3rem .95rem; border: none;
+  background: #fff; box-shadow: 0 4px 14px rgba(15, 23, 42, .18); font-size: .9rem; gap: .45rem;
+}
+.map-chips button.on { background: var(--brand); color: #fff; box-shadow: 0 6px 16px rgba(220, 38, 38, .45); }
+.chip-pct { font-size: .75rem; font-weight: 900; padding: .15rem .45rem; border-radius: 999px; background: var(--card-2); color: var(--muted); }
+.map-chips button.on .chip-pct { background: rgba(255, 255, 255, .25); color: #fff; }
+.map-chips button.done .chip-pct { background: #dcfce7; color: #166534; }
+
+.map-panel {
+  position: absolute; left: .6rem; right: .6rem; bottom: .6rem; z-index: 3;
+  display: flex; align-items: center; gap: .6rem; padding: .7rem .7rem .7rem 1rem;
+  background: #fff; border-radius: 22px; box-shadow: 0 10px 30px rgba(15, 23, 42, .25);
+  max-width: 560px; margin: 0 auto;
+}
+.map-panel-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .25rem; }
+.map-panel-bar { height: 8px; border-radius: 99px; background: var(--card-2); overflow: hidden; }
+.map-panel-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--green), #4ade80); border-radius: 99px; transition: width .4s ease; }
+.map-panel-next { min-height: 52px; padding: .5rem 1.1rem; border-radius: 16px; font-size: 1rem; }
+.map-panel-done { font-weight: 900; color: var(--green); }
+
+/* ---------- Éditeur des rues ---------- */
+.editor { position: fixed; inset: 0; z-index: 65; background: var(--bg); }
+.editor-map { position: absolute; inset: 0; }
+.editor .map-btns { top: auto; bottom: 150px; }
+.editor .maplibregl-ctrl-top-right { top: calc(64px + var(--safe-top)); }
+.editor .maplibregl-ctrl-group button { width: 44px; height: 44px; }
+.editor-top {
+  position: absolute; left: .6rem; right: .6rem; top: calc(.6rem + var(--safe-top)); z-index: 3;
+  display: flex; align-items: center; gap: .5rem; padding: .45rem .6rem;
+  background: #fff; border-radius: 18px; box-shadow: 0 8px 24px rgba(15, 23, 42, .2);
+}
+.editor-count { font-weight: 900; padding: .3rem .6rem; border-radius: 999px; background: #dcfce7; color: #166534; white-space: nowrap; }
+.editor-count.busy { background: #fef3c7; color: #92400e; animation: pulse 1.2s infinite; }
+.editor-bottom {
+  position: absolute; left: .6rem; right: .6rem; bottom: calc(.6rem + var(--safe-bottom)); z-index: 3;
+  display: flex; flex-direction: column; gap: .55rem; padding: .7rem;
+  background: #fff; border-radius: 22px; box-shadow: 0 10px 30px rgba(15, 23, 42, .25);
+  max-width: 620px; margin: 0 auto;
+}
+.editor-help { color: var(--muted); padding: 0 .2rem; }
+.editor-confirm { display: flex; flex-direction: column; gap: .45rem; }
+.editor-modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
+.editor-modes button { flex-direction: column; gap: 0; min-height: 56px; padding: .3rem; font-size: .8rem; border-radius: 14px; background: var(--card-2); border: none; }
+.editor-modes button span { font-size: 1.3rem; line-height: 1.2; }
+.editor-modes button.on { background: var(--brand); color: #fff; }
+
+/* ---------- Carte admin des tournées ---------- */
+.tours-map-top { position: absolute; left: .6rem; top: .6rem; z-index: 3; display: flex; gap: .45rem; flex-wrap: wrap; right: 70px; }
+.tours-map-top button { box-shadow: 0 6px 18px rgba(15, 23, 42, .2); border: none; }
+.fullmap .tours-map-top ~ .map-wrap .maplibregl-ctrl-top-right { top: 10px; }
+.tour-pick-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
+.tour-pick-list button { width: 100%; justify-content: flex-start; gap: .6rem; text-align: left; border: none; background: var(--card-2); }
+body:has(.fullmap) .toast, body:has(.editor) .toast { top: calc(var(--safe-top) + 72px); bottom: auto; }

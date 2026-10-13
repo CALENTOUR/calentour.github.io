@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import OfflineBanner from './OfflineBanner'
 import { APP_NAME } from '../config/constants'
 import { useAuth } from '../context/AuthContext'
@@ -8,13 +8,13 @@ import { resetDemo } from '../demo/reset'
 import { logout } from '../services/users'
 
 const MEMBER_NAV = [
-  { to: '/tournee', icon: '🏠', label: 'Ma tournée', end: true },
-  { to: '/tournee/tout', icon: '🗺️', label: 'Carte' },
+  { to: '/tournee', icon: '🗺️', label: 'Ma tournée' },
   { to: '/stats', icon: '📊', label: 'Mes stats' },
 ]
 const ADMIN_NAV = [
-  { to: '/admin', icon: '📈', label: 'Tableau de bord', end: true },
-  { to: '/admin/tournees', icon: '🗺️', label: 'Tournées' },
+  { to: '/admin', icon: '📈', label: 'Bilan', end: true },
+  { to: '/admin/carte', icon: '🗺️', label: 'Carte' },
+  { to: '/admin/tournees', icon: '🚒', label: 'Tournées' },
   { to: '/admin/dons', icon: '💶', label: 'Dons' },
   { to: '/admin/reglages', icon: '⚙️', label: 'Réglages' },
 ]
@@ -23,9 +23,12 @@ export default function Layout() {
   const { isAdmin, profile } = useAuth()
   const { settings, year } = useData()
   const nav = isAdmin ? ADMIN_NAV : MEMBER_NAV
+  // Carte de la tournée en plein écran (binôme, ou vue terrain d'un admin).
+  const { pathname } = useLocation()
+  const fullMap = pathname.startsWith('/tournee') || pathname.includes('/terrain') || pathname === '/admin/carte'
 
   return (
-    <div className={`shell ${isAdmin ? 'shell-admin' : 'shell-member'}`}>
+    <div className={`shell ${isAdmin ? 'shell-admin' : 'shell-member'}${fullMap ? ' shell-fullmap' : ''}`}>
       <header className="topbar">
         <div className="brand">🚒 <strong>{APP_NAME}</strong> <span className="brand-year">{year}</span></div>
         <div className="topbar-right">

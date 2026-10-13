@@ -112,3 +112,59 @@ export function unflatten(flat = []) {
   for (let i = 0; i + 1 < flat.length; i += 2) out.push([flat[i], flat[i + 1]])
   return out
 }
+
+// Point situé à `along` mètres du début du tracé.
+export function pointAt(line, along) {
+  let walked = 0
+  for (let i = 1; i < line.length; i++) {
+    const seg = distance(line[i - 1], line[i])
+    if (walked + seg >= along) {
+      const t = seg ? Math.max(0, (along - walked) / seg) : 0
+      return [line[i - 1][0] + t * (line[i][0] - line[i - 1][0]), line[i - 1][1] + t * (line[i][1] - line[i - 1][1])]
+    }
+    walked += seg
+  }
+  return line[line.length - 1]
+}
+
+// Morceau d'un tracé entre deux positions (en mètres depuis le début).
+export function sliceLine(line, from, to) {
+  const a = Math.min(from, to)
+  const b = Math.max(from, to)
+  const out = [pointAt(line, a)]
+  let walked = 0
+  for (let i = 1; i < line.length; i++) {
+    walked += distance(line[i - 1], line[i])
+    if (walked > a && walked < b) out.push(line[i])
+  }
+  out.push(pointAt(line, b))
+  return out
+}
+
+// Relie bout à bout des tronçons qui se touchent (à `tolerance` mètres près).
+export function chainLines(lines, tolerance = 3) {
+  const left = lines.filter((l) => l.length > 1).map((l) => l.slice())
+  const chains = []
+  while (left.length) {
+    let chain = left.shift()
+    let grew = true
+    while (grew) {
+      grew = false
+      for (let i = 0; i < left.length; i++) {
+        const l = left[i]
+        const head = chain[0]
+        const tail = chain[chain.length - 1]
+        if (distance(tail, l[0]) <= tolerance) chain = [...chain, ...l.slice(1)]
+        else if (distance(tail, l[l.length - 1]) <= tolerance) chain = [...chain, ...l.slice(0, -1).reverse()]
+        else if (distance(head, l[l.length - 1]) <= tolerance) chain = [...l.slice(0, -1), ...chain]
+        else if (distance(head, l[0]) <= tolerance) chain = [...l.slice(1).reverse(), ...chain]
+        else continue
+        left.splice(i, 1)
+        grew = true
+        break
+      }
+    }
+    chains.push(chain)
+  }
+  return chains
+}
