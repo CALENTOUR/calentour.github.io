@@ -996,3 +996,7 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .tour-ring-done { width: 52px; height: 52px; }
 .tour-ring .tour-ring-pct { font-size: .68rem !important; }
 .tour-ring .tour-ring-done-n { font-size: .56rem; font-weight: 900; filter: brightness(.85); }
+
+/* Villages du haut de la carte : sur plusieurs lignes au lieu d'être coupés. */
+.tours-map-top .village-chips:not(.tour-places) { flex-wrap: wrap; overflow-x: hidden; overflow-y: auto; max-height: 76px; scrollbar-width: thin; }
+@media (min-width: 900px) { .tours-map-top .village-chips:not(.tour-places) { max-height: 116px; } }
