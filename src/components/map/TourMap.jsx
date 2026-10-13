@@ -95,6 +95,14 @@ function ensureAreaLayers(map) {
   })
 }
 
+// Contour bleu du village choisi.
+function ensureOutlineLayers(map) {
+  if (map.getLayer('village-line')) return
+  const before = map.getLayer('pieces-casing') ? 'pieces-casing' : undefined
+  map.addLayer({ id: 'village-fill', type: 'fill', source: 'village', paint: { 'fill-color': '#2f6fb0', 'fill-opacity': 0.08 } }, before)
+  map.addLayer({ id: 'village-line', type: 'line', source: 'village', layout: { 'line-join': 'round' }, paint: { 'line-color': '#2f6fb0', 'line-width': 4, 'line-opacity': 0.95 } }, before)
+}
+
 function ensureLayers(map) {
   if (map.getLayer('pieces-casing')) return
   addStatusIcons(map)
@@ -133,7 +141,7 @@ function ensureLayers(map) {
   })
 }
 
-// Étiquette de chaque tournée (numéro, et avancement si demandé), au milieu de sa plus longue rue.
+// Étiquette de chaque tournée : son numéro et ses maisons faites sur le total (« 5/48 »), au milieu de sa plus longue rue.
 function labelsGeoJSON(tours, statesById, withProgress) {
   return {
     type: 'FeatureCollection',
@@ -141,10 +149,10 @@ function labelsGeoJSON(tours, statesById, withProgress) {
       const lines = (t.pieces ?? []).flatMap((p) => p.lines.map((l) => unflatten(l.c))).filter((l) => l.length > 1)
       if (!lines.length) return []
       const longest = lines.reduce((a, b) => (lineLength(b) > lineLength(a) ? b : a))
-      const pct = Math.round(tourStats(t, statesById[t.id]).progress * 100)
+      const st = tourStats(t, statesById[t.id])
       return [{
         type: 'Feature',
-        properties: { tourId: t.id, text: withProgress ? `${t.number} · ${pct} %` : String(t.number), color: t.color, progress: pct / 100 },
+        properties: { tourId: t.id, number: String(t.number), count: `${st.done}/${st.total}`, color: t.color, progress: st.progress, withProgress: withProgress ? 1 : 0 },
         geometry: { type: 'Point', coordinates: pointAt(longest, lineLength(longest) / 2) },
       }]
     }),
@@ -158,13 +166,16 @@ function ensureLabelLayer(map) {
   if (map.getLayer('tour-labels')) return
   map.addLayer({
     id: 'tour-labels', type: 'symbol', source: 'tour-labels',
-    layout: { 'text-field': ['get', 'text'], 'text-font': ['Noto Sans Bold'], 'text-size': 14, 'text-allow-overlap': false, 'text-padding': 2 },
+    layout: {
+      'text-field': ['format', ['get', 'number'], { 'font-scale': 1.15 }, '\n', {}, ['get', 'count'], { 'font-scale': 0.85, 'text-color': ['case', ['==', ['get', 'withProgress'], 1], PROGRESS_COLOR, '#4b5650'] }],
+      'text-font': ['Noto Sans Bold'], 'text-size': 14, 'text-line-height': 1.05, 'text-allow-overlap': false, 'text-padding': 2,
+    },
     paint: { 'text-color': '#1f2a24', 'text-halo-color': '#fbf9f4', 'text-halo-width': 2.5 },
   })
 }
 
 // Carte d'une ou plusieurs tournées : rues tracées et maisons colorées par statut.
-export default function TourMap({ tours, statesById, focusPieceId = null, focusTourId = null, onHouseClick, onMapClick, onReady, flat = false, fitPadding = 50, expandable = false, showMe = false, showHouses = true, showProgress = false, showLabels = false, streetLabels = false, autoFit = true, areas = null, className = '' }) {
+export default function TourMap({ tours, statesById, focusPieceId = null, focusTourId = null, onHouseClick, onMapClick, onReady, flat = false, fitPadding = 50, expandable = false, showMe = false, showHouses = true, showProgress = false, showLabels = false, streetLabels = false, autoFit = true, areas = null, outline = null, className = '' }) {
   const containerRef = useRef(null)
   const initial = tourPoints(tours, focusPieceId)
   const map = useMapLibre(containerRef, { initialPoints: initial, flat, fitPadding, geolocate: !showMe })
@@ -196,6 +207,12 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
       setGeoJSON(map, 'tour-labels', { type: 'FeatureCollection', features: [] })
     }
   }, [map, tours, statesById, focusPieceId, focusTourId, showHouses, showProgress, showLabels, streetLabels])
+
+  useEffect(() => {
+    if (!map || (!outline && !map.getSource('village'))) return
+    setGeoJSON(map, 'village', { type: 'FeatureCollection', features: outline ? [{ type: 'Feature', properties: {}, geometry: outline }] : [] })
+    ensureOutlineLayers(map)
+  }, [map, outline])
 
   useEffect(() => {
     if (!map || (!areas && !map.getSource('areas'))) return

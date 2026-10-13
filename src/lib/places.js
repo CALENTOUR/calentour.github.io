@@ -27,23 +27,83 @@ export function pieceLabels(tour) {
   return out
 }
 
-// Villages traversés par les tournées (d'après les adresses des maisons), avec leur
-// emprise pour y aller d'un geste. Classés par nombre de maisons.
+// Villages traversés par les tournées (d'après les adresses des maisons), classés
+// par nombre de maisons. Leur emprise ne garde que le cœur du village : quelques
+// adresses rattachées à la commune mais loin de son bourg (écart, adresse mal
+// placée, rue en limite de commune) ne doivent pas tirer le zoom ailleurs.
 export function villagesOf(tours) {
   const byName = new Map()
   for (const t of tours) {
     for (const h of t.houses ?? []) {
-      if (!h.city) continue
-      const v = byName.get(h.city) ?? { name: h.city, count: 0, w: 180, e: -180, s: 90, n: -90 }
-      v.count++
-      v.w = Math.min(v.w, h.lng); v.e = Math.max(v.e, h.lng)
-      v.s = Math.min(v.s, h.lat); v.n = Math.max(v.n, h.lat)
-      byName.set(h.city, v)
+      if (!h.city || !Number.isFinite(h.lng) || !Number.isFinite(h.lat)) continue
+      byName.set(h.city, [...(byName.get(h.city) ?? []), [h.lng, h.lat]])
     }
   }
-  return [...byName.values()]
+  return [...byName.entries()]
+    .map(([name, pts]) => {
+      const core = villageCore(pts)
+      return { name, count: pts.length, points: core, bounds: bounds(core), outline: hullPolygon(core, 70) }
+    })
     .sort((a, b) => b.count - a.count)
-    .map((v) => ({ name: v.name, count: v.count, bounds: [[v.w, v.s], [v.e, v.n]] }))
+}
+
+// Groupes de maisons à moins de `gap` mètres de proche en proche. On garde le plus
+// gros (le bourg), et les autres seulement s'ils sont gros et tout près (village en
+// deux parties) : un écart ou une rue loin du bourg ne compte pas.
+function villageCore(pts, gap = 250) {
+  const cell = gap / 111000
+  const grid = new Map()
+  pts.forEach((q, i) => {
+    const k = `${Math.floor(q[0] / cell)}:${Math.floor(q[1] / cell)}`
+    grid.set(k, [...(grid.get(k) ?? []), i])
+  })
+  const parent = pts.map((_, i) => i)
+  const root = (i) => (parent[i] === i ? i : (parent[i] = root(parent[i])))
+  pts.forEach((q, i) => {
+    const cx = Math.floor(q[0] / cell), cy = Math.floor(q[1] / cell)
+    for (let a = -2; a <= 2; a++) {
+      for (let b = -1; b <= 1; b++) {
+        for (const j of grid.get(`${cx + a}:${cy + b}`) ?? []) {
+          if (j > i && root(i) !== root(j) && distance(q, pts[j]) <= gap) parent[root(j)] = root(i)
+        }
+      }
+    }
+  })
+  const groups = new Map()
+  pts.forEach((q, i) => groups.set(root(i), [...(groups.get(root(i)) ?? []), q]))
+  const sorted = [...groups.values()].sort((a, b) => b.length - a.length)
+  const mid = (g) => [g.reduce((t, q) => t + q[0], 0) / g.length, g.reduce((t, q) => t + q[1], 0) / g.length]
+  const heart = mid(sorted[0])
+  return sorted.filter((g, i) => i === 0 || (g.length * 3 >= sorted[0].length && distance(mid(g), heart) <= 1000)).flat()
+}
+
+// Contour arrondi autour de points : enveloppe convexe élargie de `margin` mètres.
+export function hullPolygon(pts, margin = 60) {
+  if (!pts.length) return null
+  const lat = pts[0][1]
+  const kx = 111320 * Math.cos((lat * Math.PI) / 180)
+  const ky = 110540
+  const ring = []
+  for (const [x, y] of pts) {
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * 2 * Math.PI
+      ring.push([x + (Math.cos(a) * margin) / kx, y + (Math.sin(a) * margin) / ky])
+    }
+  }
+  // Enveloppe convexe (chaîne monotone).
+  ring.sort((a, b) => a[0] - b[0] || a[1] - b[1])
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+  const half = (list) => {
+    const out = []
+    for (const q of list) {
+      while (out.length >= 2 && cross(out[out.length - 2], out[out.length - 1], q) <= 0) out.pop()
+      out.push(q)
+    }
+    out.pop()
+    return out
+  }
+  const hull = [...half(ring), ...half([...ring].reverse())]
+  return { type: 'Polygon', coordinates: [[...hull, hull[0]]] }
 }
 
 // Secteurs d'une tournée : ses rues regroupées par endroit (rues à moins de

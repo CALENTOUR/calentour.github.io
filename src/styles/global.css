@@ -972,3 +972,8 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .tour-cards .tour-card { padding: 0; gap: 0; border-top-width: 1px; border-top-color: var(--border); align-items: stretch; }
 .tour-cards .tour-card.sel { border-color: var(--tour); border-width: 2px; }
 .tour-card-main { min-height: 56px; }
+
+/* Retours n°8 : village choisi, entouré en bleu sur la carte. */
+.tours-map-top .village-chips button.on { background: #2f6fb0; border-color: #2f6fb0; color: #fff; }
+.layers-pop .check-line { flex-direction: row; justify-content: flex-start; min-height: 32px; }
+@media (min-width: 900px) { .tours-map.panel-open .progress-legend { left: calc(312px + .8rem); } }
