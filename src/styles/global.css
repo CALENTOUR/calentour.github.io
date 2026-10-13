@@ -991,3 +991,6 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .house-legend .house-legend-other { color: var(--muted); font-weight: 600; }
 .house-legend .house-legend-other i { border: 1px solid #cfc7b6; }
 .house-legend .legend-pale { background: linear-gradient(90deg, #c9d8e6 50%, #cddbc9 50%); }
+.tour-ring { flex: none; display: grid; }
+.tour-ring .tour-ring-pct { font-size: .62rem !important; letter-spacing: -.02em; }
+.tour-ring-done { width: 52px; height: 52px; }

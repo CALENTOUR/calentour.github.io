@@ -270,7 +270,7 @@ export default function ToursMapPage() {
                     </span>
                     {finished
                       ? <span className="tour-ring-done" aria-label="Terminée"><IconCheck width={20} height={20} /></span>
-                      : <ProgressRing value={st.progress} size={42} stroke={5} color={ringColor(st)}><strong className="tour-ring-pct">{Math.round(st.progress * 100)}</strong></ProgressRing>}
+                      : <span className="tour-ring" title={`${st.done} maisons faites sur ${st.total} (${Math.round(st.progress * 100)} %)`}><ProgressRing value={st.progress} size={52} stroke={5} color={ringColor(st)}><strong className="tour-ring-pct">{st.done}/{st.total}</strong></ProgressRing></span>}
                   </button>
                   <button type="button" className="tour-eye" onClick={() => toggle(t.id)} aria-pressed={!off} aria-label={off ? 'Afficher sur la carte' : 'Masquer de la carte'} title={off ? 'Afficher sur la carte' : 'Masquer de la carte'}>
                     {off ? <IconEyeOff width={18} height={18} /> : <IconEye width={18} height={18} />}
