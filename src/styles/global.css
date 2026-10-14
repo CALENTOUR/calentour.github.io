@@ -1102,3 +1102,14 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
   .shell-member .wordmark, .shell-member .brand-year { display: none; }
   .member-switch .switch-opt { padding: 8px 12px; font-size: .9rem; }
 }
+
+/* Binôme : deux gros boutons en bas (liste et bilan), cachés sur la carte d'une rue pour la laisser en plein écran. */
+.shell-member { --tabbar-h: 76px; }
+.shell-member.shell-fullmap { --tabbar-h: 0px; }
+.member-switch { display: none; }
+.member-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 8px 10px calc(8px + var(--safe-bottom)); background: var(--card); border-top: 1px solid var(--border); }
+.member-bar-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 56px; border-radius: 16px; border: 2px solid #c0392b; background: #fff; color: #c0392b; text-decoration: none; }
+.member-bar-btn strong { display: flex; align-items: center; gap: 6px; font-size: 1rem; font-weight: 800; }
+.member-bar-btn strong svg { width: 20px; height: 20px; }
+.member-bar-btn small { font-size: .72rem; opacity: .8; }
+.member-bar-btn.active { background: #c0392b; color: #fff; }
