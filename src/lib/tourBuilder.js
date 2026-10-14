@@ -50,7 +50,8 @@ export async function searchHouses(lines, onProgress) {
 
 // Ajoute à une tournée les maisons trouvées qu'elle n'a pas encore, et nomme ses rues.
 export function addFoundHouses(tour, found, pieceNames) {
-  const known = new Set((tour.houses ?? []).map((h) => h.banId).filter(Boolean))
+  // Les adresses retirées par la vérification (doublon, dépendance, autre tournée) ne reviennent pas.
+  const known = new Set([...(tour.houses ?? []).map((h) => h.banId).filter(Boolean), ...(tour.skipBan ?? [])])
   const ids = new Set(tour.pieces.map((p) => p.id))
   const added = found
     .filter((h) => !known.has(h.banId) && ids.has(h.pieceId))
