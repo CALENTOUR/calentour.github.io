@@ -3,6 +3,8 @@ import Sheet from './ui/Sheet'
 import { PAYMENT_MODES, QUICK_AMOUNTS, RESULT_STATUSES, STATUSES } from '../config/constants'
 import { formatDate, formatEuro, toNumber } from '../lib/format'
 import { dwellingKey, recordPassage } from '../services/state'
+import { saveTour } from '../services/tours'
+import { withUnits } from '../lib/logements'
 
 function navigationUrl(house) {
   return `https://www.google.com/maps/dir/?api=1&destination=${house.lat},${house.lng}&travelmode=walking`
@@ -92,6 +94,16 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
   }
 
   const title = isBuilding && unit ? `${house.label} · ${unit.label}` : house.label
+  // Le binôme peut signaler un immeuble et son nombre de logements.
+  const [askUnits, setAskUnits] = useState(false)
+  const [unitsN, setUnitsN] = useState(String(house.units?.length || 2))
+  const saveUnits = (e) => {
+    e.preventDefault()
+    const next = withUnits(house, Number.parseInt(unitsN, 10) || 0)
+    saveTour(tour.id, { houses: tour.houses.map((x) => (x.id === house.id ? next : x)) }).catch(() => {})
+    setAskUnits(false)
+    onClose()
+  }
 
   return (
     <Sheet
@@ -121,6 +133,15 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
           {isBuilding && <button type="button" className="btn-ghost btn-sm" onClick={() => setUnitId(null)}>← Tous les logements</button>}
         </>
       )}
+      {!unit && (askUnits ? (
+        <form className="row units-ask" onSubmit={saveUnits}>
+          <label className="spacer small">Nombre de logements dans ce bâtiment</label>
+          <input type="number" inputMode="numeric" min="1" max="200" value={unitsN} onChange={(e) => setUnitsN(e.target.value)} style={{ width: '5rem' }} />
+          <button type="submit" className="btn-sm btn-primary">OK</button>
+        </form>
+      ) : (
+        <button type="button" className="btn-ghost btn-sm" onClick={() => setAskUnits(true)}>🏢 {isBuilding ? 'Corriger le nombre de logements' : 'Plusieurs logements ici ?'}</button>
+      ))}
     </Sheet>
   )
 }

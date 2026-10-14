@@ -13,6 +13,7 @@ import { chainLines, distance, flatten, lineLength, projectOnLine, samplePoints,
 import { tourAreas } from '../../lib/places'
 import { addFoundHouses, locateOnPieces, searchHouses } from '../../lib/tourBuilder'
 import { housesWithoutBuilding } from '../../components/map/houseBuildings'
+import { withUnits } from '../../lib/logements'
 import { saveTour } from '../../services/tours'
 
 const MODES = [
@@ -479,6 +480,12 @@ export default function TourMapEditor({ tour, onClose }) {
     toast(`« ${house.label} » ajoutée à la tournée`)
   }
 
+  const setUnitsSel = (delta) => {
+    const next = withUnits(houseSel, Math.max(1, houseSel.units?.length || 1) + delta)
+    update({ houses: tourRef.current.houses.map((h) => (h.id === next.id ? next : h)) })
+    setHouseSel(next)
+  }
+
   const removeHouse = () => {
     const house = houseSel
     const target = others.find((t) => t.id === giveTo)
@@ -580,6 +587,12 @@ export default function TourMapEditor({ tour, onClose }) {
               <div className="row"><span className="small spacer">Touche l’endroit exact de la maison sur le plan.</span><button type="button" className="btn-sm" onClick={() => setMoving(null)}>Annuler</button></div>
             ) : (
               <>
+                <div className="row units-step">
+                  <span className="spacer">🏢 Logements</span>
+                  <button type="button" className="btn-sm" onClick={() => setUnitsSel(-1)} aria-label="Un logement de moins">−</button>
+                  <strong>{Math.max(1, houseSel.units?.length ?? 1)}</strong>
+                  <button type="button" className="btn-sm" onClick={() => setUnitsSel(1)} aria-label="Un logement de plus">+</button>
+                </div>
                 <div className="row">
                   <button type="button" className="spacer" onClick={() => setMoving(houseSel.id)}>📍 Déplacer / placer sur le plan</button>
                   <button type="button" className="btn-round btn-ghost" onClick={() => setHouseSel(null)} aria-label="Fermer">✕</button>
