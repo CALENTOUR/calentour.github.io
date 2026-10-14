@@ -97,9 +97,8 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
   // Le binôme peut signaler un immeuble et son nombre de logements.
   const [askUnits, setAskUnits] = useState(false)
   const [unitsN, setUnitsN] = useState(String(house.units?.length || 2))
-  const saveUnits = (e) => {
-    e.preventDefault()
-    const next = withUnits(house, Number.parseInt(unitsN, 10) || 0)
+  const saveUnits = (n) => {
+    const next = withUnits(house, n)
     saveTour(tour.id, { houses: tour.houses.map((x) => (x.id === house.id ? next : x)) }).catch(() => {})
     setAskUnits(false)
     onClose()
@@ -134,11 +133,20 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
         </>
       )}
       {!unit && (askUnits ? (
-        <form className="row units-ask" onSubmit={saveUnits}>
-          <label className="spacer small">Nombre de logements dans ce bâtiment</label>
-          <input type="number" inputMode="numeric" min="1" max="200" value={unitsN} onChange={(e) => setUnitsN(e.target.value)} style={{ width: '5rem' }} />
-          <button type="submit" className="btn-sm btn-primary">OK</button>
-        </form>
+        <div className="units-ask stack">
+          <strong className="small">Combien de logements dans ce bâtiment ?</strong>
+          <div className="units-quick">
+            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+              <button key={n} type="button" className={Number(unitsN) === n ? 'on' : ''} onClick={() => saveUnits(n)}>{n}</button>
+            ))}
+          </div>
+          <div className="row units-step">
+            <button type="button" className="btn-sm" onClick={() => setUnitsN(String(Math.max(1, (Number(unitsN) || 1) - 1)))} aria-label="Un de moins">−</button>
+            <strong>{unitsN}</strong>
+            <button type="button" className="btn-sm" onClick={() => setUnitsN(String(Math.min(200, (Number(unitsN) || 1) + 1)))} aria-label="Un de plus">+</button>
+            <button type="button" className="btn-sm btn-primary spacer" onClick={() => saveUnits(Number(unitsN))}>Valider {unitsN} logement{Number(unitsN) > 1 ? 's' : ''}</button>
+          </div>
+        </div>
       ) : (
         <button type="button" className="btn-ghost btn-sm" onClick={() => setAskUnits(true)}>🏢 {isBuilding ? 'Corriger le nombre de logements' : 'Plusieurs logements ici ?'}</button>
       ))}

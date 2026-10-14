@@ -1033,3 +1033,6 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .units-step{align-items:center;gap:.4rem}
 .units-step strong{min-width:2ch;text-align:center}
 .units-ask{align-items:center;gap:.4rem}
+.units-quick{display:grid;grid-template-columns:repeat(5,1fr);gap:.35rem}
+.units-quick button{min-height:44px;font-weight:800;font-size:1.05rem;border-radius:10px}
+.units-quick button.on{background:var(--ink);color:#fff}
