@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import TourMap, { buildingStatus, tourPoints } from '../../components/map/TourMap'
 import { fitPoints } from '../../components/map/useMapLibre'
@@ -13,7 +13,6 @@ import { useToast } from '../../components/ui/Toast'
 import { STATUSES } from '../../config/constants'
 import { useTourContext } from '../../hooks/useTourContext'
 import { formatEuro, formatPercent } from '../../lib/format'
-import { unflatten } from '../../lib/geo'
 import { pieceLabels } from '../../lib/places'
 import { sortHouses, tourStats } from '../../lib/stats'
 import { dwellingKey } from '../../services/state'
@@ -23,8 +22,8 @@ import { saveTour } from '../../services/tours'
 // rues en haut, au-dessus du panneau du bas.
 const FIT_PADDING = { top: 70, bottom: 50, left: 30, right: 90 }
 
-// « Ma tournée » en vue carte : carte 3D plein écran, un onglet par rue (par
-// village d'abord quand la tournée en traverse plusieurs). À droite, un petit
+// « Ma tournée » en vue carte : carte 3D plein écran, un encart en haut avec le
+// village et la rue en cours (on change de rue en la touchant). À droite, un petit
 // camembert d'avancement (le toucher ouvre la liste des maisons) et l'ajout
 // d'une maison oubliée.
 export default function PiecePage() {
@@ -37,7 +36,6 @@ export default function PiecePage() {
   const [party, setParty] = useState(0)
   const [adding, setAdding] = useState(false)
   const [newPoint, setNewPoint] = useState(null)
-  const [villageSel, setVillageSel] = useState(null)
   const mapRef = useRef(null)
   const focus = !pieceId || pieceId === 'tout' ? null : pieceId
   const h = state?.h ?? {}
@@ -49,36 +47,15 @@ export default function PiecePage() {
   const tours = useMemo(() => (tour ? [tour] : []), [tour])
   const statesById = useMemo(() => (tour ? { [tour.id]: state } : {}), [tour, state])
   const labels = useMemo(() => pieceLabels(tour), [tour])
-  const villageNames = useMemo(() => [...new Set((tour?.pieces ?? []).map((p) => labels[p.id]?.village).filter(Boolean))], [tour, labels])
-  const multi = villageNames.length > 1
-  const village = multi ? (focus ? labels[focus]?.village : villageSel) : null
-
-  // Choix d'un village : la carte se cadre sur ses rues (après le recadrage de la carte).
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !village || focus) return
-    const pts = tour.pieces.filter((p) => labels[p.id]?.village === village).flatMap((p) => p.lines.flatMap((l) => unflatten(l.c)))
-    fitPoints(map, pts, { padding: FIT_PADDING, maxZoom: 18 })
-  }, [village, focus, tour, labels])
+  const village = focus ? labels[focus]?.village : null
 
   if (!tour) return <NoTour />
   const stats = tourStats(tour, state)
-  const inVillage = (p) => !village || labels[p.id]?.village === village
-  const sumPieces = (list) => {
-    const r = { done: 0, total: 0, todo: 0, amount: 0 }
-    for (const p of list) {
-      const x = stats.byPiece[p.id]
-      if (!x) continue
-      r.done += x.done; r.total += x.total; r.todo += x.counts.todo; r.amount += x.amount
-    }
-    return { ...r, progress: r.total ? r.done / r.total : 0 }
-  }
-  const listHouses = village && !focus ? houses.filter((x) => labels[x.pieceId]?.village === village) : houses
-  const villageStats = (v) => sumPieces(tour.pieces.filter((p) => labels[p.id]?.village === v))
-  const ps = (focus ? stats.byPiece[focus] : village ? villageStats(village) : stats) ?? stats
+  const listHouses = houses
+  const ps = (focus ? stats.byPiece[focus] : stats) ?? stats
   const statusOf = (house) => (house.units?.length ? buildingStatus(house, h) : h[dwellingKey(house.id)]?.s ?? 'todo')
   const openHouse = tour.houses.find((x) => x.id === openHouseId)
-  const title = focus ? labels[focus]?.full : village ?? 'Toute ma tournée'
+  const title = focus ? labels[focus]?.full : 'Toute ma tournée'
 
   const fit = (id) => {
     fitPoints(mapRef.current, tourPoints(tours, id), { padding: FIT_PADDING, maxZoom: 18 })
@@ -86,11 +63,6 @@ export default function PiecePage() {
   const choosePiece = (id) => {
     if (id === focus) fit(id)
     else navigate(`${base}/${id ?? 'tout'}`)
-  }
-  const chooseVillage = (v) => {
-    setVillageSel(v)
-    if (focus) navigate(`${base}/tout`)
-    else if (!v) fit(null)
   }
   const chipCount = (todo, total) => (total && !todo ? '✓' : todo)
   const goTo = (house) => {
@@ -143,39 +115,12 @@ export default function PiecePage() {
         className="fullmap-map"
       />
 
-      <div className="map-chips" role="tablist">
-        {multi && village ? (
-          <>
-            <button type="button" className="chip-back" onClick={() => chooseVillage(null)} aria-label="Retour aux villages">‹</button>
-            <button type="button" className={`chip-village-tab${!focus ? ' on' : ''}`} onClick={() => chooseVillage(village)}><span className="village-tag">Village</span>{village}</button>
-          </>
-        ) : (
-          <>
-            <button type="button" className="chip-back" onClick={() => navigate(base)} aria-label="Retour à Ma tournée">←</button>
-            <button type="button" className={!focus && !village ? 'on' : ''} onClick={() => choosePiece(null)}>Tout<span className="chip-pct">{chipCount(stats.counts.todo, stats.total)}</span></button>
-          </>
-        )}
-        {multi && !village
-          ? villageNames.map((v) => {
-            const vs = villageStats(v)
-            return (
-              <button key={v} type="button" className={`chip-village-tab${vs.total && !vs.todo ? ' done' : ''}`} onClick={() => chooseVillage(v)}>
-                <span className="village-tag">Village</span>{v}<span className="chip-pct" title="Maisons restantes">{chipCount(vs.todo, vs.total)}</span>
-              </button>
-            )
-          })
-          : tour.pieces.filter(inVillage).map((p) => {
-            const pp = stats.byPiece[p.id]
-            const doneAll = pp?.progress >= 1
-            return (
-              <button key={p.id} type="button" className={`${focus === p.id ? 'on' : ''}${doneAll ? ' done' : ''}`} onClick={() => choosePiece(p.id)}>
-                {!multi && labels[p.id].village && <span className="chip-village">{labels[p.id].village}</span>}
-                {labels[p.id].street}
-                <span className="chip-pct" title="Maisons restantes">{doneAll || !pp?.counts.todo ? '✓' : pp.counts.todo}</span>
-              </button>
-            )
-          })}
-      </div>
+      {/* Un seul encart en haut : le village et la rue en cours. On change de rue en la touchant sur la carte. */}
+      <button type="button" className="map-here" onClick={() => fit(focus)} title="Recadrer la carte">
+        {village && <span className="map-here-village">{village}</span>}
+        <strong>{focus ? labels[focus]?.street : 'Toute ma tournée'}</strong>
+        <span className="chip-pct" title="Maisons restantes">{chipCount(ps.total - ps.done, ps.total)}</span>
+      </button>
 
       {adding && <div className="map-note map-note-action">Touche l’endroit de la maison sur la carte <button type="button" className="btn-sm" onClick={() => setAdding(false)}>Annuler</button></div>}
 

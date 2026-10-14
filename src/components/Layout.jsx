@@ -16,7 +16,7 @@ import { autoCheckAddresses, needsCheck } from '../lib/addressCheck'
 import { useToast } from './ui/Toast'
 
 const MEMBER_NAV = [
-  { to: '/tournee', icon: <IconTour />, label: 'Ma tournée', short: 'Sur le terrain', sub: 'rues et maisons' },
+  { to: '/tournee', icon: <IconTour />, label: 'Ma tournée', short: 'Ma tournée', sub: 'rues et maisons' },
   { to: '/stats', icon: <IconDashboard />, label: 'Tableau de bord', short: 'Mon bilan', sub: 'dons, avancement' },
 ]
 // Menu admin : une tuile par rubrique, avec sa couleur et un chiffre clé.
