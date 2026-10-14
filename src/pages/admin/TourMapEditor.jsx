@@ -148,7 +148,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
   const tours = useMemo(() => (mode === 'house' ? [tour, ...others] : [tour]), [mode, tour, others])
   const [houseSel, setHouseSel] = useState(() => tour.houses.find((h) => h.id === initialHouseId) ?? null)
   const [moving, setMoving] = useState(null)
-  const [giveTo, setGiveTo] = useState('')
+  const [askGive, setAskGive] = useState(false)
   const [missing, setMissing] = useState(null)
 
   const tourRef = useRef(tour)
@@ -467,7 +467,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
     if (props.tourId === tour.id) {
       const house = tour.houses.find((h) => h.id === props.houseId)
       setHouseSel(house ?? null)
-      setGiveTo('')
+      setAskGive(false)
       return
     }
     const other = others.find((t) => t.id === props.tourId)
@@ -486,7 +486,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
     setHouseSel(next)
   }
 
-  const removeHouse = () => {
+  const removeHouse = (giveTo) => {
     const house = houseSel
     const target = others.find((t) => t.id === giveTo)
     if (target) {
@@ -495,6 +495,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
     }
     update({ houses: tour.houses.filter((h) => h.id !== house.id) })
     setHouseSel(null)
+    setAskGive(false)
     toast(target ? `« ${house.label} » donnée à la tournée n°${target.number}` : `« ${house.label} » retirée`)
   }
 
@@ -597,13 +598,22 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
                   <button type="button" className="spacer" onClick={() => setMoving(houseSel.id)}>📍 Déplacer / placer sur le plan</button>
                   <button type="button" className="btn-round btn-ghost" onClick={() => setHouseSel(null)} aria-label="Fermer">✕</button>
                 </div>
-                <div className="row">
-                  <select className="spacer" value={giveTo} onChange={(e) => setGiveTo(e.target.value)} aria-label="Donner à">
-                    <option value="">Retirer sans la donner</option>
-                    {[...others].sort((a, b) => a.number - b.number).map((t) => <option key={t.id} value={t.id}>Donner à la tournée n°{t.number} · {t.name}</option>)}
-                  </select>
-                  <button type="button" className="btn-danger" onClick={removeHouse}>Retirer</button>
-                </div>
+                {askGive ? (
+                  <div className="stack give-list">
+                    <strong className="small">À quelle tournée attribuer cette maison ?</strong>
+                    <div className="give-btns">
+                      {[...others].sort((x, y) => x.number - y.number).map((t) => (
+                        <button key={t.id} type="button" onClick={() => removeHouse(t.id)}><i style={{ background: t.color }} />N°{t.number} · {t.name}</button>
+                      ))}
+                    </div>
+                    <div className="row">
+                      <button type="button" className="btn-danger spacer" onClick={() => removeHouse('')}>À aucune : supprimer la maison</button>
+                      <button type="button" className="btn-sm btn-ghost" onClick={() => setAskGive(false)}>Annuler</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" className="btn-danger" onClick={() => setAskGive(true)}>🗑️ Supprimer de la tournée</button>
+                )}
               </>
             )}
           </div>

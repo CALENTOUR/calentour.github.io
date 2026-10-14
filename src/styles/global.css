@@ -1036,3 +1036,6 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .units-quick{display:grid;grid-template-columns:repeat(5,1fr);gap:.35rem}
 .units-quick button{min-height:44px;font-weight:800;font-size:1.05rem;border-radius:10px}
 .units-quick button.on{background:var(--ink);color:#fff}
+.give-btns{display:flex;flex-direction:column;gap:.3rem;max-height:34vh;overflow-y:auto}
+.give-btns button{justify-content:flex-start;gap:.5rem;text-align:left;min-height:40px}
+.give-btns i{width:12px;height:12px;border-radius:50%;flex:none}
