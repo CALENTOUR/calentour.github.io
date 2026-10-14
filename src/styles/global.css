@@ -1064,3 +1064,41 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .map-chips .chip-village-tab { background: #2f4a3a; color: #fff; border-color: #2f4a3a; border-radius: 6px; }
 .map-chips .chip-village-tab.on { background: #1f2a24; }
 .village-tag { display: block; font-size: .55rem; letter-spacing: .08em; opacity: .75; line-height: 1; margin-bottom: .1rem; }
+
+/* Éditeur : outils des rues en colonne à gauche, des maisons à droite (blanc bordé de bleu). */
+.editor-side { position: absolute; top: 150px; z-index: 4; display: flex; flex-direction: column; gap: 6px; width: 84px; padding: 6px; background: #fff; border: 2px solid #2d5f8a; border-radius: 14px; box-shadow: var(--shadow); }
+.editor-side.side-trace { left: 12px; }
+.editor-side.side-houses { right: 64px; }
+.editor-side > strong { text-align: center; font-size: .8rem; font-weight: 800; color: #fff; background: #2d5f8a; border-radius: 8px; padding: 4px 0; }
+.editor-side button { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 54px; padding: 6px 2px; border: 1.5px solid #c9d6e3; border-radius: 10px; background: #fff; color: #2d5f8a; font-size: .72rem; font-weight: 700; line-height: 1.1; text-align: center; }
+.editor-side button.on { background: #fff3e8; border-color: #f97316; color: #b4520a; }
+.mission-bar { height: 8px; background: #f3d6d2; border-radius: 999px; overflow: hidden; margin: .3rem 0; }
+.mission-bar i { display: block; height: 100%; background: #c0392b; transition: width .4s; }
+.missing-box { top: auto; bottom: 150px; right: 160px; }
+@media (max-width: 700px) {
+  .editor-side { width: 64px; top: 140px; padding: 4px; }
+  .editor-side.side-houses { right: 8px; top: 330px; }
+  .editor-side.side-trace { left: 8px; }
+  .editor-side button { min-height: 48px; font-size: .62rem; }
+  .missing-box { right: 80px; left: 80px; bottom: 140px; max-width: none; }
+}
+
+/* Maisons sans bâtiment : petite pastille rouge, qui s'ouvre en mode d'emploi en 3 étapes. */
+.missing-pill { position: absolute; top: 96px; left: 50%; transform: translateX(-50%); z-index: 5; background: #c0392b; color: #fff; border: none; border-radius: 999px; padding: .5rem .9rem; font-weight: 800; box-shadow: 0 0 0 5px rgba(192,57,43,.22); }
+.missing-card { position: absolute; top: 96px; left: 50%; transform: translateX(-50%); z-index: 6; width: min(420px, calc(100vw - 32px)); background: #fff; border: 2px solid #c0392b; border-radius: 16px; padding: .75rem; display: flex; flex-direction: column; gap: .6rem; box-shadow: var(--shadow); }
+.missing-card strong { color: #c0392b; }
+.missing-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; text-align: center; font-size: .8rem; }
+.missing-steps li { background: #fbeeec; border-radius: 10px; padding: .5rem .3rem; }
+.missing-steps b { display: block; width: 24px; height: 24px; margin: 0 auto .25rem; border-radius: 50%; background: #c0392b; color: #fff; line-height: 24px; }
+@media (max-width: 700px) { .editor-side > strong { font-size: .62rem; } }
+
+/* Binôme : plus de barre du bas, un interrupteur « Tournée / Bilan » dans le bandeau du haut. */
+.shell-member { --tabbar-h: 0px; }
+.member-switch { display: flex; margin: 0 auto 0 10px; padding: 4px; gap: 2px; background: #efe9dc; border-radius: 999px; box-shadow: inset 0 1px 3px rgba(0,0,0,.12); }
+.member-switch .switch-opt { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 999px; color: #3b6e4f; font-weight: 800; font-size: .95rem; text-decoration: none; transition: background .2s ease, color .2s ease, box-shadow .2s ease; }
+.member-switch .switch-opt svg { width: 20px; height: 20px; }
+.member-switch .switch-opt.active { background: linear-gradient(#4a8562, #3b6e4f); color: #fff; box-shadow: 0 2px 6px rgba(59,110,79,.45); }
+@media (max-width: 480px) {
+  .shell-member .wordmark, .shell-member .brand-year { display: none; }
+  .member-switch .switch-opt { padding: 8px 12px; font-size: .9rem; }
+}

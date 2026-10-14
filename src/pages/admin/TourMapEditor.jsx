@@ -16,25 +16,34 @@ import { housesWithoutBuilding } from '../../components/map/houseBuildings'
 import { withUnits } from '../../lib/logements'
 import { saveTour } from '../../services/tours'
 
-// Deux onglets : le tracé des rues, puis les maisons. Retoucher l'outil choisi le
-// désélectionne : la main reste alors, pour se déplacer librement sur la carte.
+// Deux colonnes d'outils de part et d'autre de la carte : les rues à gauche, les maisons
+// à droite. Retoucher l'outil choisi le désélectionne : la main revient, pour se déplacer.
+const svg = (d) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>
+const ICONS = {
+  hand: svg(<path d="M8 12V5.5a1.5 1.5 0 0 1 3 0V11m0-6.5a1.5 1.5 0 0 1 3 0V11m0-5a1.5 1.5 0 0 1 3 0v7c0 4-2.5 7-6 7s-5-1.5-6.5-4L3 12.5a1.5 1.5 0 0 1 2.5-1.5L8 14" />),
+  street: svg(<><path d="M5 21 9 3M19 21 15 3M12 7v2M12 13v2" /><path d="M19 3v6M16 6h6" /></>),
+  draw: svg(<><path d="M4 20c4-1 5-6 9-8s6-1 7-6" /><circle cx="4" cy="20" r="1.5" /><circle cx="20" cy="6" r="1.5" /></>),
+  eraser: svg(<><path d="m7 21-4-4 10-10 7 7-7 7H7Z" /><path d="M14 21h7M9 11l7 7" /></>),
+  add: svg(<><path d="M3 11 11 4l8 7M5 10v10h12V10" /><path d="M20 15v6M17 18h6" /></>),
+  move: svg(<><path d="M12 22s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12Z" /><circle cx="12" cy="10" r="2.5" /></>),
+}
 const TABS = [
-  { key: 'trace', label: '✏️ Tracé des rues' },
-  { key: 'houses', label: '🏠 Maisons' },
+  { key: 'trace', label: 'Rues' },
+  { key: 'houses', label: 'Maisons' },
 ]
 const MODES = {
   trace: [
-    { key: 'street', icon: '➕', label: 'Ajouter une rue', help: 'Touche une rue : elle s’allume en orange, puis choisis « Toute la rue » ou « Ce tronçon ». Pour allonger ou raccourcir, fais glisser un rond blanc, ou touche-le puis touche l’endroit voulu.' },
-    { key: 'draw', icon: '✏️', label: 'Tracer un bout', help: 'Touche le point de départ, puis le point d’arrivée : le tracé suit la route tout seul.' },
-    { key: 'eraser', icon: '🧽', label: 'Gomme' },
+    { key: 'street', label: 'Ajouter une rue', help: 'Touche une rue : elle s’allume en orange, puis choisis « Toute la rue » ou « Ce tronçon ». Pour allonger ou raccourcir, fais glisser un rond blanc, ou touche-le puis touche l’endroit voulu.' },
+    { key: 'draw', label: 'Tracer un bout', help: 'Touche le point de départ, puis le point d’arrivée : le tracé suit la route tout seul.' },
+    { key: 'eraser', label: 'Gomme' },
   ],
   houses: [
-    { key: 'add', icon: '➕', label: 'Ajouter une maison', help: 'Touche l’endroit de la maison non répertoriée.' },
-    { key: 'move', icon: '📍', label: 'Déplacer une maison', help: 'Touche la maison à déplacer, puis son endroit exact sur le plan.' },
+    { key: 'add', label: 'Ajouter', help: 'Touche l’endroit de la maison non répertoriée.' },
+    { key: 'move', label: 'Déplacer', help: 'Touche la maison à déplacer, puis son endroit exact sur le plan.' },
   ],
 }
 const HAND_HELP = {
-  trace: 'Choisis un outil en bas. Sans outil, la carte se déplace librement.',
+  trace: 'Outils des rues à gauche, des maisons à droite. Sans outil, la carte se déplace librement et toucher une maison ouvre son menu.',
   houses: 'Touche une maison pour la supprimer ou l’attribuer à une autre tournée. Une maison pâle appartient à une autre tournée : touche-la pour la prendre.',
 }
 const ERASERS = [
@@ -171,6 +180,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
   const [missing, setMissing] = useState(null)
   // Placement guidé des maisons sans bâtiment : la maison en cours et combien sont déjà placées.
   const [guide, setGuide] = useState(null)
+  const [missingOpen, setMissingOpen] = useState(false)
 
   const tourRef = useRef(tour)
   tourRef.current = tour
@@ -545,7 +555,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
     setHouseSel(null)
     setMode(null)
     setMoving(house.id)
-    setGuide({ id: house.id, label: house.label, done, skipped })
+    setGuide((g) => ({ id: house.id, label: house.label, done, skipped, total: g?.total ?? missing?.length ?? 1 }))
     map.easeTo({ center: [house.lng, house.lat], zoom: Math.max(map.getZoom(), 18.5) })
   }
   const nextMissing = (afterId, done, skipped = guide?.skipped ?? []) => {
@@ -604,7 +614,9 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
   // Retoucher l'outil choisi le désélectionne.
   const chooseMode = (key) => {
     reset()
-    setMode((m) => (m === key ? null : key))
+    if (key === mode || !key) return setMode(null)
+    setMode(key)
+    setTab(MODES.houses.some((m) => m.key === key) ? 'houses' : 'trace')
   }
   const chooseTab = (key) => {
     reset()
@@ -650,18 +662,28 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
         <SectorTabs areas={areas} active={areaSel} onChoose={chooseArea} />
       </div>
 
-      {!guide && missing?.length > 0 && (
-        <button type="button" className="missing-box" onClick={showMissing}>
-          <strong>⚠️ {missing.length} maison{missing.length > 1 ? 's' : ''} sans bâtiment</strong>
-          <span>dessiné sur le plan dans cette zone</span>
-          <span className="missing-go">Les placer une par une ›</span>
-        </button>
-      )}
+      {!guide && missing?.length > 0 && (missingOpen ? (
+        <div className="missing-card" role="dialog" aria-label="Maisons sans bâtiment">
+          <div className="row">
+            <strong className="spacer">{missing.length} maison{missing.length > 1 ? 's n’ont' : ' n’a'} pas de bâtiment sur le plan</strong>
+            <button type="button" className="btn-round btn-ghost" onClick={() => setMissingOpen(false)} aria-label="Fermer">✕</button>
+          </div>
+          <ol className="missing-steps">
+            <li><b>1</b>La carte va sur la maison</li>
+            <li><b>2</b>Touche son toit sur le plan</li>
+            <li><b>3</b>C’est placé, on passe à la suivante</li>
+          </ol>
+          <button type="button" className="btn-danger" onClick={() => { setMissingOpen(false); showMissing() }}>C’est parti</button>
+        </div>
+      ) : (
+        <button type="button" className="missing-pill" onClick={() => setMissingOpen(true)}>⚠️ {missing.length} maison{missing.length > 1 ? 's' : ''} sans bâtiment ›</button>
+      ))}
 
       <div className="editor-bottom">
         {guide ? (
           <div className="editor-confirm guide-box">
-            <strong>📍 Maison sans bâtiment : {guide.label}</strong>
+            <strong>🎯 Maison {guide.done + guide.skipped.length + 1} sur {guide.total} : {guide.label}</strong>
+            <div className="mission-bar"><i style={{ width: `${(100 * guide.done) / guide.total}%` }} /></div>
             <ol className="small guide-steps">
               <li>Repère la maison sur le plan, dans le cercle rouge (son toit, ou l’endroit où elle est).</li>
               <li><b>Touche cet endroit</b> : la maison s’y place et la suivante s’affiche.</li>
@@ -734,26 +756,19 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
             ))}
           </div>
         )}
-        <div className="editor-toolbox">
-        <div className="editor-tabs" role="tablist">
-          {TABS.map((t) => (
-            <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tab === t.key ? 'on' : ''} onClick={() => chooseTab(t.key)}>{t.label}</button>
-          ))}
-        </div>
-        <div className="editor-modes">
-          <button type="button" className={mode ? '' : 'on'} onClick={() => chooseMode(null)} title="Se déplacer librement sur la carte">
-            <span className="mode-icon" aria-hidden="true">✋</span>
-            <span className="mode-text"><strong>Naviguer</strong></span>
-          </button>
-          {MODES[tab].map((m) => (
-            <button key={m.key} type="button" className={mode === m.key ? 'on' : ''} onClick={() => chooseMode(m.key)}>
-              <span className="mode-icon" aria-hidden="true">{m.icon}</span>
-              <span className="mode-text"><strong>{m.label}</strong></span>
-            </button>
-          ))}
-        </div>
-        </div>
       </div>
+
+      {TABS.map((t) => (
+        <nav key={t.key} className={`editor-side side-${t.key}`} aria-label={`Outils ${t.label.toLowerCase()}`}>
+          <strong>{t.label}</strong>
+          {t.key === 'trace' && (
+            <button type="button" className={mode ? '' : 'on'} onClick={() => chooseMode(null)} title="Se déplacer librement sur la carte">{ICONS.hand}<span>Naviguer</span></button>
+          )}
+          {MODES[t.key].map((m) => (
+            <button key={m.key} type="button" className={mode === m.key ? 'on' : ''} onClick={() => chooseMode(m.key)}>{ICONS[m.key]}<span>{m.label}</span></button>
+          ))}
+        </nav>
+      ))}
       {newPoint && <AddHouseSheet tour={tour} point={newPoint} onAdd={(house) => update({ houses: [...tourRef.current.houses, house] })} onClose={() => setNewPoint(null)} />}
     </div>,
     document.body,
