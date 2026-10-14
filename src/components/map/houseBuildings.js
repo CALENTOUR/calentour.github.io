@@ -103,6 +103,15 @@ function findBuilding(cells, point) {
   return best?.b ?? null
 }
 
+// Maisons sans bâtiment sur le plan, parmi les tuiles chargées (vide si on est trop loin).
+export function housesWithoutBuilding(map, houses) {
+  const src = buildingSource(map)
+  if (!src || map.getZoom() < 15) return null
+  const cells = buildingIndex(map, src)
+  const view = map.getBounds()
+  return houses.filter((h) => view.contains([h.lng, h.lat]) && !findBuilding(cells, [h.lng, h.lat]))
+}
+
 // Maison absente de la carte : petit bâtiment de 10 m sur 8 dessiné à l'adresse.
 function fakeBuilding([lng, lat]) {
   const dx = 5 / (111320 * Math.cos((lat * Math.PI) / 180))
