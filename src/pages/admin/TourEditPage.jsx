@@ -91,6 +91,7 @@ export default function TourEditPage() {
   // Une tournée qui vient d'être créée s'ouvre directement dans l'éditeur.
   const [editing, setEditing] = useState(Boolean(location.state?.edit))
   const [progress, setProgress] = useState(null)
+  const [houseToEdit, setHouseToEdit] = useState(null)
   const tours = useMemo(() => (tour ? [tour] : []), [tour])
   const [previewHouses, setPreviewHouses] = useState(false)
   const [areaSel, setAreaSel] = useState(null)
@@ -189,7 +190,7 @@ export default function TourEditPage() {
             </button>
           </div>
           <SectorTabs areas={areas} active={areaSel} onChoose={chooseArea} />
-          <TourMap tours={tours} statesById={statesById} flat expandable streetLabels showHouses={previewHouses} areas={mapAreas} onReady={setPreviewMap} className="edit-map" />
+          <TourMap tours={tours} statesById={statesById} flat expandable streetLabels showHouses={previewHouses} areas={mapAreas} onReady={setPreviewMap} className="edit-map" onHouseClick={(p) => { setHouseToEdit(p.houseId); setEditing(true) }} />
           <label className="check-line small">
             <input type="checkbox" checked={previewHouses} onChange={(e) => setPreviewHouses(e.target.checked)} />
             Afficher les maisons sur la carte
@@ -234,7 +235,7 @@ export default function TourEditPage() {
         </div>
         <button type="button" className="btn-danger" onClick={remove}>🗑️ Supprimer</button>
       </div>
-      {editing && <TourMapEditor tour={tour} onClose={closeEditor} />}
+      {editing && <TourMapEditor tour={tour} initialHouseId={houseToEdit} onClose={() => { setHouseToEdit(null); closeEditor() }} />}
     </div>
   )
 }

@@ -127,10 +127,10 @@ function ensureEditorLayers(map) {
 
 // Éditeur plein écran des rues d'une tournée : ajout d'une rue au toucher avec aperçu,
 // tracé qui suit la route, maisons, gomme, et retour arrière.
-export default function TourMapEditor({ tour, onClose }) {
+export default function TourMapEditor({ tour, onClose, initialHouseId = null }) {
   const toast = useToast()
   const { tours: allTours, statesById } = useData()
-  const [mode, setMode] = useState('street')
+  const [mode, setMode] = useState(initialHouseId ? 'house' : 'street')
   const [newPoint, setNewPoint] = useState(null)
   const [eraser, setEraser] = useState('brush')
   const [preview, setPreview] = useState(null)
@@ -146,7 +146,7 @@ export default function TourMapEditor({ tour, onClose }) {
   const others = useMemo(() => allTours.filter((t) => t.id !== tour.id), [allTours, tour.id])
   // En mode maisons, les maisons des autres tournées apparaissent grisées pour pouvoir les prendre.
   const tours = useMemo(() => (mode === 'house' ? [tour, ...others] : [tour]), [mode, tour, others])
-  const [houseSel, setHouseSel] = useState(null)
+  const [houseSel, setHouseSel] = useState(() => tour.houses.find((h) => h.id === initialHouseId) ?? null)
   const [moving, setMoving] = useState(null)
   const [giveTo, setGiveTo] = useState('')
   const [missing, setMissing] = useState(null)
@@ -561,7 +561,7 @@ export default function TourMapEditor({ tour, onClose }) {
         showHouses={showHouses} streetLabels areas={mapAreas}
         fitPadding={{ top: 170, bottom: 230, left: 40, right: 60 }}
         onMapClick={onMapClick}
-        onHouseClick={mode === 'eraser' && eraser === 'delete' ? onHouseClick : mode === 'house' && !moving ? onHouseEdit : undefined}
+        onHouseClick={mode === 'eraser' && eraser === 'delete' ? onHouseClick : moving ? undefined : (p) => { if (mode !== 'house') { setMode('house'); setPreview(null); setDrawStart(null) } onHouseEdit(p) }}
         onReady={setMap}
         className="editor-map"
       />
