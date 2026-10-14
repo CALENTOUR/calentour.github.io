@@ -3,7 +3,7 @@ import { bounds, lineLength, pointAt, unflatten } from '../../lib/geo'
 import { tourStats } from '../../lib/stats'
 import { IconGps } from '../ui/Icons'
 import { dwellingKey } from '../../services/state'
-import { drawLitHouses, litHouses } from './houseBuildings'
+import { LIT_COLORS, drawLitHouses, litHouses } from './houseBuildings'
 import { addStatusIcons } from './icons'
 import { circlePolygon, pieceLabels, villagesOf } from '../../lib/places'
 import { fitPoints, setGeoJSON, toggle3D, useMapLibre } from './useMapLibre'
@@ -144,15 +144,15 @@ function ensureLayers(map) {
       'text-halo-width': 1.6,
     },
   })
-  // Immeuble : pastille avec le nombre de logements.
+  // Immeuble : pastille avec le nombre de logements, posée sur la maison et de la couleur de son état.
   map.addLayer({
     id: 'units-badge', type: 'circle', source: 'houses', filter: ['>', ['get', 'units'], 0], minzoom: 14,
-    paint: { 'circle-radius': 10, 'circle-color': '#1f2a24', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5, 'circle-translate': [0, -16], 'circle-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3], 'circle-stroke-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3] },
+    paint: { 'circle-radius': 11, 'circle-color': ['match', ['get', 'status'], ...Object.entries(LIT_COLORS).flat(), LIT_COLORS.todo], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2, 'circle-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3], 'circle-stroke-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3] },
   })
   map.addLayer({
     id: 'units-count', type: 'symbol', source: 'houses', filter: ['>', ['get', 'units'], 0], minzoom: 14,
     layout: { 'text-field': ['to-string', ['get', 'units']], 'text-font': ['Noto Sans Bold'], 'text-size': 11, 'text-allow-overlap': true, 'text-ignore-placement': true },
-    paint: { 'text-color': '#ffffff', 'text-translate': [0, -16], 'text-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3] },
+    paint: { 'text-color': '#ffffff', 'text-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3] },
   })
 }
 

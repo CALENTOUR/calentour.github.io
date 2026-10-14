@@ -9,7 +9,7 @@ import TourForm from '../../components/TourForm'
 import { useToast } from '../../components/ui/Toast'
 import { useData } from '../../context/DataContext'
 import { sortHouses } from '../../lib/stats'
-import { findHouses, mergeSameName } from '../../lib/tourBuilder'
+import { mergeSameName } from '../../lib/tourBuilder'
 import { removeTour, saveTour } from '../../services/tours'
 import TourMapEditor from './TourMapEditor'
 import { withUnits } from '../../lib/logements'
@@ -90,7 +90,6 @@ export default function TourEditPage() {
   const location = useLocation()
   // Une tournée qui vient d'être créée s'ouvre directement dans l'éditeur.
   const [editing, setEditing] = useState(Boolean(location.state?.edit))
-  const [progress, setProgress] = useState(null)
   const [houseToEdit, setHouseToEdit] = useState(null)
   const tours = useMemo(() => (tour ? [tour] : []), [tour])
   const [previewHouses, setPreviewHouses] = useState(true)
@@ -102,19 +101,6 @@ export default function TourEditPage() {
   if (!tour) return <div className="page"><p className="muted">Tournée introuvable.</p><Link to="/admin/carte">← Tournées</Link></div>
 
   const update = (data) => saveTour(tourId, data).catch((err) => toast(`Erreur : ${err.message}`))
-
-  const runFind = async () => {
-    setProgress(0)
-    try {
-      const res = await findHouses(tour, (d, n) => setProgress(d / n))
-      await saveTour(tour.id, { pieces: res.pieces, houses: res.houses })
-      toast(`${res.addedCount} maison${res.addedCount > 1 ? 's' : ''} ajoutée${res.addedCount > 1 ? 's' : ''}`)
-    } catch (err) {
-      toast(`Recherche impossible : ${err.message}. Vérifie le réseau.`)
-    } finally {
-      setProgress(null)
-    }
-  }
 
   const renamePiece = (p) => {
     const name = window.prompt('Nom de la rue :', p.name)
@@ -185,9 +171,6 @@ export default function TourEditPage() {
         <div className="card stack">
           <div className="row wrap">
             <h2 className="spacer">Rues et maisons</h2>
-            <button type="button" className="btn-primary btn-sm" disabled={progress != null || !tour.pieces.length} onClick={runFind}>
-              {progress != null ? `Recherche ${Math.round(progress * 100)} %` : '🏠 Chercher les maisons'}
-            </button>
           </div>
           <SectorTabs areas={areas} active={areaSel} onChoose={chooseArea} />
           <TourMap tours={tours} statesById={statesById} flat expandable streetLabels showHouses={previewHouses} areas={mapAreas} onReady={setPreviewMap} className="edit-map" onHouseClick={(p) => { setHouseToEdit(p.houseId); setEditing(true) }} />
@@ -221,7 +204,7 @@ export default function TourEditPage() {
                     <button type="button" className="btn-sm btn-ghost danger" onClick={() => removeHouse(h)} aria-label="Retirer">✕</button>
                   </li>
                 ))}
-                {!list.length && <li className="muted small">Aucune maison. Utilise « Chercher les maisons » ou « Maison non répertoriée » dans l’éditeur.</li>}
+                {!list.length && <li className="muted small">Aucune maison. Elles arrivent toutes seules en traçant les rues, ou ajoute-les dans l’onglet « Maisons » de l’éditeur.</li>}
               </ul>
             </details>
           )

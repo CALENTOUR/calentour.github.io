@@ -107,8 +107,11 @@ export default function PiecePage() {
       setNewPoint(e.lngLat)
       return
     }
-    const box = [[e.point.x - 14, e.point.y - 14], [e.point.x + 14, e.point.y + 14]]
-    const hit = m.queryRenderedFeatures(box, { layers: ['pieces'] })[0]
+    // Zone de toucher large (doigt sur téléphone) : on garde l'autre rue la plus proche.
+    const box = [[e.point.x - 32, e.point.y - 32], [e.point.x + 32, e.point.y + 32]]
+    const gap = (f) => Math.min(...(f.geometry.type === 'LineString' ? [f.geometry.coordinates] : f.geometry.coordinates)
+      .flat().map((c) => { const p = m.project(c); return Math.hypot(p.x - e.point.x, p.y - e.point.y) }))
+    const hit = m.queryRenderedFeatures(box, { layers: ['pieces'] }).filter((f) => f.properties.pieceId !== focus).sort((a, b) => gap(a) - gap(b))[0]
     if (hit && hit.properties.pieceId !== focus) choosePiece(hit.properties.pieceId)
   }
   const addHouse = (house) => saveTour(tour.id, { houses: [...tour.houses, house] })
@@ -133,7 +136,7 @@ export default function PiecePage() {
         fitPadding={FIT_PADDING}
         showMe
         streetLabels
-        onHouseClick={adding ? undefined : (p) => { const house = tour.houses.find((x) => x.id === p.houseId); if (house) goTo(house) }}
+        onHouseClick={adding ? undefined : (p) => { const house = tour.houses.find((x) => x.id === p.houseId); if (!house) return; if (focus && house.pieceId !== focus) choosePiece(house.pieceId); else goTo(house) }}
         onMapClick={onMapClick}
         onReady={(m) => { mapRef.current = m }}
         className="fullmap-map"

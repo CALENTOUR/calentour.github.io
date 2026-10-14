@@ -148,7 +148,7 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
           </div>
         </div>
       ) : (
-        <button type="button" className="btn-ghost btn-sm" onClick={() => setAskUnits(true)}>🏢 {isBuilding ? 'Corriger le nombre de logements' : 'Plusieurs logements ici ?'}</button>
+        <button type="button" className="btn-units" onClick={() => setAskUnits(true)}>🏢 {isBuilding ? 'Corriger le nombre de logements' : 'Plusieurs logements ici ?'}</button>
       ))}
     </Sheet>
   )
