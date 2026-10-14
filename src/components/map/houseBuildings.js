@@ -162,7 +162,7 @@ export function drawLitHouses(map, features) {
       'fill-extrusion-base': 0,
       'fill-extrusion-opacity': 0.95,
     },
-  })
+  }, map.getLayer('houses') ? 'houses' : undefined) // sous les pastilles, pour que le nombre de logements reste visible
   // Les autres bâtiments passent en retrait, plus clairs.
   const src = buildingSource(map)
   if (src && map.getLayer(src.layerId)?.type === 'fill-extrusion') {
