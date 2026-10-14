@@ -1091,3 +1091,14 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .missing-steps li { background: #fbeeec; border-radius: 10px; padding: .5rem .3rem; }
 .missing-steps b { display: block; width: 24px; height: 24px; margin: 0 auto .25rem; border-radius: 50%; background: #c0392b; color: #fff; line-height: 24px; }
 @media (max-width: 700px) { .editor-side > strong { font-size: .62rem; } }
+
+/* Binôme : plus de barre du bas, un interrupteur « Tournée / Bilan » dans le bandeau du haut. */
+.shell-member { --tabbar-h: 0px; }
+.member-switch { display: flex; margin: 0 auto 0 10px; padding: 4px; gap: 2px; background: #efe9dc; border-radius: 999px; box-shadow: inset 0 1px 3px rgba(0,0,0,.12); }
+.member-switch .switch-opt { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 999px; color: #3b6e4f; font-weight: 800; font-size: .95rem; text-decoration: none; transition: background .2s ease, color .2s ease, box-shadow .2s ease; }
+.member-switch .switch-opt svg { width: 20px; height: 20px; }
+.member-switch .switch-opt.active { background: linear-gradient(#4a8562, #3b6e4f); color: #fff; box-shadow: 0 2px 6px rgba(59,110,79,.45); }
+@media (max-width: 480px) {
+  .shell-member .wordmark, .shell-member .brand-year { display: none; }
+  .member-switch .switch-opt { padding: 8px 12px; font-size: .9rem; }
+}

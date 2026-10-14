@@ -16,8 +16,8 @@ import { autoCheckAddresses, needsCheck } from '../lib/addressCheck'
 import { useToast } from './ui/Toast'
 
 const MEMBER_NAV = [
-  { to: '/tournee', icon: <IconTour />, label: 'Ma tournée' },
-  { to: '/stats', icon: <IconDashboard />, label: 'Tableau de bord' },
+  { to: '/tournee', icon: <IconTour />, label: 'Ma tournée', short: 'Tournée' },
+  { to: '/stats', icon: <IconDashboard />, label: 'Tableau de bord', short: 'Bilan' },
 ]
 // Menu admin : une tuile par rubrique, avec sa couleur et un chiffre clé.
 const ADMIN_NAV = [
@@ -64,6 +64,13 @@ export default function Layout() {
     <div className={`shell ${isAdmin ? 'shell-admin' : 'shell-member'}${fullMap ? ' shell-fullmap' : ''}`}>
       <header className="topbar">
         <div className="brand"><Logo size={30} className="brand-mark" /><strong className="wordmark">Calen<span>Tour</span></strong> <span className="brand-year">{year}</span></div>
+        {!isAdmin && (
+          <nav className="member-switch" aria-label="Navigation">
+            {nav.map((n) => (
+              <NavLink key={n.to} to={n.to} className="switch-opt">{n.icon}<span>{n.short ?? n.label}</span></NavLink>
+            ))}
+          </nav>
+        )}
         <div className="topbar-right">
           {IS_DEMO && <button type="button" className="btn-sm btn-ghost" onClick={resetDemo} title="Réinitialiser la démo">↺ <span className="hide-mobile">Réinitialiser la démo</span></button>}
           <span className="who small hide-mobile">{profile?.name}</span>
@@ -90,11 +97,11 @@ export default function Layout() {
         <OfflineBanner />
         <Outlet />
       </main>
-      <nav className="tabbar">
+      {isAdmin && <nav className="tabbar">
         {nav.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end} className={`tab${n.tone ? ` tone-${n.tone}` : ''}`}><span className="tab-icon">{n.icon}</span><span className="tab-label">{n.short ?? n.label}</span></NavLink>
         ))}
-      </nav>
+      </nav>}
     </div>
   )
 }
