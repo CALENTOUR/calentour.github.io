@@ -147,12 +147,12 @@ function ensureLayers(map) {
   // Immeuble : pastille avec le nombre de logements.
   map.addLayer({
     id: 'units-badge', type: 'circle', source: 'houses', filter: ['>', ['get', 'units'], 0], minzoom: 14,
-    paint: { 'circle-radius': 9, 'circle-color': '#1f2a24', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5, 'circle-translate': [12, -30], 'circle-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3], 'circle-stroke-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3] },
+    paint: { 'circle-radius': 10, 'circle-color': '#1f2a24', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5, 'circle-translate': [0, -16], 'circle-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3], 'circle-stroke-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3] },
   })
   map.addLayer({
     id: 'units-count', type: 'symbol', source: 'houses', filter: ['>', ['get', 'units'], 0], minzoom: 14,
     layout: { 'text-field': ['to-string', ['get', 'units']], 'text-font': ['Noto Sans Bold'], 'text-size': 11, 'text-allow-overlap': true, 'text-ignore-placement': true },
-    paint: { 'text-color': '#ffffff', 'text-translate': [12, -30], 'text-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3] },
+    paint: { 'text-color': '#ffffff', 'text-translate': [0, -16], 'text-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3] },
   })
 }
 
