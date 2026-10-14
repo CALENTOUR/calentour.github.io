@@ -8,7 +8,7 @@ const seen = () => {
 }
 
 // Code couleur des maisons, ouvert d'office la première fois puis à la demande.
-export default function MapLegend() {
+export default function MapLegend({ hidden = false }) {
   const [open, setOpen] = useState(() => !seen())
   const toggle = () => {
     setOpen((v) => !v)
@@ -16,7 +16,7 @@ export default function MapLegend() {
   }
   return (
     <div className="map-legend-wrap">
-      {open && (
+      {open && !hidden && (
         <div className="house-legend" role="dialog" aria-label="Couleurs des maisons">
           <div className="house-legend-head">
             <strong>Que veulent dire les couleurs ?</strong>
