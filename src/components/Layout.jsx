@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import OfflineBanner from './OfflineBanner'
 import Logo from './ui/Logo'
@@ -12,6 +12,8 @@ import { globalStats } from '../lib/stats'
 import { logout } from '../services/users'
 import { saveTour } from '../services/tours'
 import { autoCountUnits } from '../lib/logements'
+import { autoCheckAddresses, needsCheck } from '../lib/addressCheck'
+import { useToast } from './ui/Toast'
 
 const MEMBER_NAV = [
   { to: '/tournee', icon: <IconTour />, label: 'Ma tournée' },
@@ -30,12 +32,30 @@ export default function Layout() {
   const { settings, year, tours, statesById } = useData()
   const global = useMemo(() => (isAdmin ? globalStats(tours, statesById) : null), [isAdmin, tours, statesById])
   const nav = isAdmin ? ADMIN_NAV : MEMBER_NAV
-  // Côté admin, les logements des immeubles sont comptés tout seuls auprès de l'IGN pour les nouvelles maisons.
+  // Côté admin, les nouvelles maisons sont vérifiées toutes seules : d'abord avec la BDNB
+  // (position, doublons, dépendances, tournées en double, maisons oubliées), puis les
+  // logements des immeubles sont comptés auprès de l'IGN. Un seul travail à la fois, pour
+  // que l'un n'écrase pas les maisons enregistrées par l'autre.
+  const toast = useToast()
+  const latest = useRef({ tours, statesById })
+  latest.current = { tours, statesById }
   useEffect(() => {
     if (!isAdmin || IS_DEMO || !tours?.length) return undefined
-    const timer = setTimeout(() => autoCountUnits(tours, saveTour), 3000)
+    const timer = setTimeout(() => {
+      if (!needsCheck(tours)) return autoCountUnits(tours, saveTour)
+      autoCheckAddresses(() => latest.current.tours, latest.current.statesById, saveTour, (r) => {
+        const parts = [
+          r.moved && `${r.moved} replacée${r.moved > 1 ? 's' : ''} sur leur bâtiment`,
+          r.duplicates && `${r.duplicates} doublon${r.duplicates > 1 ? 's' : ''} retiré${r.duplicates > 1 ? 's' : ''}`,
+          r.annexes && `${r.annexes} dépendance${r.annexes > 1 ? 's' : ''} retirée${r.annexes > 1 ? 's' : ''}`,
+          r.shared && `${r.shared} en double entre tournées`,
+          r.added && `${r.added} oubliée${r.added > 1 ? 's' : ''} ajoutée${r.added > 1 ? 's' : ''}`,
+        ].filter(Boolean)
+        if (parts.length) toast(`Adresses vérifiées : ${parts.join(', ')}`)
+      })
+    }, 3000)
     return () => clearTimeout(timer)
-  }, [isAdmin, tours])
+  }, [isAdmin, tours, toast])
   // Carte de la tournée en plein écran (binôme, ou vue terrain d'un admin).
   const { pathname } = useLocation()
   const fullMap = /^\/tournee\/./.test(pathname) || /\/terrain\/./.test(pathname) || pathname === '/admin/carte'
