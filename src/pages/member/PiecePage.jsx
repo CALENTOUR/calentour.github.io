@@ -176,7 +176,7 @@ export default function PiecePage() {
       {adding && <div className="map-note map-note-action">Touche l’endroit de la maison sur la carte <button type="button" className="btn-sm" onClick={() => setAdding(false)}>Annuler</button></div>}
 
       <div className="map-side">
-        <MapLegend />
+        <MapLegend hidden={Boolean(openHouse || listOpen || newPoint)} />
         <button type="button" className="mini-pie" onClick={() => setListOpen(true)} aria-label={`${formatPercent(ps.progress)} fait, ouvrir la liste des maisons`} title="Liste des maisons">
           <ProgressRing value={ps.progress} size={58} stroke={7} color="var(--green)">
             <strong>{Math.round(ps.progress * 100)}%</strong>

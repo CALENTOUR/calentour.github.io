@@ -93,7 +93,7 @@ export default function TourEditPage() {
   const [progress, setProgress] = useState(null)
   const [houseToEdit, setHouseToEdit] = useState(null)
   const tours = useMemo(() => (tour ? [tour] : []), [tour])
-  const [previewHouses, setPreviewHouses] = useState(false)
+  const [previewHouses, setPreviewHouses] = useState(true)
   const [areaSel, setAreaSel] = useState(null)
   const [previewMap, setPreviewMap] = useState(null)
   const areas = useMemo(() => (tour ? tourAreas(tour) : []), [tour])
@@ -171,7 +171,7 @@ export default function TourEditPage() {
         <span className="btn-hero-icon" aria-hidden="true">✏️</span>
         <span className="spacer">
           <strong>Modifier la tournée sur la carte</strong>
-          <span>Ajouter ou retirer des rues, ajuster leurs bouts, ajouter une maison oubliée</span>
+          <span>Rues, maisons, logements : tout se modifie ici</span>
         </span>
         <span className="btn-hero-go" aria-hidden="true">Ouvrir ›</span>
       </button>
