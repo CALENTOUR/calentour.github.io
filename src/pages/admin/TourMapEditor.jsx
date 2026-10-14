@@ -130,6 +130,7 @@ function ensureEditorLayers(map) {
   setGeoJSON(map, 'handles', EMPTY)
   setGeoJSON(map, 'adjust', EMPTY)
   setGeoJSON(map, 'eraser', EMPTY)
+  setGeoJSON(map, 'guide', EMPTY)
   const below = map.getLayer('pieces-casing') ? 'pieces-casing' : undefined
   map.addLayer({ id: 'others', type: 'line', source: 'others', layout: { 'line-cap': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': 2.5, 'line-opacity': 0.22, 'line-dasharray': [1.5, 1.5] } }, below)
   map.addLayer({ id: 'preview-casing', type: 'line', source: 'preview', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': 14 } })
@@ -137,6 +138,7 @@ function ensureEditorLayers(map) {
   map.addLayer({ id: 'adjust', type: 'line', source: 'adjust', layout: { 'line-cap': 'round' }, paint: { 'line-color': '#f97316', 'line-width': 8, 'line-opacity': 0.9 } })
   map.addLayer({ id: 'eraser', type: 'line', source: 'eraser', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#c0492f', 'line-width': 40, 'line-opacity': 0.3 } })
   map.addLayer({ id: 'handles', type: 'circle', source: 'handles', minzoom: 14.5, paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 8, 17, 13], 'circle-color': ['case', ['==', ['get', 'picked'], 1], '#f97316', '#ffffff'], 'circle-stroke-color': '#1f2a24', 'circle-stroke-width': 3 } })
+  map.addLayer({ id: 'guide', type: 'circle', source: 'guide', paint: { 'circle-radius': 26, 'circle-color': 'rgba(192,73,47,0.15)', 'circle-stroke-color': '#c0492f', 'circle-stroke-width': 3 } })
   map.addLayer({ id: 'draft-points', type: 'circle', source: 'draft', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 7, 'circle-color': '#0f172a', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } })
 }
 
@@ -167,6 +169,8 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
   const [moving, setMoving] = useState(null)
   const [askGive, setAskGive] = useState(false)
   const [missing, setMissing] = useState(null)
+  // Placement guidé des maisons sans bâtiment : la maison en cours et combien sont déjà placées.
+  const [guide, setGuide] = useState(null)
 
   const tourRef = useRef(tour)
   tourRef.current = tour
@@ -337,6 +341,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
         const b = brush
         brush = null
         setGeoJSON(map, 'eraser', EMPTY)
+  setGeoJSON(map, 'guide', EMPTY)
         dragged.current = Date.now()
         // Rayon de la gomme : moitié de son épaisseur à l'écran (40 px).
         const radius = touchTolerance(map, b[0][1]) * (20 / 22)
@@ -464,11 +469,12 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
     } else if (houseSel) {
       setHouseSel(null)
       setAskGive(false)
-    } else if (mode === 'move' && moving) {
+    } else if ((mode === 'move' || guide) && moving) {
       const loc = locateOnPieces(point[0], point[1], tour.pieces)
       update({ houses: tour.houses.map((h) => (h.id === moving ? { ...h, lng: point[0], lat: point[1], pieceId: loc?.pieceId ?? h.pieceId, along: loc?.along ?? h.along } : h)) })
       setMoving(null)
-      toast('Maison déplacée')
+      if (guide) nextMissing(moving, guide.done + 1)
+      else toast('Maison déplacée')
     } else if (mode === 'add') {
       if (!tour.pieces.length) return toast('Ajoute d’abord une rue dans l’onglet « Tracé des rues ».')
       setNewPoint(e.lngLat)
@@ -524,20 +530,47 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
     toast(target ? `« ${house.label} » attribuée à la tournée n°${target.number}` : `« ${house.label} » supprimée`)
   }
 
-  // Maisons sans bâtiment sur le plan, dans la zone affichée.
+  // Maisons sans bâtiment sur le plan, dans la zone affichée (vérifiées dans les deux onglets).
   useEffect(() => {
-    if (!map || tab !== 'houses') return undefined
+    if (!map) return undefined
     const run = () => setMissing(housesWithoutBuilding(map, tourRef.current.houses))
     run()
     map.on('idle', run)
     return () => map.off('idle', run)
-  }, [map, tab, tour])
+  }, [map, tour])
+
+  // Placement guidé : une maison après l'autre, la carte se centre dessus, un toucher la place.
+  const goGuide = (house, done, skipped) => {
+    if (tab !== 'houses') chooseTab('houses')
+    setHouseSel(null)
+    setMode(null)
+    setMoving(house.id)
+    setGuide({ id: house.id, label: house.label, done, skipped })
+    map.easeTo({ center: [house.lng, house.lat], zoom: Math.max(map.getZoom(), 18.5) })
+  }
+  const nextMissing = (afterId, done, skipped = guide?.skipped ?? []) => {
+    const left = (missing ?? []).filter((h) => h.id !== afterId && !skipped.includes(h.id))
+    if (!left.length) {
+      setGuide(null)
+      setMoving(null)
+      return toast(done ? `✅ ${done} maison${done > 1 ? 's' : ''} placée${done > 1 ? 's' : ''}` : 'Placement terminé')
+    }
+    goGuide(left[0], done, skipped)
+  }
   const showMissing = () => {
     const h = missing?.[0]
-    if (!h) return
-    map.easeTo({ center: [h.lng, h.lat], zoom: Math.max(map.getZoom(), 18.5) })
-    setHouseSel({ ...h, tourId: tour.id })
+    if (h) goGuide(h, 0, [])
   }
+  const stopGuide = () => {
+    setGuide(null)
+    setMoving(null)
+  }
+  useEffect(() => {
+    if (!map) return
+    ensureEditorLayers(map)
+    const h = guide && tour.houses.find((x) => x.id === guide.id)
+    setGeoJSON(map, 'guide', { type: 'FeatureCollection', features: h ? [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [h.lng, h.lat] } }] : [] })
+  }, [map, guide, tour])
 
   const onHouseClick = (props) => {
     const house = tour.houses.find((h) => h.id === props.houseId)
@@ -566,6 +599,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
     setHouseSel(null)
     setMoving(null)
     setAskGive(false)
+    setGuide(null)
   }
   // Retoucher l'outil choisi le désélectionne.
   const chooseMode = (key) => {
@@ -616,8 +650,28 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
         <SectorTabs areas={areas} active={areaSel} onChoose={chooseArea} />
       </div>
 
+      {!guide && missing?.length > 0 && (
+        <button type="button" className="missing-box" onClick={showMissing}>
+          <strong>⚠️ {missing.length} maison{missing.length > 1 ? 's' : ''} sans bâtiment</strong>
+          <span>dessiné sur le plan dans cette zone</span>
+          <span className="missing-go">Les placer une par une ›</span>
+        </button>
+      )}
+
       <div className="editor-bottom">
-        {houseSel && houseSel.tourId !== tour.id ? (
+        {guide ? (
+          <div className="editor-confirm guide-box">
+            <strong>📍 Maison sans bâtiment : {guide.label}</strong>
+            <ol className="small guide-steps">
+              <li>Repère la maison sur le plan, dans le cercle rouge (son toit, ou l’endroit où elle est).</li>
+              <li><b>Touche cet endroit</b> : la maison s’y place et la suivante s’affiche.</li>
+            </ol>
+            <div className="row">
+              <button type="button" className="spacer" onClick={() => nextMissing(guide.id, guide.done, [...guide.skipped, guide.id])}>Passer cette maison</button>
+              <button type="button" className="btn-sm btn-ghost" onClick={stopGuide}>Arrêter</button>
+            </div>
+          </div>
+        ) : houseSel && houseSel.tourId !== tour.id ? (
           <div className="editor-confirm house-edit">
             <strong className="ellipsis">🏠 {houseSel.label}</strong>
             <span className="small">Cette maison est dans la tournée n°{others.find((t) => t.id === houseSel.tourId)?.number}. L’attribuer à cette tournée ?</span>
@@ -673,9 +727,6 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
             {mode === 'draw' && drawStart && <button type="button" className="btn-sm" onClick={() => setDrawStart(null)}>✕</button>}
           </div>
         )}
-        {tab === 'houses' && !houseSel && missing?.length > 0 && (
-          <button type="button" className="missing-alert" onClick={showMissing}>⚠️ {missing.length} maison{missing.length > 1 ? 's' : ''} sans bâtiment sur le plan ici : touche pour la placer</button>
-        )}
         {mode === 'eraser' && (
           <div className="segmented">
             {ERASERS.map((x) => (
@@ -683,7 +734,8 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
             ))}
           </div>
         )}
-        <div className="segmented editor-tabs" role="tablist">
+        <div className="editor-toolbox">
+        <div className="editor-tabs" role="tablist">
           {TABS.map((t) => (
             <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tab === t.key ? 'on' : ''} onClick={() => chooseTab(t.key)}>{t.label}</button>
           ))}
@@ -699,6 +751,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
               <span className="mode-text"><strong>{m.label}</strong></span>
             </button>
           ))}
+        </div>
         </div>
       </div>
       {newPoint && <AddHouseSheet tour={tour} point={newPoint} onAdd={(house) => update({ houses: [...tourRef.current.houses, house] })} onClose={() => setNewPoint(null)} />}

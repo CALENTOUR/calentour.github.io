@@ -146,7 +146,7 @@ export default function PiecePage() {
         {multi && village ? (
           <>
             <button type="button" className="chip-back" onClick={() => chooseVillage(null)} aria-label="Retour aux villages">‹</button>
-            <button type="button" className={`chip-village-tab${!focus ? ' on' : ''}`} onClick={() => chooseVillage(village)}>{village}</button>
+            <button type="button" className={`chip-village-tab${!focus ? ' on' : ''}`} onClick={() => chooseVillage(village)}><span className="village-tag">Village</span>{village}</button>
           </>
         ) : (
           <>
@@ -159,7 +159,7 @@ export default function PiecePage() {
             const vs = villageStats(v)
             return (
               <button key={v} type="button" className={`chip-village-tab${vs.total && !vs.todo ? ' done' : ''}`} onClick={() => chooseVillage(v)}>
-                {v}<span className="chip-pct" title="Maisons restantes">{chipCount(vs.todo, vs.total)}</span>
+                <span className="village-tag">Village</span>{v}<span className="chip-pct" title="Maisons restantes">{chipCount(vs.todo, vs.total)}</span>
               </button>
             )
           })
