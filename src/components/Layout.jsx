@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import OfflineBanner from './OfflineBanner'
 import Logo from './ui/Logo'
@@ -10,6 +10,8 @@ import { resetDemo } from '../demo/reset'
 import { formatEuro, formatPercent } from '../lib/format'
 import { globalStats } from '../lib/stats'
 import { logout } from '../services/users'
+import { saveTour } from '../services/tours'
+import { autoCountUnits } from '../lib/logements'
 
 const MEMBER_NAV = [
   { to: '/tournee', icon: <IconTour />, label: 'Ma tournée' },
@@ -28,6 +30,12 @@ export default function Layout() {
   const { settings, year, tours, statesById } = useData()
   const global = useMemo(() => (isAdmin ? globalStats(tours, statesById) : null), [isAdmin, tours, statesById])
   const nav = isAdmin ? ADMIN_NAV : MEMBER_NAV
+  // Côté admin, les logements des immeubles sont comptés tout seuls auprès de l'IGN pour les nouvelles maisons.
+  useEffect(() => {
+    if (!isAdmin || IS_DEMO || !tours?.length) return undefined
+    const timer = setTimeout(() => autoCountUnits(tours, saveTour), 3000)
+    return () => clearTimeout(timer)
+  }, [isAdmin, tours])
   // Carte de la tournée en plein écran (binôme, ou vue terrain d'un admin).
   const { pathname } = useLocation()
   const fullMap = /^\/tournee\/./.test(pathname) || /\/terrain\/./.test(pathname) || pathname === '/admin/carte'

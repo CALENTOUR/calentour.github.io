@@ -7,7 +7,7 @@ const WFS = 'https://data.geopf.fr/wfs/ows'
 export const withUnits = (house, n) => {
   const count = Math.max(0, Math.min(200, n))
   const units = count > 1 ? Array.from({ length: count }, (_, i) => house.units?.[i] ?? { id: `u${i + 1}`, label: `Appt ${i + 1}` }) : []
-  return { ...house, units }
+  return { ...house, units, ign: true }
 }
 
 function inside([x, y], ring) {
@@ -54,4 +54,24 @@ export async function unitsFromIGN(houses) {
     }
   }
   return out
+}
+
+// Comptage automatique, une fois par maison : les maisons déjà vues par l'IGN ou réglées à la main sont marquées « ign ».
+let running = false
+export async function autoCountUnits(tours, save) {
+  if (running) return
+  running = true
+  try {
+    for (const t of tours) {
+      const todo = (t.houses ?? []).filter((h) => !h.ign && !h.units?.length)
+      if (!todo.length) continue
+      const found = await unitsFromIGN(todo)
+      const ids = new Set(todo.map((h) => h.id))
+      await save(t.id, { houses: t.houses.map((h) => (found.has(h.id) ? withUnits(h, found.get(h.id)) : ids.has(h.id) ? { ...h, ign: true } : h)) })
+    }
+  } catch (err) {
+    console.warn('Comptage IGN', err)
+  } finally {
+    running = false
+  }
 }
