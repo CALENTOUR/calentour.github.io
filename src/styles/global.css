@@ -1122,3 +1122,14 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .member-bar-btn strong { font-size: 1.2rem; }
 .member-bar-btn strong svg { width: 26px; height: 26px; }
 .member-bar-btn small { font-size: .8rem; }
+
+/* Carte binôme : un seul encart (village + rue), bouton quitter discret, boutons du bas transparents et collés en bas. */
+.map-here { position: absolute; top: calc(10px + var(--safe-top)); left: 50%; transform: translateX(-50%); z-index: 3; max-width: calc(100vw - 120px); display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.92); box-shadow: var(--float); color: var(--ink); text-align: left; }
+.map-here strong { font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.map-here-village { font-size: .68rem; font-weight: 800; text-transform: uppercase; color: #3b6e4f; white-space: nowrap; }
+.map-quit { left: 8px; bottom: calc(6px + var(--safe-bottom)); min-height: 36px; padding: 0 .8rem; font-size: .85rem; background: rgba(31,42,36,.8); }
+.shell-member { --tabbar-h: 84px; }
+.shell-member.shell-fullmap { --tabbar-h: 0px; }
+.member-bar { padding: 0 8px calc(4px + var(--safe-bottom)); background: transparent; border-top: none; pointer-events: none; }
+.member-bar-btn { pointer-events: auto; background: rgba(255,255,255,.55); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.member-bar-btn.active { background: rgba(192,57,43,.82); }
