@@ -129,6 +129,7 @@ export default function PiecePage() {
 
   return (
     <div className="fullmap">
+      {!openHouse && !listOpen && !newPoint && <button type="button" className="map-quit" onClick={() => navigate(base)}>✕ Quitter la carte</button>}
       <TourMap
         tours={tours}
         statesById={statesById}
