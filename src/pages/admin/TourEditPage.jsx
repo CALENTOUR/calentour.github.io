@@ -12,7 +12,7 @@ import { sortHouses } from '../../lib/stats'
 import { findHouses, mergeSameName } from '../../lib/tourBuilder'
 import { removeTour, saveTour } from '../../services/tours'
 import TourMapEditor from './TourMapEditor'
-import { unitsFromIGN, withUnits } from '../../lib/logements'
+import { withUnits } from '../../lib/logements'
 import { authErrorMessage, createAccount, generatePassword, normalizeLogin, updateUser } from '../../services/users'
 
 export function Identity({ tour }) {
@@ -90,8 +90,8 @@ export default function TourEditPage() {
   const location = useLocation()
   // Une tournée qui vient d'être créée s'ouvre directement dans l'éditeur.
   const [editing, setEditing] = useState(Boolean(location.state?.edit))
-  const [igning, setIgning] = useState(false)
   const [progress, setProgress] = useState(null)
+  const [houseToEdit, setHouseToEdit] = useState(null)
   const tours = useMemo(() => (tour ? [tour] : []), [tour])
   const [previewHouses, setPreviewHouses] = useState(false)
   const [areaSel, setAreaSel] = useState(null)
@@ -137,21 +137,6 @@ export default function TourEditPage() {
     if (answer == null) return
     const n = Number.parseInt(answer, 10) || 0
     update({ houses: tour.houses.map((h) => (h === house ? withUnits(h, n) : h)) })
-  }
-  // Logements des immeubles d'après l'IGN, pour les maisons pas encore réglées à la main.
-  const runIGN = async () => {
-    setIgning(true)
-    try {
-      const found = await unitsFromIGN(tour.houses.filter((h) => !h.units?.length))
-      if (!found.size) return toast('Aucun immeuble trouvé par l’IGN dans cette tournée')
-      update({ houses: tour.houses.map((h) => (found.has(h.id) ? withUnits(h, found.get(h.id)) : h)) })
-      const total = [...found.values()].reduce((a, b) => a + b, 0)
-      toast(`${found.size} immeuble${found.size > 1 ? 's' : ''} trouvé${found.size > 1 ? 's' : ''}, ${total} logements ajoutés`)
-    } catch (err) {
-      toast(`IGN injoignable : ${err.message}`)
-    } finally {
-      setIgning(false)
-    }
   }
   const removeHouse = (house) => update({ houses: tour.houses.filter((h) => h !== house) })
 
@@ -203,12 +188,9 @@ export default function TourEditPage() {
             <button type="button" className="btn-primary btn-sm" disabled={progress != null || !tour.pieces.length} onClick={runFind}>
               {progress != null ? `Recherche ${Math.round(progress * 100)} %` : '🏠 Chercher les maisons'}
             </button>
-            <button type="button" className="btn-sm" disabled={igning || !tour.houses.length} onClick={runIGN} title="Nombre de logements des immeubles d’après la base IGN">
-              {igning ? 'Recherche IGN…' : '🏢 Compter les logements (IGN)'}
-            </button>
           </div>
           <SectorTabs areas={areas} active={areaSel} onChoose={chooseArea} />
-          <TourMap tours={tours} statesById={statesById} flat expandable streetLabels showHouses={previewHouses} areas={mapAreas} onReady={setPreviewMap} className="edit-map" />
+          <TourMap tours={tours} statesById={statesById} flat expandable streetLabels showHouses={previewHouses} areas={mapAreas} onReady={setPreviewMap} className="edit-map" onHouseClick={(p) => { setHouseToEdit(p.houseId); setEditing(true) }} />
           <label className="check-line small">
             <input type="checkbox" checked={previewHouses} onChange={(e) => setPreviewHouses(e.target.checked)} />
             Afficher les maisons sur la carte
@@ -253,7 +235,7 @@ export default function TourEditPage() {
         </div>
         <button type="button" className="btn-danger" onClick={remove}>🗑️ Supprimer</button>
       </div>
-      {editing && <TourMapEditor tour={tour} onClose={closeEditor} />}
+      {editing && <TourMapEditor tour={tour} initialHouseId={houseToEdit} onClose={() => { setHouseToEdit(null); closeEditor() }} />}
     </div>
   )
 }
