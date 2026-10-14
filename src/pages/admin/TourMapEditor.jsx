@@ -11,13 +11,14 @@ import { useData } from '../../context/DataContext'
 import { newId } from '../../lib/format'
 import { chainLines, distance, flatten, lineLength, projectOnLine, samplePoints, sliceLine, unflatten } from '../../lib/geo'
 import { tourAreas } from '../../lib/places'
-import { addFoundHouses, searchHouses } from '../../lib/tourBuilder'
+import { addFoundHouses, locateOnPieces, searchHouses } from '../../lib/tourBuilder'
+import { housesWithoutBuilding } from '../../components/map/houseBuildings'
 import { saveTour } from '../../services/tours'
 
 const MODES = [
   { key: 'street', icon: '➕', label: 'Ajouter une rue entière', desc: 'Toucher une rue de la carte', help: 'Touche une rue : elle s’allume en orange, puis choisis « Toute la rue » ou « Ce tronçon ». Pour allonger ou raccourcir, fais glisser un rond blanc, ou touche-le puis touche l’endroit voulu.' },
   { key: 'draw', icon: '✏️', label: 'Tracer un bout de rue', desc: 'Départ puis arrivée', help: 'Touche le point de départ, puis le point d’arrivée : le tracé suit la route tout seul.' },
-  { key: 'house', icon: '🏠', label: 'Maison non répertoriée', desc: 'Ajouter une maison oubliée', help: 'Touche l’endroit d’une maison qui manque : son adresse est proposée, tu peux la corriger.' },
+  { key: 'house', icon: '🏠', label: 'Modifier les maisons', desc: 'Ajouter, retirer, prendre, placer', help: 'Touche une maison de la tournée pour la retirer ou la déplacer, une maison grisée d’une autre tournée pour la prendre, ou un endroit vide pour ajouter une maison non répertoriée.' },
   { key: 'eraser', icon: '🧽', label: 'Gomme', desc: 'Effacer un bout ou une rue' },
 ]
 const ERASERS = [
@@ -136,13 +137,18 @@ export default function TourMapEditor({ tour, onClose }) {
   const [picked, setPicked] = useState(null)
   const [history, setHistory] = useState([])
   const [map, setMap] = useState(null)
-  const tours = useMemo(() => [tour], [tour])
   // Les pastilles des maisons restent cachées sauf demande, ou quand on travaille sur les maisons.
   const [housesOn, setHousesOn] = useState(false)
   const [areaSel, setAreaSel] = useState(null)
   const areas = useMemo(() => tourAreas(tour), [tour])
   const mapAreas = useMemo(() => (areas.length > 1 ? areas.map((a) => ({ ...a, active: a.id === areaSel })) : null), [areas, areaSel])
   const others = useMemo(() => allTours.filter((t) => t.id !== tour.id), [allTours, tour.id])
+  // En mode maisons, les maisons des autres tournées apparaissent grisées pour pouvoir les prendre.
+  const tours = useMemo(() => (mode === 'house' ? [tour, ...others] : [tour]), [mode, tour, others])
+  const [houseSel, setHouseSel] = useState(null)
+  const [moving, setMoving] = useState(null)
+  const [giveTo, setGiveTo] = useState('')
+  const [missing, setMissing] = useState(null)
 
   const tourRef = useRef(tour)
   tourRef.current = tour
@@ -438,6 +444,13 @@ export default function TourMapEditor({ tour, onClose }) {
       setDrawStart(null)
       if (path.length > 1 && lineLength(path) > 5) addLines(null, [{ coords: path, ref: path }])
     } else if (mode === 'house') {
+      if (moving) {
+        const loc = locateOnPieces(point[0], point[1], tour.pieces)
+        update({ houses: tour.houses.map((h) => (h.id === moving ? { ...h, lng: point[0], lat: point[1], pieceId: loc?.pieceId ?? h.pieceId, along: loc?.along ?? h.along } : h)) })
+        setMoving(null)
+        return toast('Maison déplacée')
+      }
+      if (houseSel) return setHouseSel(null)
       if (!tour.pieces.length) return toast('Ajoute d’abord une rue.')
       setNewPoint(e.lngLat)
     } else if (mode === 'eraser' && eraser === 'delete') {
@@ -446,6 +459,51 @@ export default function TourMapEditor({ tour, onClose }) {
       if (!window.confirm(`Supprimer toute la rue « ${best.p.name} » et ses maisons ?`)) return
       update({ pieces: tour.pieces.filter((x) => x !== best.p), houses: tour.houses.filter((h) => h.pieceId !== best.p.id) })
     }
+  }
+
+  // Mode maisons : une maison de la tournée s'ouvre, une maison d'une autre tournée se prend.
+  const onHouseEdit = (props) => {
+    if (props.tourId === tour.id) {
+      const house = tour.houses.find((h) => h.id === props.houseId)
+      setHouseSel(house ?? null)
+      setGiveTo('')
+      return
+    }
+    const other = others.find((t) => t.id === props.tourId)
+    const house = other?.houses.find((h) => h.id === props.houseId)
+    if (!house) return
+    if (!window.confirm(`Prendre « ${house.label} » dans cette tournée ? Elle sera retirée de la tournée n°${other.number} (${other.name}).`)) return
+    const loc = locateOnPieces(house.lng, house.lat, tour.pieces)
+    saveTour(other.id, { houses: other.houses.filter((h) => h.id !== house.id) }).catch((err) => toast(`Erreur : ${err.message}`))
+    update({ houses: [...tour.houses, { ...house, pieceId: loc?.pieceId ?? null, along: loc?.along ?? 0 }] })
+    toast(`« ${house.label} » ajoutée à la tournée`)
+  }
+
+  const removeHouse = () => {
+    const house = houseSel
+    const target = others.find((t) => t.id === giveTo)
+    if (target) {
+      const loc = locateOnPieces(house.lng, house.lat, target.pieces ?? [])
+      saveTour(target.id, { houses: [...target.houses, { ...house, pieceId: loc?.pieceId ?? null, along: loc?.along ?? 0 }] }).catch((err) => toast(`Erreur : ${err.message}`))
+    }
+    update({ houses: tour.houses.filter((h) => h.id !== house.id) })
+    setHouseSel(null)
+    toast(target ? `« ${house.label} » donnée à la tournée n°${target.number}` : `« ${house.label} » retirée`)
+  }
+
+  // Maisons sans bâtiment sur le plan, dans la zone affichée.
+  useEffect(() => {
+    if (!map || mode !== 'house') return undefined
+    const run = () => setMissing(housesWithoutBuilding(map, tourRef.current.houses))
+    run()
+    map.on('idle', run)
+    return () => map.off('idle', run)
+  }, [map, mode, tour])
+  const showMissing = () => {
+    const h = missing?.[0]
+    if (!h) return
+    map.easeTo({ center: [h.lng, h.lat], zoom: Math.max(map.getZoom(), 18.5) })
+    setHouseSel(h)
   }
 
   const onHouseClick = (props) => {
@@ -473,6 +531,8 @@ export default function TourMapEditor({ tour, onClose }) {
     setDrawStart(null)
     setPreview(null)
     setPicked(null)
+    setHouseSel(null)
+    setMoving(null)
   }
   const activeMode = MODES.find((m) => m.key === mode)
   const showHouses = housesOn || mode === 'house' || (mode === 'eraser' && eraser === 'delete')
@@ -490,11 +550,11 @@ export default function TourMapEditor({ tour, onClose }) {
   return createPortal(
     <div className="editor">
       <TourMap
-        tours={tours} statesById={statesById} flat
+        tours={tours} statesById={statesById} flat focusTourId={mode === 'house' ? tour.id : null} autoFit={false}
         showHouses={showHouses} streetLabels areas={mapAreas}
         fitPadding={{ top: 170, bottom: 230, left: 40, right: 60 }}
         onMapClick={onMapClick}
-        onHouseClick={mode === 'eraser' && eraser === 'delete' ? onHouseClick : undefined}
+        onHouseClick={mode === 'eraser' && eraser === 'delete' ? onHouseClick : mode === 'house' && !moving ? onHouseEdit : undefined}
         onReady={setMap}
         className="editor-map"
       />
@@ -506,14 +566,35 @@ export default function TourMapEditor({ tour, onClose }) {
           <button type="button" className="btn-sm" disabled={!history.length} onClick={undo}>↶ Annuler</button>
           <label className={`layer-btn editor-houses${showHouses ? ' on' : ''}${finding ? ' busy' : ''}`} title="Afficher les maisons sur la carte">
             <input type="checkbox" checked={showHouses} disabled={showHouses && !housesOn} onChange={(e) => setHousesOn(e.target.checked)} />
-            🏠 <span className="hide-mobile">Maisons </span>{finding ? '…' : tour.houses.length}
+            🏠 Afficher les maisons ({finding ? '…' : tour.houses.length})
           </label>
         </div>
         <SectorTabs areas={areas} active={areaSel} onChoose={chooseArea} />
       </div>
 
       <div className="editor-bottom">
-        {preview ? (
+        {mode === 'house' && houseSel ? (
+          <div className="editor-confirm house-edit">
+            <strong className="ellipsis">🏠 {houseSel.label}{houseSel.units?.length ? ` · ${houseSel.units.length} logements` : ''}</strong>
+            {moving ? (
+              <div className="row"><span className="small spacer">Touche l’endroit exact de la maison sur le plan.</span><button type="button" className="btn-sm" onClick={() => setMoving(null)}>Annuler</button></div>
+            ) : (
+              <>
+                <div className="row">
+                  <button type="button" className="spacer" onClick={() => setMoving(houseSel.id)}>📍 Déplacer / placer sur le plan</button>
+                  <button type="button" className="btn-round btn-ghost" onClick={() => setHouseSel(null)} aria-label="Fermer">✕</button>
+                </div>
+                <div className="row">
+                  <select className="spacer" value={giveTo} onChange={(e) => setGiveTo(e.target.value)} aria-label="Donner à">
+                    <option value="">Retirer sans la donner</option>
+                    {[...others].sort((a, b) => a.number - b.number).map((t) => <option key={t.id} value={t.id}>Donner à la tournée n°{t.number} · {t.name}</option>)}
+                  </select>
+                  <button type="button" className="btn-danger" onClick={removeHouse}>Retirer</button>
+                </div>
+              </>
+            )}
+          </div>
+        ) : preview ? (
           <div className="editor-confirm">
             <strong className="ellipsis">{preview.name ?? 'Rue sans nom'}</strong>
             <div className="row">
@@ -524,9 +605,18 @@ export default function TourMapEditor({ tour, onClose }) {
           </div>
         ) : (
           <div className="row">
-            <div className="small editor-help spacer">{help}</div>
+            {mode === 'house' && !picked ? (
+              <ul className="small editor-help spacer house-help">
+                <li><b>Retirer ou déplacer</b> une maison : touche-la (couleur vive).</li>
+                <li><b>Prendre</b> la maison d’une autre tournée : touche-la (couleur pâle), elle quittera l’autre tournée.</li>
+                <li><b>Ajouter</b> une maison non répertoriée : touche un endroit vide.</li>
+              </ul>
+            ) : <div className="small editor-help spacer">{help}</div>}
             {mode === 'draw' && drawStart && <button type="button" className="btn-sm" onClick={() => setDrawStart(null)}>✕</button>}
           </div>
+        )}
+        {mode === 'house' && !houseSel && missing?.length > 0 && (
+          <button type="button" className="missing-alert" onClick={showMissing}>⚠️ {missing.length} maison{missing.length > 1 ? 's' : ''} sans bâtiment sur le plan ici : touche pour la placer</button>
         )}
         {mode === 'eraser' && (
           <div className="segmented">

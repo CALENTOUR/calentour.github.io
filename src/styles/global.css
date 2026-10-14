@@ -1019,3 +1019,8 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .editor-head .editor-houses{background:var(--blue,#2f6fb0);color:#fff;border-color:transparent;font-size:.95rem;padding:.35rem .8rem;box-shadow:0 2px 8px rgba(47,111,176,.4)}
 .editor-head .editor-houses.on{background:var(--ink);}
 .editor-head .editor-houses input{accent-color:#fff}
+
+.missing-alert{width:100%;background:#fdf1d8;border:1.5px solid #d39a2c;color:#6b4a0c;font-weight:700;border-radius:10px;padding:.5rem .7rem;text-align:left}
+.house-edit select{min-width:0}
+.btn-danger{background:#b3261e;color:#fff;border:none}
+.house-help{margin:0;padding-left:1.1rem;display:flex;flex-direction:column;gap:.15rem}

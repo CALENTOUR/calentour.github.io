@@ -144,6 +144,16 @@ function ensureLayers(map) {
       'text-halo-width': 1.6,
     },
   })
+  // Immeuble : pastille avec le nombre de logements.
+  map.addLayer({
+    id: 'units-badge', type: 'circle', source: 'houses', filter: ['>', ['get', 'units'], 0], minzoom: 14,
+    paint: { 'circle-radius': 9, 'circle-color': '#1f2a24', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5, 'circle-translate': [12, -30], 'circle-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3], 'circle-stroke-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3] },
+  })
+  map.addLayer({
+    id: 'units-count', type: 'symbol', source: 'houses', filter: ['>', ['get', 'units'], 0], minzoom: 14,
+    layout: { 'text-field': ['to-string', ['get', 'units']], 'text-font': ['Noto Sans Bold'], 'text-size': 11, 'text-allow-overlap': true, 'text-ignore-placement': true },
+    paint: { 'text-color': '#ffffff', 'text-translate': [12, -30], 'text-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3] },
+  })
 }
 
 // Étiquette de chaque tournée : son numéro et ses maisons faites sur le total (« 5/48 »), au milieu de sa plus longue rue.
@@ -196,6 +206,7 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
     setGeoJSON(map, 'houses', housesRef.current)
     ensureLayers(map)
     map.setLayoutProperty('houses', 'visibility', showHouses ? 'visible' : 'none')
+    for (const id of ['units-badge', 'units-count']) map.setLayoutProperty(id, 'visibility', showHouses ? 'visible' : 'none')
     if (streetLabels && !map.getLayer('street-labels')) {
       // Nom de chaque rue écrit le long de son tracé.
       map.addLayer({
