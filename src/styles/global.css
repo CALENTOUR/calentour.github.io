@@ -262,6 +262,8 @@ label { display: flex; flex-direction: column; gap: .3rem; font-weight: 700; fon
 .amount-input { flex-direction: row; align-items: center; justify-content: center; gap: .3rem; font-size: 2.6rem; font-weight: 900; }
 .amount-input input { width: 6.5ch; text-align: right; font-size: 2.6rem; font-weight: 900; border: none; border-bottom: 3px solid var(--brand); border-radius: 0; padding: 0; box-shadow: none; }
 .unit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: .5rem; }
+.unit-names { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .4rem; max-height: 40vh; overflow-y: auto; }
+.unit-names input { min-width: 0; }
 .unit-btn { flex-direction: column; min-height: 66px; background: color-mix(in srgb, var(--c) 18%, #fff); border: 2px solid var(--cs); }
 
 .confetti { position: fixed; left: 50%; top: 55%; z-index: 90; pointer-events: none; }
