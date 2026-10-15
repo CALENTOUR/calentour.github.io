@@ -103,6 +103,14 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
     setAskUnits(false)
     onClose()
   }
+  // Le binôme peut renommer chaque logement (« Appt 1 » devient « RDC gauche », « Dupont »…).
+  const [naming, setNaming] = useState(null)
+  const startNaming = () => setNaming(Object.fromEntries(house.units.map((u) => [u.id, u.label])))
+  const saveNames = () => {
+    const units = house.units.map((u, i) => ({ ...u, label: naming[u.id]?.trim() || `Appt ${i + 1}` }))
+    saveTour(tour.id, { houses: tour.houses.map((x) => (x.id === house.id ? { ...x, units } : x)) }).catch(() => {})
+    setNaming(null)
+  }
 
   return (
     <Sheet
@@ -112,7 +120,24 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
       compact
       actions={<a className="btn btn-sm btn-ghost sheet-route" href={navigationUrl(house)} target="_blank" rel="noreferrer" title="Itinéraire">🧭<span className="hide-mobile"> Itinéraire</span></a>}
     >
-      {isBuilding && !unit ? (
+      {isBuilding && !unit && naming ? (
+        <form className="stack" onSubmit={(e) => { e.preventDefault(); saveNames() }}>
+          <strong className="small">Nom de chaque logement</strong>
+          <div className="unit-names">
+            {house.units.map((u, i) => (
+              <input
+                key={u.id} value={naming[u.id] ?? ''} maxLength={30} placeholder={`Appt ${i + 1}`}
+                onChange={(e) => setNaming((n) => ({ ...n, [u.id]: e.target.value }))}
+                aria-label={`Nom du logement ${i + 1}`}
+              />
+            ))}
+          </div>
+          <div className="row">
+            <button type="button" className="btn-ghost" onClick={() => setNaming(null)}>Annuler</button>
+            <button type="submit" className="btn-primary spacer">Enregistrer les noms</button>
+          </div>
+        </form>
+      ) : isBuilding && !unit ? (
         <div className="stack">
           <div className="unit-grid">
             {house.units.map((u) => {
@@ -125,6 +150,7 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
               )
             })}
           </div>
+          <button type="button" className="btn-ghost btn-sm" onClick={startNaming}>✏️ Renommer les logements</button>
         </div>
       ) : (
         <>
@@ -132,7 +158,7 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
           {isBuilding && <button type="button" className="btn-ghost btn-sm" onClick={() => setUnitId(null)}>← Tous les logements</button>}
         </>
       )}
-      {!unit && (askUnits ? (
+      {!unit && !naming && (askUnits ? (
         <div className="units-ask stack">
           <strong className="small">Combien de logements dans ce bâtiment ?</strong>
           <div className="units-quick">

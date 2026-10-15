@@ -1,6 +1,7 @@
 import { PAYMENT_MODES } from '../config/constants'
 import { formatDate } from './format'
 import { dwellings } from './stats'
+import { labelsDocx } from './labels'
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob)
@@ -100,4 +101,10 @@ export async function exportCompta({ year, amicale, tours, statesById, stats }) 
 export function exportTours(tours) {
   const data = tours.map(({ id, number, name, color, pieces, houses }) => ({ id, number, name, color, pieces, houses }))
   downloadBlob(new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), tours: data })], { type: 'application/json' }), `calentour-tournees-${new Date().toISOString().slice(0, 10)}.json`)
+}
+
+// Étiquettes à découper : une par tournée (membres et secteurs), au format Word.
+export async function exportLabels(tours, { amicale, year } = {}) {
+  const header = [amicale, year ? `Calendriers ${year}` : ''].filter(Boolean).join(' · ')
+  downloadBlob(await labelsDocx(tours, header), `calentour-etiquettes-${year ?? new Date().getFullYear()}.docx`)
 }
