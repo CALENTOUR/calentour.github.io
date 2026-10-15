@@ -5,6 +5,7 @@ import { IconGps } from '../ui/Icons'
 import { dwellingKey } from '../../services/state'
 import { LIT_COLORS, drawLitHouses, litHouses } from './houseBuildings'
 import { addStatusIcons } from './icons'
+import { LOOKS, applyLook, readLook } from './mapLook'
 import { circlePolygon, pieceLabels, villagesOf } from '../../lib/places'
 import { fitPoints, setGeoJSON, toggle3D, useMapLibre } from './useMapLibre'
 
@@ -369,12 +370,20 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
     return () => map.off('pitchend', sync)
   }, [map])
 
+  // Fond de carte choisi (plan, illustré ou satellite), gardé d'une visite à l'autre.
+  const [look, setLook] = useState(readLook)
+  useEffect(() => {
+    if (map) applyLook(map, look)
+  }, [map, look])
+  const nextLook = LOOKS[(LOOKS.findIndex((l) => l.id === look) + 1) % LOOKS.length]
+
   return (
     <div className={`map-wrap ${className}${full ? ' map-wrap-full' : ''}`}>
       <div ref={containerRef} className="map-container" />
       {map && (
         <div className="map-btns">
           <button type="button" className="map-btn-sq" onClick={() => toggle3D(map)} aria-label={is3D ? 'Passer en vue 2D' : 'Passer en vue 3D'} title={is3D ? 'Vue 2D' : 'Vue 3D'}>{is3D ? '2D' : '3D'}</button>
+          <button type="button" className="map-btn-sq map-btn-look" onClick={() => setLook(nextLook.id)} aria-label={`Fond de carte : ${LOOKS.find((l) => l.id === look)?.label}. Passer en ${nextLook.label}`} title={`Passer en ${nextLook.label}`}>{nextLook.label}</button>
           {showMe && <button type="button" className={`map-btn-sq${me ? ' me-on' : ''}`} onClick={goToMe} aria-label="Afficher ma position" title="Ma position"><IconGps width={20} height={20} /></button>}
           {expandable && (
             <button type="button" onClick={() => setFull((f) => !f)} aria-label={full ? 'Quitter le plein écran' : 'Plein écran'}>{full ? '✕ Réduire' : '⛶ Plein écran'}</button>

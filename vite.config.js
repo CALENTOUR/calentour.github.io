@@ -61,6 +61,16 @@ export default defineConfig(({ mode }) => ({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
+          {
+            // Photos aériennes IGN (fond « Satellite »), gardées pour le hors ligne.
+            urlPattern: ({ url }) => url.hostname === 'data.geopf.fr',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'map-photos',
+              expiration: { maxEntries: 3000, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
     }),
