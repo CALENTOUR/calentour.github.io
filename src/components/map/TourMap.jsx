@@ -375,7 +375,7 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
   useEffect(() => {
     if (map) applyLook(map, look)
   }, [map, look])
-  const nextLook = LOOKS[(LOOKS.findIndex((l) => l.id === look) + 1) % LOOKS.length]
+  const [lookOpen, setLookOpen] = useState(false)
 
   return (
     <div className={`map-wrap ${className}${full ? ' map-wrap-full' : ''}`}>
@@ -383,11 +383,23 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
       {map && (
         <div className="map-btns">
           <button type="button" className="map-btn-sq" onClick={() => toggle3D(map)} aria-label={is3D ? 'Passer en vue 2D' : 'Passer en vue 3D'} title={is3D ? 'Vue 2D' : 'Vue 3D'}>{is3D ? '2D' : '3D'}</button>
-          <button type="button" className="map-btn-sq map-btn-look" onClick={() => setLook(nextLook.id)} aria-label={`Fond de carte : ${LOOKS.find((l) => l.id === look)?.label}. Passer en ${nextLook.label}`} title={`Passer en ${nextLook.label}`}>{nextLook.label}</button>
+          <button type="button" className={`map-btn-sq map-btn-look look-${look}`} onClick={() => setLookOpen((o) => !o)} aria-label="Changer le fond de carte" title="Fond de carte"><i className="look-thumb" /><span>Fond</span></button>
           {showMe && <button type="button" className={`map-btn-sq${me ? ' me-on' : ''}`} onClick={goToMe} aria-label="Afficher ma position" title="Ma position"><IconGps width={20} height={20} /></button>}
           {expandable && (
             <button type="button" onClick={() => setFull((f) => !f)} aria-label={full ? 'Quitter le plein écran' : 'Plein écran'}>{full ? '✕ Réduire' : '⛶ Plein écran'}</button>
           )}
+        </div>
+      )}
+      {map && lookOpen && (
+        <div className="look-picker" role="dialog" aria-label="Fond de carte">
+          <strong>Choisis ton fond de carte</strong>
+          <div className="look-options">
+            {LOOKS.map((l) => (
+              <button key={l.id} type="button" className={`look-option look-${l.id}${l.id === look ? ' on' : ''}`} onClick={() => { setLook(l.id); setLookOpen(false) }}>
+                <i className="look-thumb" />{l.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
