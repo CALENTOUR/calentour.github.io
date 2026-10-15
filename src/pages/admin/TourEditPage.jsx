@@ -173,7 +173,7 @@ export default function TourEditPage() {
             <h2 className="spacer">Rues et maisons</h2>
           </div>
           <SectorTabs areas={areas} active={areaSel} onChoose={chooseArea} />
-          <TourMap tours={tours} statesById={statesById} flat expandable streetLabels showHouses={previewHouses} areas={mapAreas} onReady={setPreviewMap} className="edit-map" onHouseClick={(p) => { setHouseToEdit(p.houseId); setEditing(true) }} />
+          <TourMap satelliteSwitch tours={tours} statesById={statesById} flat expandable streetLabels showHouses={previewHouses} areas={mapAreas} onReady={setPreviewMap} className="edit-map" onHouseClick={(p) => { setHouseToEdit(p.houseId); setEditing(true) }} />
           <label className="check-line small">
             <input type="checkbox" checked={previewHouses} onChange={(e) => setPreviewHouses(e.target.checked)} />
             Afficher les maisons sur la carte

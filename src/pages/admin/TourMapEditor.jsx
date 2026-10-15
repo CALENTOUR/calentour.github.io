@@ -16,8 +16,7 @@ import { housesWithoutBuilding } from '../../components/map/houseBuildings'
 import { withUnits } from '../../lib/logements'
 import { saveTour } from '../../services/tours'
 
-// Deux colonnes d'outils de part et d'autre de la carte : les rues à gauche, les maisons
-// à droite. Retoucher l'outil choisi le désélectionne : la main revient, pour se déplacer.
+// Une colonne d'outils à gauche de la carte : les rues, puis les maisons en dessous. Retoucher l'outil choisi le désélectionne : la main revient, pour se déplacer.
 const svg = (d) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>
 const ICONS = {
   hand: svg(<path d="M8 12V5.5a1.5 1.5 0 0 1 3 0V11m0-6.5a1.5 1.5 0 0 1 3 0V11m0-5a1.5 1.5 0 0 1 3 0v7c0 4-2.5 7-6 7s-5-1.5-6.5-4L3 12.5a1.5 1.5 0 0 1 2.5-1.5L8 14" />),
@@ -43,7 +42,7 @@ const MODES = {
   ],
 }
 const HAND_HELP = {
-  trace: 'Outils des rues à gauche, des maisons à droite. Sans outil, la carte se déplace librement et toucher une maison ouvre son menu.',
+  trace: 'Outils des rues et des maisons à gauche. Sans outil, la carte se déplace librement et toucher une maison ouvre son menu.',
   houses: 'Touche une maison pour la supprimer ou l’attribuer à une autre tournée. Une maison pâle appartient à une autre tournée : touche-la pour la prendre.',
 }
 const ERASERS = [
@@ -640,7 +639,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
   return createPortal(
     <div className="editor">
       <TourMap
-        tours={tours} statesById={statesById} flat focusTourId={tab === 'houses' ? tour.id : null} autoFit={false}
+        satelliteSwitch tours={tours} statesById={statesById} flat focusTourId={tab === 'houses' ? tour.id : null} autoFit={false}
         showHouses={showHouses} streetLabels areas={mapAreas}
         fitPadding={{ top: 170, bottom: 230, left: 40, right: 60 }}
         onMapClick={onMapClick}
@@ -743,8 +742,13 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
             </div>
           </div>
         ) : (
-          <div className="row">
-            <div className="small editor-help spacer">{help}</div>
+          <div className={`row${mode || moving || picked ? ' editor-instruction' : ''}`} key={`${mode}-${Boolean(moving)}-${Boolean(picked)}`}>
+            {mode || moving || picked ? (
+              <div className="spacer">
+                <strong className="editor-instruction-title">{ICONS[moving ? 'move' : mode] ?? null}{moving ? 'Déplacer la maison' : activeMode?.label ?? (mode === 'eraser' ? 'Gomme' : 'Rue')}</strong>
+                <div>{help}</div>
+              </div>
+            ) : <div className="small editor-help spacer">{help}</div>}
             {moving && <button type="button" className="btn-sm" onClick={() => setMoving(null)}>✕</button>}
             {mode === 'draw' && drawStart && <button type="button" className="btn-sm" onClick={() => setDrawStart(null)}>✕</button>}
           </div>
@@ -758,17 +762,19 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
         )}
       </div>
 
-      {TABS.map((t) => (
-        <nav key={t.key} className={`editor-side side-${t.key}`} aria-label={`Outils ${t.label.toLowerCase()}`}>
-          <strong>{t.label}</strong>
-          {t.key === 'trace' && (
-            <button type="button" className={mode ? '' : 'on'} onClick={() => chooseMode(null)} title="Se déplacer librement sur la carte">{ICONS.hand}<span>Naviguer</span></button>
-          )}
-          {MODES[t.key].map((m) => (
-            <button key={m.key} type="button" className={mode === m.key ? 'on' : ''} onClick={() => chooseMode(m.key)}>{ICONS[m.key]}<span>{m.label}</span></button>
-          ))}
-        </nav>
-      ))}
+      <nav className="editor-side" aria-label="Outils">
+        {TABS.map((t) => (
+          <div key={t.key} className="editor-side-group">
+            <strong>{t.label}</strong>
+            {t.key === 'trace' && (
+              <button type="button" className={mode ? '' : 'on'} onClick={() => chooseMode(null)} title="Se déplacer librement sur la carte">{ICONS.hand}<span>Naviguer</span></button>
+            )}
+            {MODES[t.key].map((m) => (
+              <button key={m.key} type="button" className={mode === m.key ? 'on' : ''} onClick={() => chooseMode(m.key)}>{ICONS[m.key]}<span>{m.label}</span></button>
+            ))}
+          </div>
+        ))}
+      </nav>
       {newPoint && <AddHouseSheet tour={tour} point={newPoint} onAdd={(house) => update({ houses: [...tourRef.current.houses, house] })} onClose={() => setNewPoint(null)} />}
     </div>,
     document.body,
