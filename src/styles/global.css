@@ -1133,3 +1133,4 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .member-bar { padding: 0 8px calc(4px + var(--safe-bottom)); background: transparent; border-top: none; pointer-events: none; }
 .member-bar-btn { pointer-events: auto; background: rgba(255,255,255,.55); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .member-bar-btn.active { background: rgba(192,57,43,.82); }
+.map-btn-sq.map-btn-look { width: auto; padding: 0 .6rem; font-size: .75rem; font-weight: 800; }
