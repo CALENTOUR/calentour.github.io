@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
+import { useMissingBuildings } from '../../lib/missingBuildings'
 import { setDoc } from 'firebase/firestore'
 import AccessCard from '../../components/AccessCard'
 import MissingBuildings from './MissingBuildings'
@@ -18,8 +20,10 @@ export default function SettingsPage() {
   const [admin, setAdmin] = useState({ name: '', login: '' })
   const [created, setCreated] = useState(null)
   const [pwd, setPwd] = useState({ current: '', next: '' })
-  const [tab, setTab] = useState('general')
-  const [missingCount, setMissingCount] = useState(null)
+  const location = useLocation()
+  const [tab, setTab] = useState(location.state?.tab ?? 'general')
+  const { rows: missingRows } = useMissingBuildings(toursById)
+  const missingCount = missingRows.length
 
   const changePassword = async (e) => {
     e.preventDefault()
@@ -67,7 +71,7 @@ export default function SettingsPage() {
           Maisons sans bâtiment{missingCount ? <span className="tab-count">{missingCount}</span> : null}
         </button>
       </div>
-      {tab === 'missing' ? <MissingBuildings onCount={setMissingCount} /> : (
+      {tab === 'missing' ? <MissingBuildings /> : (
       <>
 
       <form className="card stack" onSubmit={(e) => { e.preventDefault(); save({ amicale: amicale.trim() }, 'Nom enregistré') }}>

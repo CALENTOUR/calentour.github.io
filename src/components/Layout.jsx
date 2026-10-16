@@ -14,6 +14,7 @@ import { saveTour } from '../services/tours'
 import { autoCountUnits } from '../lib/logements'
 import { autoCheckAddresses, needsCheck } from '../lib/addressCheck'
 import { useToast } from './ui/Toast'
+import { runMissingScan, useMissingBuildings } from '../lib/missingBuildings'
 
 const MEMBER_NAV = [
   { to: '/tournee', icon: <IconTour />, label: 'Ma tournée', short: 'Ma tournée', sub: 'rues et maisons' },
@@ -24,12 +25,20 @@ const ADMIN_NAV = [
   { to: '/admin', icon: <IconPie />, tone: 'green', label: 'Tableau de bord', short: 'Bilan', end: true, stat: (g) => `${formatPercent(g.progress)} fait` },
   { to: '/admin/carte', icon: <IconMap />, tone: 'brand', label: 'Tournées', stat: (g, n) => `${n} binôme${n > 1 ? 's' : ''}` },
   { to: '/admin/dons', icon: <IconCash />, tone: 'ocre', label: 'Dons', stat: (g) => formatEuro(g.amount) },
-  { to: '/admin/reglages', icon: <IconSliders />, tone: 'blue', label: 'Réglages', stat: () => 'Accès, export' },
+  { to: '/admin/reglages', icon: <IconSliders />, tone: 'blue', label: 'Réglages', stat: (g, n, missing) => (missing ? `${missing} maison${missing > 1 ? 's' : ''} sans bâtiment` : 'Accès, export'), badge: (missing) => missing },
 ]
 
 export default function Layout() {
   const { isAdmin, profile } = useAuth()
-  const { settings, year, tours, statesById } = useData()
+  const { settings, year, tours, toursById, statesById } = useData()
+  // Maisons sans bâtiment : recherchées une fois par visite, pour la pastille rouge de Réglages.
+  const { rows: missingRows, scan: missingScan } = useMissingBuildings(toursById)
+  const missing = missingRows.length
+  useEffect(() => {
+    if (!isAdmin || missingScan || !tours?.length) return undefined
+    const timer = setTimeout(() => runMissingScan(tours), 6000)
+    return () => clearTimeout(timer)
+  }, [isAdmin, missingScan, tours?.length]) // eslint-disable-line react-hooks/exhaustive-deps
   const global = useMemo(() => (isAdmin ? globalStats(tours, statesById) : null), [isAdmin, tours, statesById])
   const nav = isAdmin ? ADMIN_NAV : MEMBER_NAV
   // Côté admin, les nouvelles maisons sont vérifiées toutes seules : d'abord avec la BDNB
@@ -76,7 +85,8 @@ export default function Layout() {
           {nav.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={`side-tile tone-${n.tone}`}>
               <span className="side-tile-icon">{n.icon}</span>
-              <span className="side-tile-text"><strong>{n.label}</strong><small>{n.stat(global, tours.length)}</small></span>
+              <span className="side-tile-text"><strong>{n.label}</strong><small>{n.stat(global, tours.length, missing)}</small></span>
+              {n.badge?.(missing) ? <span className="nav-badge" title="Maisons sans bâtiment">{n.badge(missing)}</span> : null}
             </NavLink>
           ))}
           <div className="side-goal">
@@ -99,7 +109,7 @@ export default function Layout() {
       )}
       {isAdmin && <nav className="tabbar">
         {nav.map((n) => (
-          <NavLink key={n.to} to={n.to} end={n.end} className={`tab${n.tone ? ` tone-${n.tone}` : ''}`}><span className="tab-icon">{n.icon}</span><span className="tab-label">{n.short ?? n.label}</span></NavLink>
+          <NavLink key={n.to} to={n.to} end={n.end} className={`tab${n.tone ? ` tone-${n.tone}` : ''}`}><span className="tab-icon">{n.icon}{n.badge?.(missing) ? <span className="nav-badge">{n.badge(missing)}</span> : null}</span><span className="tab-label">{n.short ?? n.label}</span></NavLink>
         ))}
       </nav>}
     </div>
