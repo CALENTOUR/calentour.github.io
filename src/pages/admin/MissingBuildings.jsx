@@ -1,50 +1,34 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../components/ui/Toast'
 import { useData } from '../../context/DataContext'
-import { scanMissing } from '../../lib/ignBuildings'
+import { runMissingScan, useMissingBuildings } from '../../lib/missingBuildings'
 import { saveTour } from '../../services/tours'
-
-// Dernière recherche, gardée pendant la visite pour ne pas tout recharger à chaque retour sur l'onglet.
-let lastScan = null
 
 // Réglages > Maisons sans bâtiment : les maisons de toutes les tournées dont l'adresse ne
 // tombe sur aucun bâtiment de l'IGN, à placer, à garder telles quelles ou à retirer.
-export default function MissingBuildings({ onCount }) {
+export default function MissingBuildings() {
   const { tours, toursById } = useData()
   const toast = useToast()
   const navigate = useNavigate()
-  const [scan, setScan] = useState(lastScan)
-  const [progress, setProgress] = useState(null)
-
-  const run = async () => {
-    setProgress({ done: 0, total: 0 })
-    try {
-      const res = await scanMissing(tours ?? [], (done, total) => setProgress({ done, total }))
-      lastScan = { ...res, ids: res.missing.map(({ tour, house }) => [tour.id, house.id, house.lng, house.lat]) }
-      setScan(lastScan)
-    } finally {
-      setProgress(null)
-    }
-  }
+  const { scan, progress, rows } = useMissingBuildings(toursById)
+  const run = () => runMissingScan(tours)
   useEffect(() => {
-    if (!lastScan && tours?.length) run()
+    if (!scan && !progress && tours?.length) run()
   }, [tours?.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Liste à jour : les maisons déplacées, gardées ou retirées depuis la recherche disparaissent.
-  const rows = (scan?.ids ?? []).map(([tourId, houseId, lng, lat]) => {
-    const tour = toursById[tourId]
-    const house = tour?.houses?.find((h) => h.id === houseId)
-    return house && !house.noBuilding && house.lng === lng && house.lat === lat ? { tour, house } : null
-  }).filter(Boolean).sort((a, b) => a.tour.number - b.tour.number || String(a.house.label).localeCompare(String(b.house.label), 'fr', { numeric: true }))
   const kept = (tours ?? []).flatMap((tour) => (tour.houses ?? []).filter((h) => h.noBuilding).map((house) => ({ tour, house })))
-  useEffect(() => { onCount?.(scan ? rows.length : null) }, [scan, rows.length, onCount])
 
   const setHouse = (tour, house, change) => {
     const houses = change ? tour.houses.map((h) => (h.id === house.id ? change(h) : h)) : tour.houses.filter((h) => h.id !== house.id)
     return saveTour(tour.id, { houses }).catch((err) => toast(`Erreur : ${err.message}`))
   }
-  const place = ({ tour, house }) => navigate(`/admin/tournees/${tour.id}`, { state: { edit: true, move: true, houseId: house.id } })
+  // Placement guidé : toutes les maisons de la tournée à la suite, en commençant par celle-ci.
+  const place = ({ tour, house }) => {
+    const ids = rows.filter((r) => r.tour.id === tour.id).map((r) => r.house.id)
+    navigate(`/admin/tournees/${tour.id}`, { state: { edit: true, guideIds: house ? [house.id, ...ids.filter((id) => id !== house.id)] : ids } })
+  }
+  const byTour = [...new Map(rows.map((r) => [r.tour.id, r.tour])).values()]
   const keep = ({ tour, house }) => setHouse(tour, house, (h) => ({ ...h, noBuilding: true })).then(() => toast(`« ${house.label} » ne sera plus signalée`))
   const remove = ({ tour, house }) => window.confirm(`Retirer « ${house.label} » de la tournée n°${tour.number} ?`) && setHouse(tour, house).then(() => toast(`« ${house.label} » retirée`))
   const restore = ({ tour, house }) => setHouse(tour, house, ({ noBuilding, ...h }) => h) // eslint-disable-line no-unused-vars
@@ -67,13 +51,25 @@ export default function MissingBuildings({ onCount }) {
 
       {scan && (
         <div className="card stack">
-          <h2>{rows.length ? `${rows.length} maison${rows.length > 1 ? 's' : ''} à traiter` : 'Aucune maison à traiter'}</h2>
+          <h2>{rows.length ? `${rows.length} maison${rows.length > 1 ? 's' : ''} à traiter` : '✅ Aucune maison à traiter'}</h2>
+          {rows.length > 0 && (
+            <div className="mission-start">
+              <strong>🎯 Mission placement</strong>
+              <span className="small">La carte passe en photo satellite et va sur chaque maison, l’une après l’autre. Tu touches son toit, tu valides, et on passe à la suivante.</span>
+              <div className="row wrap">
+                {byTour.map((t) => {
+                  const n = rows.filter((r) => r.tour.id === t.id).length
+                  return <button key={t.id} type="button" className="btn-primary" onClick={() => place({ tour: t })}><span className="tour-dot" style={{ background: t.color }}>{t.number}</span> {n} maison{n > 1 ? 's' : ''}</button>
+                })}
+              </div>
+            </div>
+          )}
           <ul className="plain-list missing-list">
             {rows.map((r) => (
               <li key={r.house.id} className="row wrap">
                 <span className="tour-dot" style={{ background: r.tour.color }}>{r.tour.number}</span>
                 <span className="spacer"><strong>{r.house.label}</strong> <span className="small muted">{r.house.city ?? ''}</span></span>
-                <button type="button" className="btn-sm btn-primary" onClick={() => place(r)}>📍 Placer sur la carte</button>
+                <button type="button" className="btn-sm btn-primary" onClick={() => place(r)}>📍 Placer</button>
                 <button type="button" className="btn-sm btn-ghost" onClick={() => keep(r)}>Pas de bâtiment, c’est normal</button>
                 <button type="button" className="btn-sm btn-ghost" onClick={() => remove(r)}>🗑️ Retirer</button>
               </li>

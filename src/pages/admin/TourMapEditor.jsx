@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
+import Confetti from '../../components/ui/Confetti'
 import TourMap, { piecesGeoJSON, tourPoints } from '../../components/map/TourMap'
 import { pickStreet, touchTolerance } from '../../components/map/streetPicker'
 import { roadGraph, snapToRoads } from '../../components/map/snapToRoads'
@@ -147,14 +149,18 @@ function ensureEditorLayers(map) {
   map.addLayer({ id: 'adjust', type: 'line', source: 'adjust', layout: { 'line-cap': 'round' }, paint: { 'line-color': '#f97316', 'line-width': 8, 'line-opacity': 0.9 } })
   map.addLayer({ id: 'eraser', type: 'line', source: 'eraser', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#c0492f', 'line-width': 40, 'line-opacity': 0.3 } })
   map.addLayer({ id: 'handles', type: 'circle', source: 'handles', minzoom: 14.5, paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 8, 17, 13], 'circle-color': ['case', ['==', ['get', 'picked'], 1], '#f97316', '#ffffff'], 'circle-stroke-color': '#1f2a24', 'circle-stroke-width': 3 } })
-  map.addLayer({ id: 'guide', type: 'circle', source: 'guide', paint: { 'circle-radius': 26, 'circle-color': 'rgba(192,73,47,0.15)', 'circle-stroke-color': '#c0492f', 'circle-stroke-width': 3 } })
+  map.addLayer({ id: 'guide-link', type: 'line', source: 'guide', filter: ['==', ['get', 'kind'], 'link'], paint: { 'line-color': '#ffffff', 'line-width': 3, 'line-dasharray': [1.5, 1.5] } })
+  map.addLayer({ id: 'guide', type: 'circle', source: 'guide', filter: ['==', ['get', 'kind'], 'now'], paint: { 'circle-radius': 30, 'circle-color': 'rgba(192,73,47,0.18)', 'circle-stroke-color': '#e0412a', 'circle-stroke-width': 4 } })
+  map.addLayer({ id: 'guide-new', type: 'circle', source: 'guide', filter: ['==', ['get', 'kind'], 'new'], paint: { 'circle-radius': 14, 'circle-color': '#22c55e', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 4 } })
   map.addLayer({ id: 'draft-points', type: 'circle', source: 'draft', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 7, 'circle-color': '#0f172a', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } })
 }
 
 // Éditeur plein écran des rues d'une tournée : ajout d'une rue au toucher avec aperçu,
 // tracé qui suit la route, maisons, gomme, et retour arrière.
-export default function TourMapEditor({ tour, onClose, initialHouseId = null, initialMove = false }) {
+export default function TourMapEditor({ tour, onClose, initialHouseId = null, initialMove = false, initialGuideIds = null }) {
   const toast = useToast()
+  const navigate = useNavigate()
+  const [party, setParty] = useState(0)
   const { tours: allTours, statesById } = useData()
   const [tab, setTab] = useState(initialHouseId ? 'houses' : 'trace')
   const [mode, setMode] = useState(null)
@@ -479,12 +485,14 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
     } else if (houseSel) {
       setHouseSel(null)
       setAskGive(false)
-    } else if ((mode === 'move' || guide) && moving) {
+    } else if (guide && moving && !guide.finished) {
+      // Placement guidé : l'endroit touché est proposé, il faut le valider.
+      setGuide((g) => ({ ...g, pending: point }))
+    } else if (mode === 'move' && moving) {
       const loc = locateOnPieces(point[0], point[1], tour.pieces)
       update({ houses: tour.houses.map((h) => (h.id === moving ? { ...h, lng: point[0], lat: point[1], pieceId: loc?.pieceId ?? h.pieceId, along: loc?.along ?? h.along } : h)) })
       setMoving(null)
-      if (guide) nextMissing(moving, guide.done + 1)
-      else toast('Maison déplacée')
+      toast('✅ Maison déplacée')
     } else if (mode === 'add') {
       if (!tour.pieces.length) return toast('Ajoute d’abord une rue dans l’onglet « Tracé des rues ».')
       setNewPoint(e.lngLat)
@@ -566,37 +574,74 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
     map.jumpTo({ center: [h.lng, h.lat], zoom: 18.5 })
   }, [map, initialMove, initialHouseId, tour])
 
-  // Placement guidé : une maison après l'autre, la carte se centre dessus, un toucher la place.
-  const goGuide = (house, done, skipped) => {
+  // Placement guidé : une maison après l'autre, en photo satellite. La carte se centre
+  // sur la maison, on touche son toit, on valide, et la suivante s'affiche.
+  // `queue` : la liste venue des réglages ; sinon les maisons signalées dans la vue.
+  const goGuide = (house, done, skipped, queue) => {
     if (tab !== 'houses') chooseTab('houses')
     setHouseSel(null)
     setMode(null)
     setMoving(house.id)
-    setGuide((g) => ({ id: house.id, label: house.label, done, skipped, total: g?.total ?? missing?.length ?? 1 }))
-    map.easeTo({ center: [house.lng, house.lat], zoom: Math.max(map.getZoom(), 18.5) })
+    setGuide((g) => {
+      const q = queue ?? g?.queue ?? null
+      return { id: house.id, label: house.label, done, skipped, queue: q, placed: g?.placed ?? [], total: q?.length ?? g?.total ?? missing?.length ?? 1, pending: null }
+    })
+    map.easeTo({ center: [house.lng, house.lat], zoom: Math.max(map.getZoom(), 19) })
   }
   const nextMissing = (afterId, done, skipped = guide?.skipped ?? []) => {
-    const left = (missing ?? []).filter((h) => h.id !== afterId && !skipped.includes(h.id))
+    const pool = guide?.queue
+      ? guide.queue.map((id) => tourRef.current.houses.find((h) => h.id === id)).filter(Boolean)
+      : (missing ?? [])
+    const left = pool.filter((h) => h.id !== afterId && !skipped.includes(h.id) && !(guide?.placed ?? []).includes(h.id))
     if (!left.length) {
-      setGuide(null)
       setMoving(null)
-      return toast(done ? `✅ ${done} maison${done > 1 ? 's' : ''} placée${done > 1 ? 's' : ''}` : 'Placement terminé')
+      setParty(Date.now())
+      return setGuide((g) => ({ ...g, finished: true, done, pending: null }))
     }
     goGuide(left[0], done, skipped)
   }
+  const confirmPlace = () => {
+    const point = guide.pending
+    const loc = locateOnPieces(point[0], point[1], tour.pieces)
+    update({ houses: tourRef.current.houses.map((h) => (h.id === guide.id ? { ...h, lng: point[0], lat: point[1], pieceId: loc?.pieceId ?? h.pieceId, along: loc?.along ?? h.along } : h)) })
+    setParty(Date.now())
+    toast(`✅ ${guide.label} placée`)
+    setGuide((g) => ({ ...g, placed: [...(g.placed ?? []), g.id] }))
+    nextMissing(guide.id, guide.done + 1)
+  }
   const showMissing = () => {
     const h = missing?.[0]
-    if (h) goGuide(h, 0, [])
+    if (h) goGuide(h, 0, [], null)
   }
   const stopGuide = () => {
     setGuide(null)
     setMoving(null)
   }
+  // Arrivée depuis Réglages > Maisons sans bâtiment : la mission démarre sur la liste reçue.
+  const guidedOnce = useRef(false)
+  useEffect(() => {
+    if (!map || !initialGuideIds?.length || guidedOnce.current) return
+    const first = tour.houses.find((h) => initialGuideIds.includes(h.id))
+    if (!first) return
+    guidedOnce.current = true
+    const queue = initialGuideIds.filter((id) => tour.houses.some((h) => h.id === id))
+    goGuide(tour.houses.find((h) => h.id === queue[0]), 0, [], queue)
+  }, [map, initialGuideIds, tour]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!map) return
     ensureEditorLayers(map)
-    const h = tour.houses.find((x) => x.id === (guide?.id ?? moving))
-    setGeoJSON(map, 'guide', { type: 'FeatureCollection', features: h ? [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [h.lng, h.lat] } }] : [] })
+    const h = !guide?.finished && tour.houses.find((x) => x.id === (guide?.id ?? moving))
+    const p = guide?.pending
+    setGeoJSON(map, 'guide', {
+      type: 'FeatureCollection',
+      features: !h ? [] : [
+        { type: 'Feature', properties: { kind: 'now' }, geometry: { type: 'Point', coordinates: [h.lng, h.lat] } },
+        ...(p ? [
+          { type: 'Feature', properties: { kind: 'link' }, geometry: { type: 'LineString', coordinates: [[h.lng, h.lat], p] } },
+          { type: 'Feature', properties: { kind: 'new' }, geometry: { type: 'Point', coordinates: p } },
+        ] : []),
+      ],
+    })
   }, [map, guide, moving, tour])
 
   const onHouseClick = (props) => {
@@ -657,7 +702,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
   return createPortal(
     <div className="editor">
       <TourMap
-        satelliteSwitch tours={tours} statesById={statesById} flat focusTourId={tab === 'houses' ? tour.id : null} autoFit={false}
+        satelliteSwitch forceLook={guide ? 'satellite' : null} tours={tours} statesById={statesById} flat focusTourId={tab === 'houses' ? tour.id : null} autoFit={false}
         showHouses={showHouses} streetLabels areas={mapAreas}
         fitPadding={{ top: 170, bottom: 230, left: 40, right: 60 }}
         onMapClick={onMapClick}
@@ -697,19 +742,40 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
       ))}
 
       <div className="editor-bottom">
-        {guide ? (
-          <div className="editor-confirm guide-box">
-            <strong>🎯 Maison {guide.done + guide.skipped.length + 1} sur {guide.total} : {guide.label}</strong>
-            <div className="mission-bar"><i style={{ width: `${(100 * guide.done) / guide.total}%` }} /></div>
-            <ol className="small guide-steps">
-              <li>Repère la maison sur le plan, dans le cercle rouge (son toit, ou l’endroit où elle est).</li>
-              <li><b>Touche cet endroit</b> : la maison s’y place et la suivante s’affiche.</li>
-            </ol>
+        {guide?.finished ? (
+          <div className="editor-confirm guide-box guide-done">
+            <strong className="guide-title">🏆 Mission terminée !</strong>
+            <span>{guide.done ? `${guide.done} maison${guide.done > 1 ? 's' : ''} placée${guide.done > 1 ? 's' : ''} sur ${guide.total}` : 'Aucune maison placée'}{guide.skipped.length ? `, ${guide.skipped.length} laissée${guide.skipped.length > 1 ? 's' : ''} de côté` : ''}.</span>
             <div className="row">
-              <button type="button" className="spacer" onClick={() => nextMissing(guide.id, guide.done, [...guide.skipped, guide.id])}>Passer cette maison</button>
-              <button type="button" className="spacer" title="Elle ne sera plus signalée" onClick={() => { update({ houses: tourRef.current.houses.map((h) => (h.id === guide.id ? { ...h, noBuilding: true } : h)) }); nextMissing(guide.id, guide.done, [...guide.skipped, guide.id]) }}>Pas de bâtiment, c’est normal</button>
+              {guide.queue && <button type="button" className="btn-primary spacer" onClick={() => { onClose(); navigate('/admin/reglages', { state: { tab: 'missing' } }) }}>Retour à la liste</button>}
+              <button type="button" className="spacer" onClick={stopGuide}>Continuer ici</button>
+            </div>
+          </div>
+        ) : guide ? (
+          <div className="editor-confirm guide-box">
+            <div className="row">
+              <strong className="guide-title spacer">🎯 Maison {guide.done + guide.skipped.length + 1} sur {guide.total}</strong>
               <button type="button" className="btn-sm btn-ghost" onClick={stopGuide}>Arrêter</button>
             </div>
+            <div className="mission-bar"><i style={{ width: `${(100 * guide.done) / guide.total}%` }} /></div>
+            <strong className="guide-house">🏠 {guide.label}</strong>
+            {guide.pending ? (
+              <>
+                <div className="guide-step guide-step-ok"><b>2</b><span>Le point vert est le nouvel emplacement. C’est bien le toit de la maison ?</span></div>
+                <div className="row">
+                  <button type="button" className="btn-primary btn-big spacer" onClick={confirmPlace}>✅ Oui, valider</button>
+                  <button type="button" className="spacer" onClick={() => setGuide((g) => ({ ...g, pending: null }))}>↺ Choisir ailleurs</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="guide-step"><b>1</b><span>Sur la photo, le cercle rouge montre où l’adresse est placée. Trouve le toit de la maison, souvent tout près, et <b>touche-le</b>.</span></div>
+                <div className="row">
+                  <button type="button" className="btn-sm spacer" onClick={() => nextMissing(guide.id, guide.done, [...guide.skipped, guide.id])}>Je ne sais pas, passer</button>
+                  <button type="button" className="btn-sm spacer" title="Elle ne sera plus signalée" onClick={() => { update({ houses: tourRef.current.houses.map((h) => (h.id === guide.id ? { ...h, noBuilding: true } : h)) }); toast('Gardée sans bâtiment'); nextMissing(guide.id, guide.done, [...guide.skipped, guide.id]) }}>Pas de bâtiment, c’est normal</button>
+                </div>
+              </>
+            )}
           </div>
         ) : houseSel && houseSel.tourId !== tour.id ? (
           <div className="editor-confirm house-edit">
@@ -794,6 +860,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
           </div>
         ))}
       </nav>
+      <Confetti trigger={party} />
       {newPoint && <AddHouseSheet tour={tour} point={newPoint} onAdd={(house) => update({ houses: [...tourRef.current.houses, house] })} onClose={() => setNewPoint(null)} />}
     </div>,
     document.body,

@@ -192,7 +192,7 @@ function ensureLabelLayer(map) {
 }
 
 // Carte d'une ou plusieurs tournées : rues tracées et maisons colorées par statut.
-export default function TourMap({ tours, statesById, focusPieceId = null, focusTourId = null, onHouseClick, onMapClick, onReady, flat = false, fitPadding = 50, expandable = false, showMe = false, showHouses = true, showProgress = false, showLabels = false, streetLabels = false, autoFit = true, areas = null, outline = null, satelliteSwitch = false, selectedHouseId = null, className = '' }) {
+export default function TourMap({ tours, statesById, focusPieceId = null, focusTourId = null, onHouseClick, onMapClick, onReady, flat = false, fitPadding = 50, expandable = false, showMe = false, showHouses = true, showProgress = false, showLabels = false, streetLabels = false, autoFit = true, areas = null, outline = null, satelliteSwitch = false, selectedHouseId = null, forceLook = null, className = '' }) {
   const containerRef = useRef(null)
   const initial = tourPoints(tours, focusPieceId)
   const map = useMapLibre(containerRef, { initialPoints: initial, flat, fitPadding, geolocate: !showMe })
@@ -389,10 +389,14 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
   }, [map])
 
   // Fond de carte choisi (plan, illustré ou satellite), gardé d'une visite à l'autre.
-  const [look, setLook] = useState(readLook)
+  // `forceLook` : fond imposé le temps d'une tâche (photo satellite pour placer les maisons).
+  const [savedLook, setLook] = useState(readLook)
+  const [lookPick, setLookPick] = useState(null)
+  useEffect(() => setLookPick(null), [forceLook])
+  const look = lookPick ?? forceLook ?? savedLook
   useEffect(() => {
-    if (map) applyLook(map, look)
-  }, [map, look])
+    if (map) applyLook(map, look, !forceLook)
+  }, [map, look, forceLook])
   const [lookOpen, setLookOpen] = useState(false)
 
   return (
@@ -404,7 +408,7 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
           {satelliteSwitch ? (
             <div className="look-switch" role="group" aria-label="Fond de carte">
               {[['plan', '🗺️ Plan'], ['satellite', '🛰️ Satellite']].map(([id, label]) => (
-                <button key={id} type="button" className={(id === 'satellite') === (look === 'satellite') ? 'on' : ''} onClick={() => setLook(id)}>{label}</button>
+                <button key={id} type="button" className={(id === 'satellite') === (look === 'satellite') ? 'on' : ''} onClick={() => (forceLook ? setLookPick(id) : setLook(id))}>{label}</button>
               ))}
             </div>
           ) : (
