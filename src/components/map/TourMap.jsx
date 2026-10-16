@@ -3,7 +3,8 @@ import { bounds, lineLength, pointAt, unflatten } from '../../lib/geo'
 import { tourStats } from '../../lib/stats'
 import { IconGps } from '../ui/Icons'
 import { dwellingKey } from '../../services/state'
-import { LIT_COLORS, drawLitHouses, litHouses } from './houseBuildings'
+import { LIT_COLORS, SELECTED_COLOR, drawLitHouses, litHouses } from './houseBuildings'
+import { loadIgnForBounds, onIgnLoaded } from '../../lib/ignBuildings'
 import { addStatusIcons } from './icons'
 import { LOOKS, applyLook, readLook } from './mapLook'
 import { circlePolygon, pieceLabels, villagesOf } from '../../lib/places'
@@ -191,7 +192,7 @@ function ensureLabelLayer(map) {
 }
 
 // Carte d'une ou plusieurs tournées : rues tracées et maisons colorées par statut.
-export default function TourMap({ tours, statesById, focusPieceId = null, focusTourId = null, onHouseClick, onMapClick, onReady, flat = false, fitPadding = 50, expandable = false, showMe = false, showHouses = true, showProgress = false, showLabels = false, streetLabels = false, autoFit = true, areas = null, outline = null, satelliteSwitch = false, className = '' }) {
+export default function TourMap({ tours, statesById, focusPieceId = null, focusTourId = null, onHouseClick, onMapClick, onReady, flat = false, fitPadding = 50, expandable = false, showMe = false, showHouses = true, showProgress = false, showLabels = false, streetLabels = false, autoFit = true, areas = null, outline = null, satelliteSwitch = false, selectedHouseId = null, className = '' }) {
   const containerRef = useRef(null)
   const initial = tourPoints(tours, focusPieceId)
   const map = useMapLibre(containerRef, { initialPoints: initial, flat, fitPadding, geolocate: !showMe })
@@ -260,7 +261,9 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
     const run = () => {
       if (!map.getLayer('houses')) return
       const on = showHouses
-      const { lit, features, sig } = on ? litHouses(map, housesRef.current?.features ?? []) : { lit: new Set(), features: [], sig: '' }
+      // Bâtiments de l'IGN de la zone affichée (pour ceux qui manquent au fond de carte).
+      if (on && map.getZoom() >= 14.5) loadIgnForBounds(map.getBounds())
+      const { lit, features, sig } = on ? litHouses(map, housesRef.current?.features ?? [], selectedHouseId) : { lit: new Set(), features: [], sig: '' }
       if (sig !== litSig.current.sig) {
         litSig.current.sig = sig
         drawLitHouses(map, features)
@@ -276,11 +279,26 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
     const later = () => { clearTimeout(timer); timer = setTimeout(run, 120) }
     run()
     map.on('idle', later)
+    const offIgn = onIgnLoaded(later)
     return () => {
       clearTimeout(timer)
       map.off('idle', later)
+      offIgn()
     }
-  }, [map, tours, statesById, focusPieceId, focusTourId, showHouses])
+  }, [map, tours, statesById, focusPieceId, focusTourId, showHouses, selectedHouseId])
+
+  // Maison touchée : un anneau violet autour d'elle, en plus de son bâtiment allumé en violet.
+  useEffect(() => {
+    if (!map || (!selectedHouseId && !map.getSource('selected-house'))) return
+    const f = housesRef.current?.features.find((x) => x.properties.houseId === selectedHouseId)
+    setGeoJSON(map, 'selected-house', { type: 'FeatureCollection', features: f ? [f] : [] })
+    if (!map.getLayer('selected-house')) {
+      map.addLayer({
+        id: 'selected-house', type: 'circle', source: 'selected-house',
+        paint: { 'circle-radius': 20, 'circle-color': SELECTED_COLOR, 'circle-opacity': 0.18, 'circle-stroke-color': SELECTED_COLOR, 'circle-stroke-width': 4 },
+      }, map.getLayer('houses') ? 'houses' : undefined)
+    }
+  }, [map, selectedHouseId, tours])
 
   // Recentrage quand on change de morceau.
   const lastFocus = useRef(focusPieceId)

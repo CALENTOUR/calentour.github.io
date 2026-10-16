@@ -13,6 +13,7 @@ import { chainLines, distance, flatten, lineLength, projectOnLine, samplePoints,
 import { tourAreas } from '../../lib/places'
 import { addFoundHouses, locateOnPieces, searchHouses } from '../../lib/tourBuilder'
 import { housesWithoutBuilding } from '../../components/map/houseBuildings'
+import { onIgnLoaded } from '../../lib/ignBuildings'
 import { withUnits } from '../../lib/logements'
 import { saveTour } from '../../services/tours'
 
@@ -152,7 +153,7 @@ function ensureEditorLayers(map) {
 
 // Éditeur plein écran des rues d'une tournée : ajout d'une rue au toucher avec aperçu,
 // tracé qui suit la route, maisons, gomme, et retour arrière.
-export default function TourMapEditor({ tour, onClose, initialHouseId = null }) {
+export default function TourMapEditor({ tour, onClose, initialHouseId = null, initialMove = false }) {
   const toast = useToast()
   const { tours: allTours, statesById } = useData()
   const [tab, setTab] = useState(initialHouseId ? 'houses' : 'trace')
@@ -545,8 +546,25 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
     const run = () => setMissing(housesWithoutBuilding(map, tourRef.current.houses))
     run()
     map.on('idle', run)
-    return () => map.off('idle', run)
+    const offIgn = onIgnLoaded(run)
+    return () => {
+      map.off('idle', run)
+      offIgn()
+    }
   }, [map, tour])
+
+  // Arrivée depuis Réglages > Maisons sans bâtiment : la carte va sur la maison, prête à la déplacer.
+  const placedOnce = useRef(false)
+  useEffect(() => {
+    const h = initialMove && tour.houses.find((x) => x.id === initialHouseId)
+    if (!map || !h || placedOnce.current) return
+    placedOnce.current = true
+    setHouseSel(null)
+    setTab('houses')
+    setMode('move')
+    setMoving(h.id)
+    map.jumpTo({ center: [h.lng, h.lat], zoom: 18.5 })
+  }, [map, initialMove, initialHouseId, tour])
 
   // Placement guidé : une maison après l'autre, la carte se centre dessus, un toucher la place.
   const goGuide = (house, done, skipped) => {
@@ -577,9 +595,9 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
   useEffect(() => {
     if (!map) return
     ensureEditorLayers(map)
-    const h = guide && tour.houses.find((x) => x.id === guide.id)
+    const h = tour.houses.find((x) => x.id === (guide?.id ?? moving))
     setGeoJSON(map, 'guide', { type: 'FeatureCollection', features: h ? [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [h.lng, h.lat] } }] : [] })
-  }, [map, guide, tour])
+  }, [map, guide, moving, tour])
 
   const onHouseClick = (props) => {
     const house = tour.houses.find((h) => h.id === props.houseId)
@@ -689,6 +707,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null }) 
             </ol>
             <div className="row">
               <button type="button" className="spacer" onClick={() => nextMissing(guide.id, guide.done, [...guide.skipped, guide.id])}>Passer cette maison</button>
+              <button type="button" className="spacer" title="Elle ne sera plus signalée" onClick={() => { update({ houses: tourRef.current.houses.map((h) => (h.id === guide.id ? { ...h, noBuilding: true } : h)) }); nextMissing(guide.id, guide.done, [...guide.skipped, guide.id]) }}>Pas de bâtiment, c’est normal</button>
               <button type="button" className="btn-sm btn-ghost" onClick={stopGuide}>Arrêter</button>
             </div>
           </div>

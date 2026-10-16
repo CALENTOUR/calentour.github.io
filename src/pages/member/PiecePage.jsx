@@ -109,6 +109,7 @@ export default function PiecePage() {
         fitPadding={FIT_PADDING}
         showMe
         streetLabels
+        selectedHouseId={openHouse?.id ?? null}
         onHouseClick={adding ? undefined : (p) => { const house = tour.houses.find((x) => x.id === p.houseId); if (!house) return; if (focus && house.pieceId !== focus) choosePiece(house.pieceId); else goTo(house) }}
         onMapClick={onMapClick}
         onReady={(m) => { mapRef.current = m }}
