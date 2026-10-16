@@ -362,7 +362,7 @@ label { display: flex; flex-direction: column; gap: .3rem; font-weight: 700; fon
 /* ---------- Éditeur des rues ---------- */
 .editor { position: fixed; inset: 0; z-index: 65; background: var(--bg); }
 .editor-map { position: absolute; inset: 0; }
-.editor .map-btns { top: auto; bottom: 150px; }
+.editor .map-btns { top: auto; bottom: 150px; left: auto; right: 12px; }
 .editor .maplibregl-ctrl-top-right { top: calc(64px + var(--safe-top)); }
 .editor .maplibregl-ctrl-group button { width: 44px; height: 44px; }
 .editor-top {
@@ -1069,9 +1069,15 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 
 /* Éditeur : outils des rues en colonne à gauche, des maisons à droite (blanc bordé de bleu). */
 .editor-side { position: absolute; top: 150px; z-index: 4; display: flex; flex-direction: column; gap: 6px; width: 84px; padding: 6px; background: #fff; border: 2px solid #2d5f8a; border-radius: 14px; box-shadow: var(--shadow); }
-.editor-side.side-trace { left: 12px; }
-.editor-side.side-houses { right: 64px; }
-.editor-side > strong { text-align: center; font-size: .8rem; font-weight: 800; color: #fff; background: #2d5f8a; border-radius: 8px; padding: 4px 0; }
+.editor-side { left: 12px; max-height: calc(100% - 250px); overflow-y: auto; }
+/* Consigne de l'outil choisi : bien visible, aux couleurs du bouton actif. */
+.editor-instruction { align-items: flex-start; background: #fff3e8; border: 2px solid #f97316; border-radius: 10px; padding: .5rem .65rem; color: #5a2c06; font-size: .95rem; animation: flash-in .35s ease; }
+@keyframes flash-in { from { opacity: 0; transform: translateY(6px); box-shadow: 0 0 0 6px rgba(249,115,22,.35); } }
+.editor-instruction-title { display: flex; align-items: center; gap: .4rem; color: #b4520a; font-size: 1rem; margin-bottom: .15rem; }
+.editor-instruction-title svg { width: 20px; height: 20px; }
+.editor-side-group { display: flex; flex-direction: column; gap: 6px; }
+.editor-side-group + .editor-side-group { margin-top: 4px; padding-top: 6px; border-top: 2px solid #c9d6e3; }
+.editor-side strong { text-align: center; font-size: .8rem; font-weight: 800; color: #fff; background: #2d5f8a; border-radius: 8px; padding: 4px 0; }
 .editor-side button { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 54px; padding: 6px 2px; border: 1.5px solid #c9d6e3; border-radius: 10px; background: #fff; color: #2d5f8a; font-size: .72rem; font-weight: 700; line-height: 1.1; text-align: center; }
 .editor-side button.on { background: #fff3e8; border-color: #f97316; color: #b4520a; }
 .mission-bar { height: 8px; background: #f3d6d2; border-radius: 999px; overflow: hidden; margin: .3rem 0; }
@@ -1079,8 +1085,8 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .missing-box { top: auto; bottom: 150px; right: 160px; }
 @media (max-width: 700px) {
   .editor-side { width: 64px; top: 140px; padding: 4px; }
-  .editor-side.side-houses { right: 8px; top: 330px; }
-  .editor-side.side-trace { left: 8px; }
+  .editor-side { left: 8px; gap: 4px; }
+  .editor-side-group { gap: 4px; }
   .editor-side button { min-height: 48px; font-size: .62rem; }
   .missing-box { right: 80px; left: 80px; bottom: 140px; max-width: none; }
 }
@@ -1092,7 +1098,7 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .missing-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; text-align: center; font-size: .8rem; }
 .missing-steps li { background: #fbeeec; border-radius: 10px; padding: .5rem .3rem; }
 .missing-steps b { display: block; width: 24px; height: 24px; margin: 0 auto .25rem; border-radius: 50%; background: #c0392b; color: #fff; line-height: 24px; }
-@media (max-width: 700px) { .editor-side > strong { font-size: .62rem; } }
+@media (max-width: 700px) { .editor-side strong { font-size: .62rem; } }
 
 /* Binôme : plus de barre du bas, un interrupteur « Tournée / Bilan » dans le bandeau du haut. */
 .shell-member { --tabbar-h: 0px; }
@@ -1171,3 +1177,8 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .day-col { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 52px; }
 .day-col small { font-size: .72rem; color: var(--muted); white-space: nowrap; }
 .day-col-bar { width: 32px; border-radius: 8px 8px 3px 3px; background: linear-gradient(#5f9d5b, #3f7a3c); }
+
+/* Cartes admin : choix direct entre plan et satellite. */
+.look-switch { display: flex; padding: 3px; gap: 2px; background: var(--card); border: 1px solid var(--border); border-radius: 11px; box-shadow: var(--float); }
+.map-btns .look-switch button { min-height: 34px; padding: 0 .65rem; border: none; box-shadow: none; border-radius: 8px; background: transparent; font-weight: 800; font-size: .8rem; color: var(--ink); }
+.map-btns .look-switch button.on { background: #2d5f8a; color: #fff; }

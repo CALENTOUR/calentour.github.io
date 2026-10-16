@@ -229,6 +229,7 @@ export default function ToursMapPage() {
   return (
     <div className={`fullmap tours-map${panelOpen ? ' panel-open' : ''}${full ? ' is-full' : ''}${selected ? ' has-float' : ''}`}>
       <TourMap
+        satelliteSwitch
         tours={shown} statesById={statesById} focusTourId={selected?.id ?? null} autoFit={false}
         showHouses={showHouses} showProgress={showProgress} showLabels areas={mapAreas} outline={village?.outline ?? null}
         fitPadding={{ top: 80, bottom: 60, left: 30, right: 60 }}

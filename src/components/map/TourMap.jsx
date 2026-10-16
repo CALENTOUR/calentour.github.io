@@ -191,7 +191,7 @@ function ensureLabelLayer(map) {
 }
 
 // Carte d'une ou plusieurs tournées : rues tracées et maisons colorées par statut.
-export default function TourMap({ tours, statesById, focusPieceId = null, focusTourId = null, onHouseClick, onMapClick, onReady, flat = false, fitPadding = 50, expandable = false, showMe = false, showHouses = true, showProgress = false, showLabels = false, streetLabels = false, autoFit = true, areas = null, outline = null, className = '' }) {
+export default function TourMap({ tours, statesById, focusPieceId = null, focusTourId = null, onHouseClick, onMapClick, onReady, flat = false, fitPadding = 50, expandable = false, showMe = false, showHouses = true, showProgress = false, showLabels = false, streetLabels = false, autoFit = true, areas = null, outline = null, satelliteSwitch = false, className = '' }) {
   const containerRef = useRef(null)
   const initial = tourPoints(tours, focusPieceId)
   const map = useMapLibre(containerRef, { initialPoints: initial, flat, fitPadding, geolocate: !showMe })
@@ -383,7 +383,15 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
       {map && (
         <div className="map-btns">
           <button type="button" className="map-btn-sq" onClick={() => toggle3D(map)} aria-label={is3D ? 'Passer en vue 2D' : 'Passer en vue 3D'} title={is3D ? 'Vue 2D' : 'Vue 3D'}>{is3D ? '2D' : '3D'}</button>
-          <button type="button" className={`map-btn-sq map-btn-look look-${look}`} onClick={() => setLookOpen((o) => !o)} aria-label="Changer le fond de carte" title="Fond de carte"><i className="look-thumb" /><span>Fond</span></button>
+          {satelliteSwitch ? (
+            <div className="look-switch" role="group" aria-label="Fond de carte">
+              {[['plan', '🗺️ Plan'], ['satellite', '🛰️ Satellite']].map(([id, label]) => (
+                <button key={id} type="button" className={(id === 'satellite') === (look === 'satellite') ? 'on' : ''} onClick={() => setLook(id)}>{label}</button>
+              ))}
+            </div>
+          ) : (
+            <button type="button" className={`map-btn-sq map-btn-look look-${look}`} onClick={() => setLookOpen((o) => !o)} aria-label="Changer le fond de carte" title="Fond de carte"><i className="look-thumb" /><span>Fond</span></button>
+          )}
           {showMe && <button type="button" className={`map-btn-sq${me ? ' me-on' : ''}`} onClick={goToMe} aria-label="Afficher ma position" title="Ma position"><IconGps width={20} height={20} /></button>}
           {expandable && (
             <button type="button" onClick={() => setFull((f) => !f)} aria-label={full ? 'Quitter le plein écran' : 'Plein écran'}>{full ? '✕ Réduire' : '⛶ Plein écran'}</button>
