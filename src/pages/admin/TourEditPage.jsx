@@ -90,7 +90,7 @@ export default function TourEditPage() {
   const location = useLocation()
   // Une tournée qui vient d'être créée s'ouvre directement dans l'éditeur.
   const [editing, setEditing] = useState(Boolean(location.state?.edit))
-  const [houseToEdit, setHouseToEdit] = useState(null)
+  const [houseToEdit, setHouseToEdit] = useState(location.state?.houseId ?? null)
   const tours = useMemo(() => (tour ? [tour] : []), [tour])
   const [previewHouses, setPreviewHouses] = useState(true)
   const [areaSel, setAreaSel] = useState(null)
@@ -218,7 +218,7 @@ export default function TourEditPage() {
         </div>
         <button type="button" className="btn-danger" onClick={remove}>🗑️ Supprimer</button>
       </div>
-      {editing && <TourMapEditor tour={tour} initialHouseId={houseToEdit} onClose={() => { setHouseToEdit(null); closeEditor() }} />}
+      {editing && <TourMapEditor tour={tour} initialHouseId={houseToEdit} initialMove={Boolean(location.state?.move)} onClose={() => { setHouseToEdit(null); closeEditor() }} />}
     </div>
   )
 }

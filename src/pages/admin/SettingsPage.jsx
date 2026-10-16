@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { setDoc } from 'firebase/firestore'
 import AccessCard from '../../components/AccessCard'
+import MissingBuildings from './MissingBuildings'
 import { useToast } from '../../components/ui/Toast'
 import { exportLabels, exportTours } from '../../lib/exports'
 import { useData } from '../../context/DataContext'
@@ -17,6 +18,8 @@ export default function SettingsPage() {
   const [admin, setAdmin] = useState({ name: '', login: '' })
   const [created, setCreated] = useState(null)
   const [pwd, setPwd] = useState({ current: '', next: '' })
+  const [tab, setTab] = useState('general')
+  const [missingCount, setMissingCount] = useState(null)
 
   const changePassword = async (e) => {
     e.preventDefault()
@@ -58,6 +61,14 @@ export default function SettingsPage() {
   return (
     <div className="page stack-lg">
       <h1>Réglages</h1>
+      <div className="segmented settings-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={tab === 'general'} className={tab === 'general' ? 'on' : ''} onClick={() => setTab('general')}>Général</button>
+        <button type="button" role="tab" aria-selected={tab === 'missing'} className={tab === 'missing' ? 'on' : ''} onClick={() => setTab('missing')}>
+          Maisons sans bâtiment{missingCount ? <span className="tab-count">{missingCount}</span> : null}
+        </button>
+      </div>
+      {tab === 'missing' ? <MissingBuildings onCount={setMissingCount} /> : (
+      <>
 
       <form className="card stack" onSubmit={(e) => { e.preventDefault(); save({ amicale: amicale.trim() }, 'Nom enregistré') }}>
         <h2>Amicale</h2>
@@ -143,6 +154,8 @@ export default function SettingsPage() {
           {!members.length && <li className="muted small">Les accès se créent depuis chaque tournée.</li>}
         </ul>
       </div>
+      </>
+      )}
     </div>
   )
 }

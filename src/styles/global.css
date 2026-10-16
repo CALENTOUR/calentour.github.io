@@ -1182,3 +1182,10 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .look-switch { display: flex; padding: 3px; gap: 2px; background: var(--card); border: 1px solid var(--border); border-radius: 11px; box-shadow: var(--float); }
 .map-btns .look-switch button { min-height: 34px; padding: 0 .65rem; border: none; box-shadow: none; border-radius: 8px; background: transparent; font-weight: 800; font-size: .8rem; color: var(--ink); }
 .map-btns .look-switch button.on { background: #2d5f8a; color: #fff; }
+
+/* Réglages : onglets et liste des maisons sans bâtiment. */
+.settings-tabs { max-width: 560px; }
+.tab-count { display: inline-block; margin-left: .4rem; min-width: 1.4rem; padding: 0 .35rem; border-radius: 999px; background: #c0392b; color: #fff; font-size: .75rem; line-height: 1.4rem; }
+.missing-list li { gap: .4rem; padding: .45rem 0; border-bottom: 1px solid var(--border); }
+.missing-list li:last-child { border-bottom: none; }
+.tour-dot { flex: none; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: #fff; font-size: .75rem; font-weight: 800; }
