@@ -47,8 +47,9 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         navigateFallback: `${BASE}index.html`,
-        // L'application racine ne doit pas intercepter les pages de la démo.
-        navigateFallbackDenylist: BASE === '/' ? [/^\/demo\//] : [],
+        // L'application racine ne doit pas intercepter les pages de la démo,
+        // ni les fichiers ouverts directement (la vidéo de présentation).
+        navigateFallbackDenylist: [...(BASE === '/' ? [/^\/demo\//] : []), /\.mp4$/],
         runtimeCaching: [
           {
             // Style, tuiles vectorielles, polices et sprites OpenFreeMap : la carte
