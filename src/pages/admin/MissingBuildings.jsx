@@ -36,7 +36,7 @@ export default function MissingBuildings() {
   return (
     <div className="stack-lg">
       <div className="card stack">
-        <h2>Maisons sans bâtiment</h2>
+        <h2>Adresses sans bâtiment physique</h2>
         <p className="small muted">
           Adresses qui ne tombent sur aucun bâtiment, ni sur le plan ni au cadastre (bâtiments de l’IGN). Souvent un point d’adresse posé au bout d’un chemin ou au milieu de la rue.
           Pour chacune : la placer sur son toit, la garder telle quelle si c’est normal (elle ne sera plus signalée), ou la retirer.
