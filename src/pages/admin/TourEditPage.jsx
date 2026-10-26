@@ -10,7 +10,7 @@ import { useToast } from '../../components/ui/Toast'
 import { useData } from '../../context/DataContext'
 import { sortHouses } from '../../lib/stats'
 import { mergeSameName } from '../../lib/tourBuilder'
-import { removeTour, saveTour } from '../../services/tours'
+import { removeTour, saveTour, withoutHouse } from '../../services/tours'
 import TourMapEditor from './TourMapEditor'
 import { withUnits } from '../../lib/logements'
 import { authErrorMessage, createAccount, generatePassword, normalizeLogin, updateUser } from '../../services/users'
@@ -124,7 +124,7 @@ export default function TourEditPage() {
     const n = Number.parseInt(answer, 10) || 0
     update({ houses: tour.houses.map((h) => (h === house ? withUnits(h, n) : h)) })
   }
-  const removeHouse = (house) => update({ houses: tour.houses.filter((h) => h !== house) })
+  const removeHouse = (house) => update(withoutHouse(tour, house))
 
   const remove = async () => {
     if (!window.confirm(`Supprimer définitivement la tournée ${tour.number} (${tour.name}) ? Ses rues, ses maisons et ses dons seront supprimés, ses accès désactivés.`)) return
