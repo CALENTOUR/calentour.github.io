@@ -1211,3 +1211,4 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .guide-done { border-color: #16a34a; text-align: center; }
 .guide-done .guide-title { color: #16a34a; font-size: 1.3rem; }
 .give-select{width:auto;max-width:12rem;padding:4px 8px;font-size:.85rem}
+.sub-tabs{max-width:none;font-size:.92rem}

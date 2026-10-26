@@ -24,6 +24,7 @@ export default function SettingsPage() {
   const [pwd, setPwd] = useState({ current: '', next: '' })
   const location = useLocation()
   const [tab, setTab] = useState(location.state?.tab ?? 'general')
+  const [sub, setSub] = useState(location.state?.sub ?? 'missing')
   const { rows: missingRows } = useMissingBuildings(toursById)
   const missingCount = missingRows.length
   const uncoveredCount = useUncoveredHouses(tours).rows.length
@@ -74,7 +75,19 @@ export default function SettingsPage() {
           Maisons à vérifier{missingCount + uncoveredCount ? <span className="tab-count">{missingCount + uncoveredCount}</span> : null}
         </button>
       </div>
-      {tab === 'missing' ? <div className="stack-lg"><UncoveredHouses /><MissingBuildings /></div> : (
+      {tab === 'missing' ? (
+        <div className="stack-lg">
+          <div className="segmented settings-tabs sub-tabs" role="tablist">
+            <button type="button" role="tab" aria-selected={sub === 'missing'} className={sub === 'missing' ? 'on' : ''} onClick={() => setSub('missing')}>
+              Adresses sans bâtiment physique{missingCount ? <span className="tab-count">{missingCount}</span> : null}
+            </button>
+            <button type="button" role="tab" aria-selected={sub === 'uncovered'} className={sub === 'uncovered' ? 'on' : ''} onClick={() => setSub('uncovered')}>
+              Maisons non répertoriées dans une tournée{uncoveredCount ? <span className="tab-count">{uncoveredCount}</span> : null}
+            </button>
+          </div>
+          {sub === 'uncovered' ? <UncoveredHouses /> : <MissingBuildings />}
+        </div>
+      ) : (
       <>
 
       <form className="card stack" onSubmit={(e) => { e.preventDefault(); save({ amicale: amicale.trim() }, 'Nom enregistré') }}>

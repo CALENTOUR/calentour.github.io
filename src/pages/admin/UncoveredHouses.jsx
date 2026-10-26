@@ -8,7 +8,7 @@ import UncoveredMission from './UncoveredMission'
 
 const FAR = 150 // m : au-delà, la maison n'est au bord d'aucune rue tracée
 
-// Réglages > Maisons hors tournée : bâtiments habités des villages des tournées qu'aucune
+// Réglages > Maisons à vérifier > Maisons non répertoriées dans une tournée : bâtiments habités des villages des tournées qu'aucune
 // tournée n'a, à ajouter à une tournée ou à écarter (grange, maison en ruine…).
 export default function UncoveredHouses() {
   const { tours, toursById, statesById } = useData()
@@ -50,7 +50,7 @@ export default function UncoveredHouses() {
   return (
     <div className="stack-lg">
       <div className="card stack">
-        <h2>Maisons hors tournée</h2>
+        <h2>Maisons non répertoriées dans une tournée</h2>
         <p className="small muted">
           Tous les bâtiments habités des communes des tournées (base des bâtiments BDNB), moins ceux qu’une tournée a déjà.
           Ce qui reste n’est dans aucune tournée : une rue oubliée, un écart, une ferme. Ajoute-la à une tournée, ou écarte-la si personne n’y habite.
@@ -66,7 +66,7 @@ export default function UncoveredHouses() {
 
       {buildings && (
         <div className="card stack">
-          <h2>{rows.length ? `${rows.length} maison${rows.length > 1 ? 's' : ''} hors tournée` : '✅ Aucune maison oubliée'}</h2>
+          <h2>{rows.length ? `${rows.length} maison${rows.length > 1 ? 's' : ''} non répertoriée${rows.length > 1 ? 's' : ''}` : '✅ Aucune maison oubliée'}</h2>
           {rows.length > 0 && (
             <div className="mission-start">
               <strong>🎯 Mission maisons oubliées</strong>
