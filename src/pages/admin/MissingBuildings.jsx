@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../components/ui/Toast'
 import { useData } from '../../context/DataContext'
 import { runMissingScan, useMissingBuildings } from '../../lib/missingBuildings'
-import { saveTour } from '../../services/tours'
+import { saveTour, withoutHouse } from '../../services/tours'
 
 // Réglages > Maisons sans bâtiment : les maisons de toutes les tournées dont l'adresse ne
 // tombe sur aucun bâtiment de l'IGN, à placer, à garder telles quelles ou à retirer.
@@ -20,8 +20,8 @@ export default function MissingBuildings() {
   const kept = (tours ?? []).flatMap((tour) => (tour.houses ?? []).filter((h) => h.noBuilding).map((house) => ({ tour, house })))
 
   const setHouse = (tour, house, change) => {
-    const houses = change ? tour.houses.map((h) => (h.id === house.id ? change(h) : h)) : tour.houses.filter((h) => h.id !== house.id)
-    return saveTour(tour.id, { houses }).catch((err) => toast(`Erreur : ${err.message}`))
+    const data = change ? { houses: tour.houses.map((h) => (h.id === house.id ? change(h) : h)) } : withoutHouse(tour, house)
+    return saveTour(tour.id, data).catch((err) => toast(`Erreur : ${err.message}`))
   }
   // Placement guidé : toutes les maisons de la tournée à la suite, en commençant par celle-ci.
   const place = ({ tour, house }) => {

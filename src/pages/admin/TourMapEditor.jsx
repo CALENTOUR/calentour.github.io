@@ -17,7 +17,7 @@ import { addFoundHouses, locateOnPieces, searchHouses } from '../../lib/tourBuil
 import { housesWithoutBuilding } from '../../components/map/houseBuildings'
 import { onIgnLoaded } from '../../lib/ignBuildings'
 import { withUnits } from '../../lib/logements'
-import { saveTour } from '../../services/tours'
+import { saveTour, withoutHouse } from '../../services/tours'
 
 // Une colonne d'outils à gauche de la carte : les rues, puis les maisons en dessous. Retoucher l'outil choisi le désélectionne : la main revient, pour se déplacer.
 const svg = (d) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>
@@ -542,7 +542,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
       const loc = locateOnPieces(house.lng, house.lat, target.pieces ?? [])
       saveTour(target.id, { houses: [...target.houses, { ...house, pieceId: loc?.pieceId ?? null, along: loc?.along ?? 0 }] }).catch((err) => toast(`Erreur : ${err.message}`))
     }
-    update({ houses: tour.houses.filter((h) => h.id !== house.id) })
+    update(target ? { houses: tour.houses.filter((h) => h.id !== house.id) } : withoutHouse(tour, house))
     setHouseSel(null)
     setAskGive(false)
     toast(target ? `« ${house.label} » attribuée à la tournée n°${target.number}` : `« ${house.label} » supprimée`)
@@ -646,7 +646,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
 
   const onHouseClick = (props) => {
     const house = tour.houses.find((h) => h.id === props.houseId)
-    if (house && window.confirm(`Retirer « ${house.label} » ?`)) update({ houses: tour.houses.filter((h) => h.id !== house.id) })
+    if (house && window.confirm(`Retirer « ${house.label} » ?`)) update(withoutHouse(tour, house))
   }
 
   const confirmPreview = (only) => {

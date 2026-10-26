@@ -11,6 +11,16 @@ export function saveTour(id, data) {
   return setDoc(tourRef(id), { ...data, updatedAt: serverTimestamp() }, { merge: true })
 }
 
+// Retire une maison de la tournée et retient ses identifiants d'adresse et de bâtiment,
+// pour que la vérification des adresses ne la rajoute pas toute seule plus tard.
+export function withoutHouse(tour, house) {
+  const ids = [house.banId, house.bdnb].filter(Boolean)
+  return {
+    houses: tour.houses.filter((h) => h.id !== house.id),
+    ...(ids.length ? { skipBan: [...new Set([...(tour.skipBan ?? []), ...ids])] } : {}),
+  }
+}
+
 export function deleteTour(id) {
   return deleteDoc(tourRef(id))
 }
