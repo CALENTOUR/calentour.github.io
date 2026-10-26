@@ -15,6 +15,7 @@ import { autoCountUnits } from '../lib/logements'
 import { autoCheckAddresses, needsCheck } from '../lib/addressCheck'
 import { useToast } from './ui/Toast'
 import { runMissingScan, useMissingBuildings } from '../lib/missingBuildings'
+import { useUncoveredHouses } from '../lib/uncoveredHouses'
 
 const MEMBER_NAV = [
   { to: '/tournee', icon: <IconTour />, label: 'Ma tournée', short: 'Ma tournée', sub: 'rues et maisons' },
@@ -25,7 +26,10 @@ const ADMIN_NAV = [
   { to: '/admin', icon: <IconPie />, tone: 'green', label: 'Tableau de bord', short: 'Bilan', end: true, stat: (g) => `${formatPercent(g.progress)} fait` },
   { to: '/admin/carte', icon: <IconMap />, tone: 'brand', label: 'Tournées', stat: (g, n) => `${n} binôme${n > 1 ? 's' : ''}` },
   { to: '/admin/dons', icon: <IconCash />, tone: 'ocre', label: 'Dons', stat: (g) => formatEuro(g.amount) },
-  { to: '/admin/reglages', icon: <IconSliders />, tone: 'blue', label: 'Réglages', stat: (g, n, missing) => (missing ? `${missing} maison${missing > 1 ? 's' : ''} sans bâtiment` : 'Accès, export'), badge: (missing) => missing },
+  { to: '/admin/reglages', icon: <IconSliders />, tone: 'blue', label: 'Réglages', stat: (g, n, todo) => [
+    todo.missing && `${todo.missing} sans bâtiment`,
+    todo.uncovered && `${todo.uncovered} hors tournée`,
+  ].filter(Boolean).join(', ') || 'Accès, export', badge: (todo) => todo.missing + todo.uncovered },
 ]
 
 export default function Layout() {
@@ -34,6 +38,9 @@ export default function Layout() {
   // Maisons sans bâtiment : recherchées une fois par visite, pour la pastille rouge de Réglages.
   const { rows: missingRows, scan: missingScan } = useMissingBuildings(toursById)
   const missing = missingRows.length
+  // Maisons hors tournée : connues une fois l'onglet des réglages ouvert.
+  const uncovered = useUncoveredHouses(isAdmin ? tours : null).rows.length
+  const todo = { missing, uncovered }
   useEffect(() => {
     if (!isAdmin || missingScan || !tours?.length) return undefined
     const timer = setTimeout(() => runMissingScan(tours), 6000)
@@ -85,8 +92,8 @@ export default function Layout() {
           {nav.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className={`side-tile tone-${n.tone}`}>
               <span className="side-tile-icon">{n.icon}</span>
-              <span className="side-tile-text"><strong>{n.label}</strong><small>{n.stat(global, tours.length, missing)}</small></span>
-              {n.badge?.(missing) ? <span className="nav-badge" title="Maisons sans bâtiment">{n.badge(missing)}</span> : null}
+              <span className="side-tile-text"><strong>{n.label}</strong><small>{n.stat(global, tours.length, todo)}</small></span>
+              {n.badge?.(todo) ? <span className="nav-badge" title="Maisons à traiter">{n.badge(todo)}</span> : null}
             </NavLink>
           ))}
           <div className="side-goal">
@@ -109,7 +116,7 @@ export default function Layout() {
       )}
       {isAdmin && <nav className="tabbar">
         {nav.map((n) => (
-          <NavLink key={n.to} to={n.to} end={n.end} className={`tab${n.tone ? ` tone-${n.tone}` : ''}`}><span className="tab-icon">{n.icon}{n.badge?.(missing) ? <span className="nav-badge">{n.badge(missing)}</span> : null}</span><span className="tab-label">{n.short ?? n.label}</span></NavLink>
+          <NavLink key={n.to} to={n.to} end={n.end} className={`tab${n.tone ? ` tone-${n.tone}` : ''}`}><span className="tab-icon">{n.icon}{n.badge?.(todo) ? <span className="nav-badge">{n.badge(todo)}</span> : null}</span><span className="tab-label">{n.short ?? n.label}</span></NavLink>
         ))}
       </nav>}
     </div>

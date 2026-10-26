@@ -162,11 +162,62 @@ const tourLines = (tour) => (tour.pieces ?? []).flatMap((p) => p.lines.map((l) =
 const lineDistance = (pt, lines) => Math.min(Infinity, ...lines.map((l) => projectOnLine(pt, l).dist))
 
 // « 8 lotissement les mirabelliers, 88270, Dompaire » → numéro, rue, commune.
-function parseLabel(label = '') {
+export function parseLabel(label = '') {
   const [first = '', , city = ''] = label.split(',').map((s) => s.trim())
   const m = first.match(/^(\d+(?:\s?(?:bis|ter|quater|[a-d]))?)\s+(.+)$/i)
   const title = (s) => s.replace(/(^|[\s'-])(\p{L})/gu, (_, a, c) => a + c.toUpperCase()).replace(/\b(De|Du|Des|La|Le|Les|L'|D')\b/g, (w) => w.toLowerCase())
   return { number: m ? m[1].replace(/\s/g, '') : '', street: title(m ? m[2] : first), city }
+}
+
+// Maison de la tournée `tour` faite d'un bâtiment de la BDNB.
+export function houseFromBuilding(b, tour) {
+  const pt = buildingPoint(b)
+  const loc = locateOnPieces(pt[0], pt[1], tour.pieces ?? [])
+  const { number, street, city } = parseLabel(b.labels[0])
+  return { id: newId().slice(0, 12), banId: b.addresses[0] ?? null, bdnb: b.id, number, street: street || 'Maison sans adresse', city, label: number ? `${number} ${street}` : street || 'Maison sans adresse', lng: pt[0], lat: pt[1], pieceId: loc?.pieceId ?? null, along: loc?.along ?? 0, found: 'bdnb', chk: 1 }
+}
+
+// Bâtiments habités des communes des tournées qu'aucune tournée n'a : ni par son adresse,
+// ni par une maison posée dessus, ni écartés à la main (skipBan). Chacun avec la tournée
+// dont une rue passe le plus près.
+export function uncoveredBuildings(tours, buildings) {
+  const taken = new Set()
+  const houses = []
+  for (const t of tours) {
+    for (const h of t.houses ?? []) {
+      houses.push(h)
+      if (h.banId) taken.add(h.banId)
+    }
+    for (const id of t.skipBan ?? []) taken.add(id)
+  }
+  // Une maison couvre son bâtiment BDNB si elle est dessus. Sinon (ajoutée à la main,
+  // déplacée sur un autre toit) elle couvre le bâtiment le plus proche, un seul, pour ne
+  // pas cacher la maison mitoyenne.
+  const byId = new Map(buildings.map((b) => [b.id, b]))
+  const near = grid(buildings)
+  for (const h of houses) {
+    const own = h.bdnb && byId.get(h.bdnb)
+    if (own && distanceToBuilding([h.lng, h.lat], own) <= COVERED) { taken.add(own.id); continue }
+    let best = null
+    for (const b of near([h.lng, h.lat], COVERED + 60)) {
+      const d = distanceToBuilding([h.lng, h.lat], b)
+      if (d <= COVERED && (!best || d < best.d)) best = { b, d }
+    }
+    if (best) taken.add(best.b.id)
+  }
+  const lines = tours.map((t) => ({ t, lines: tourLines(t) })).filter((x) => x.lines.length)
+  const out = []
+  for (const b of buildings) {
+    if (!b.habited || b.annex || taken.has(b.id) || b.addresses.some((a) => taken.has(a))) continue
+    const pt = buildingPoint(b)
+    let best = null
+    for (const x of lines) {
+      const d = lineDistance(pt, x.lines)
+      if (!best || d < best.d) best = { tour: x.t, d }
+    }
+    out.push({ b, pt, ...parseLabel(b.labels[0]), nearest: best })
+  }
+  return out
 }
 
 // Codes INSEE des communes des tournées (début des identifiants BAN : 88151_0120_00018).
@@ -264,9 +315,7 @@ export function checkTours(tours, buildings, statesById = {}) {
       if (d <= NEAR_LINE && (!best || d < best.d)) best = { t, d }
     }
     if (!best) continue
-    const loc = locateOnPieces(pt[0], pt[1], best.t.pieces ?? [])
-    const { number, street, city } = parseLabel(b.labels[0])
-    const house = { id: newId().slice(0, 12), banId: b.addresses[0] ?? null, bdnb: b.id, number, street: street || 'Maison sans adresse', city, label: number ? `${number} ${street}` : street || 'Maison sans adresse', lng: pt[0], lat: pt[1], pieceId: loc?.pieceId ?? null, along: loc?.along ?? 0, found: 'bdnb', chk: 1 }
+    const house = houseFromBuilding(b, best.t)
     houses.get(best.t.id).push(house)
     kept.push(house)
     taken.add(b.id)
@@ -294,13 +343,22 @@ export const needsCheck = (tours) => tours.some((t) => (t.houses ?? []).some((h)
 let running = false
 let failedAt = 0
 const cache = new Map()
+// Bâtiments des communes, téléchargés une fois par visite. `onProgress(faites, total)`.
+export async function buildingsOf(codes, onProgress) {
+  let done = 0
+  for (const c of codes) {
+    if (!cache.has(c)) cache.set(c, await fetchBuildings([c]))
+    onProgress?.(++done, codes.length)
+  }
+  return codes.flatMap((c) => cache.get(c))
+}
+
 export async function autoCheckAddresses(latest, statesById, save, onDone) {
   if (running || Date.now() - failedAt < 30 * 60 * 1000) return
   running = true
   try {
     const codes = communesOf(latest())
-    for (const c of codes.filter((c) => !cache.has(c))) cache.set(c, await fetchBuildings([c]))
-    const buildings = codes.flatMap((c) => cache.get(c))
+    const buildings = await buildingsOf(codes)
     const tours = latest()
     if (!needsCheck(tours)) return
     const { changes, report } = checkTours(tours, buildings, statesById)
