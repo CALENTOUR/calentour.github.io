@@ -26,6 +26,7 @@ const ICONS = {
   street: svg(<><path d="M5 21 9 3M19 21 15 3M12 7v2M12 13v2" /><path d="M19 3v6M16 6h6" /></>),
   draw: svg(<><path d="M4 20c4-1 5-6 9-8s6-1 7-6" /><circle cx="4" cy="20" r="1.5" /><circle cx="20" cy="6" r="1.5" /></>),
   eraser: svg(<><path d="m7 21-4-4 10-10 7 7-7 7H7Z" /><path d="M14 21h7M9 11l7 7" /></>),
+  transfer: svg(<><path d="M4 17h11M4 17l3-3M4 17l3 3" /><path d="M20 7H9M20 7l-3-3M20 7l-3 3" /></>),
   add: svg(<><path d="M3 11 11 4l8 7M5 10v10h12V10" /><path d="M20 15v6M17 18h6" /></>),
   move: svg(<><path d="M12 22s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12Z" /><circle cx="12" cy="10" r="2.5" /></>),
 }
@@ -38,6 +39,7 @@ const MODES = {
     { key: 'street', label: 'Ajouter une rue', help: 'Touche une rue : elle s’allume en orange, puis choisis « Toute la rue » ou « Ce tronçon ». Pour allonger ou raccourcir, fais glisser un rond blanc, ou touche-le puis touche l’endroit voulu.' },
     { key: 'draw', label: 'Tracer un bout', help: 'Touche le point de départ, puis le point d’arrivée : le tracé suit la route tout seul.' },
     { key: 'eraser', label: 'Gomme' },
+    { key: 'transfer', label: 'Déplacer un tronçon' },
   ],
   houses: [
     { key: 'add', label: 'Ajouter', help: 'Touche l’endroit de la maison non répertoriée.' },
@@ -51,6 +53,11 @@ const HAND_HELP = {
 const ERASERS = [
   { key: 'brush', label: 'Effacer un bout', help: 'Appuie sur une rue et glisse le doigt (ou la souris) le long du bout à effacer.' },
   { key: 'delete', label: 'Supprimer une rue', help: 'Touche une rue pour la supprimer en entier, ou une maison pour la retirer.' },
+]
+// Déplacer un tronçon vers une autre tournée : on le choisit comme avec la gomme.
+const TRANSFERS = [
+  { key: 'brush', label: 'Choisir un bout', help: 'Appuie sur une rue et glisse le doigt (ou la souris) le long du bout à déplacer. Il s’allume en orange, puis choisis la tournée.' },
+  { key: 'street', label: 'Toute une rue', help: 'Touche une rue pour la déplacer en entier, puis choisis la tournée.' },
 ]
 
 const EMPTY = { type: 'FeatureCollection', features: [] }
@@ -109,6 +116,39 @@ export function eraseFromLine(line, brush, radius) {
   return runs.filter((r) => r.length > 1 && lineLength(r) > 5).map((r) => ({ c: flatten(r), r: ref }))
 }
 
+// Coupe un trait sous la gomme : `taken` ce qui passe dessous, `kept` le reste.
+// Renvoie null si la gomme n'y touche pas.
+export function splitByBrush(line, brush, radius) {
+  const dense = samplePoints(unflatten(line.c), 2)
+  const near = (p) => (brush.length > 1 ? projectOnLine(p, brush).dist : distance(p, brush[0])) <= radius
+  if (!dense.some(near)) return null
+  const runs = []
+  let run = null
+  for (const p of dense) {
+    const inside = near(p)
+    if (run && run.inside !== inside) {
+      // Le point de bascule est partagé : les deux parties se touchent.
+      runs.push(run)
+      run = { inside, pts: [run.pts.at(-1), p] }
+    } else if (run) run.pts.push(p)
+    else run = { inside, pts: [p] }
+  }
+  runs.push(run)
+  const ref = line.r ?? line.c
+  const keep = (inside) => runs.filter((r) => r.inside === inside && r.pts.length > 1 && lineLength(r.pts) > 5).map((r) => ({ c: flatten(r.pts), r: ref }))
+  return { kept: keep(false), taken: keep(true) }
+}
+
+// Les maisons d'une rue suivent le tronçon déplacé quand il est plus près d'elles que ce qui reste de la rue.
+function housesTaken(houses, moved) {
+  return houses.filter((h) => {
+    const m = moved.find((x) => x.pieceId === h.pieceId)
+    if (!m) return false
+    const d = (lines) => Math.min(Infinity, ...lines.map((l) => projectOnLine([h.lng, h.lat], unflatten(l.c)).dist))
+    return d(m.taken) <= d(m.kept)
+  })
+}
+
 function handlesGeoJSON(tour, picked) {
   return {
     type: 'FeatureCollection',
@@ -142,11 +182,14 @@ function ensureEditorLayers(map) {
   setGeoJSON(map, 'adjust', EMPTY)
   setGeoJSON(map, 'eraser', EMPTY)
   setGeoJSON(map, 'guide', EMPTY)
+  setGeoJSON(map, 'transfer', EMPTY)
   const below = map.getLayer('pieces-casing') ? 'pieces-casing' : undefined
   map.addLayer({ id: 'others', type: 'line', source: 'others', layout: { 'line-cap': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': 2.5, 'line-opacity': 0.22, 'line-dasharray': [1.5, 1.5] } }, below)
   map.addLayer({ id: 'preview-casing', type: 'line', source: 'preview', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': 14 } })
   map.addLayer({ id: 'preview', type: 'line', source: 'preview', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#f97316', 'line-width': 8 } })
   map.addLayer({ id: 'adjust', type: 'line', source: 'adjust', layout: { 'line-cap': 'round' }, paint: { 'line-color': '#f97316', 'line-width': 8, 'line-opacity': 0.9 } })
+  map.addLayer({ id: 'transfer-casing', type: 'line', source: 'transfer', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': 14 } })
+  map.addLayer({ id: 'transfer', type: 'line', source: 'transfer', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#f97316', 'line-width': 8 } })
   map.addLayer({ id: 'eraser', type: 'line', source: 'eraser', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#c0492f', 'line-width': 40, 'line-opacity': 0.3 } })
   map.addLayer({ id: 'handles', type: 'circle', source: 'handles', minzoom: 14.5, paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 8, 17, 13], 'circle-color': ['case', ['==', ['get', 'picked'], 1], '#f97316', '#ffffff'], 'circle-stroke-color': '#1f2a24', 'circle-stroke-width': 3 } })
   map.addLayer({ id: 'guide-link', type: 'line', source: 'guide', filter: ['==', ['get', 'kind'], 'link'], paint: { 'line-color': '#ffffff', 'line-width': 3, 'line-dasharray': [1.5, 1.5] } })
@@ -166,6 +209,9 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
   const [mode, setMode] = useState(null)
   const [newPoint, setNewPoint] = useState(null)
   const [eraser, setEraser] = useState('brush')
+  const [transferBy, setTransferBy] = useState('brush')
+  // Tronçon choisi pour changer de tournée : [{ pieceId, name, taken, kept }].
+  const [transfer, setTransfer] = useState(null)
   const [preview, setPreview] = useState(null)
   const [drawStart, setDrawStart] = useState(null)
   const [picked, setPicked] = useState(null)
@@ -191,10 +237,11 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
   const tourRef = useRef(tour)
   tourRef.current = tour
 
-  // Chaque modification garde l'état précédent pour « Annuler ».
-  const update = (data) => {
+  // Chaque modification garde l'état précédent pour « Annuler ». `other` : l'autre tournée
+  // touchée par la même modification (tronçon déplacé), remise en état elle aussi.
+  const update = (data, other = null) => {
     const t = tourRef.current
-    setHistory((h) => [...h.slice(-19), { pieces: t.pieces, houses: t.houses }])
+    setHistory((h) => [...h.slice(-19), { pieces: t.pieces, houses: t.houses, ...(other ? { other: { id: other.id, pieces: other.pieces, houses: other.houses } } : {}) }])
     tourRef.current = { ...t, ...data }
     return saveTour(t.id, data).catch((err) => toast(`Erreur : ${err.message}`))
   }
@@ -202,11 +249,15 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
     const last = history.at(-1)
     if (!last) return
     setHistory((h) => h.slice(0, -1))
-    saveTour(tour.id, last).catch((err) => toast(`Erreur : ${err.message}`))
+    const { other, ...mine } = last
+    saveTour(tour.id, mine).catch((err) => toast(`Erreur : ${err.message}`))
+    if (other) saveTour(other.id, { pieces: other.pieces, houses: other.houses }).catch((err) => toast(`Erreur : ${err.message}`))
     toast('Dernière modification annulée')
   }
   const updateRef = useRef(update)
   updateRef.current = update
+  const toastRef = useRef(toast)
+  toastRef.current = toast
 
   // Recherche automatique des maisons le long de chaque trait ajouté ou agrandi,
   // une recherche à la fois, ajoutée à la version la plus récente de la tournée.
@@ -278,6 +329,12 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
     setGeoJSON(map, 'handles', showHandles ? handlesGeoJSON(tour, picked) : EMPTY)
   }, [map, tour, showHandles, picked])
 
+  useEffect(() => {
+    if (!map) return
+    ensureEditorLayers(map)
+    setGeoJSON(map, 'transfer', lineFeatures(transfer ? transfer.flatMap((m) => m.taken.map((l) => unflatten(l.c))) : []))
+  }, [map, transfer])
+
   // Point de départ du tracé.
   useEffect(() => {
     if (!map) return
@@ -312,8 +369,8 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
   }, [map])
 
   // Poignées (glisser) et gomme (appuyer et glisser).
-  const modeRef = useRef({ mode, eraser })
-  modeRef.current = { mode, eraser }
+  const modeRef = useRef({ mode, eraser, transferBy })
+  modeRef.current = { mode, eraser, transferBy }
   const dragged = useRef(0)
   useEffect(() => {
     if (!map) return undefined
@@ -333,10 +390,11 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
       map.getCanvas().style.cursor = 'grabbing'
     }
     const startBrush = (e) => {
-      const { mode: m, eraser: er } = modeRef.current
-      if (m !== 'eraser' || er !== 'brush') return
+      const { mode: m, eraser: er, transferBy: tb } = modeRef.current
+      if (!(m === 'eraser' && er === 'brush') && !(m === 'transfer' && tb === 'brush')) return
       e.preventDefault()
       brush = [[e.lngLat.lng, e.lngLat.lat]]
+      brush.transfer = m === 'transfer'
       setGeoJSON(map, 'eraser', lineFeatures([[brush[0], brush[0]]]))
     }
     const move = (e) => {
@@ -362,6 +420,16 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
         // Rayon de la gomme : moitié de son épaisseur à l'écran (40 px).
         const radius = touchTolerance(map, b[0][1]) * (20 / 22)
         const t = tourRef.current
+        if (b.transfer) {
+          const moved = t.pieces.flatMap((p) => {
+            const parts = p.lines.map((l) => splitByBrush(l, b, radius) ?? { kept: [l], taken: [] })
+            const taken = parts.flatMap((x) => x.taken)
+            return taken.length ? [{ pieceId: p.id, name: p.name, taken, kept: parts.flatMap((x) => x.kept) }] : []
+          })
+          setTransfer(moved.length ? moved : null)
+          if (!moved.length) toastRef.current('Glisse le long d’une rue de la tournée.')
+          return
+        }
         let changed = false
         const pieces = t.pieces.map((p) => ({
           ...p,
@@ -496,6 +564,10 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
     } else if (mode === 'add') {
       if (!tour.pieces.length) return toast('Ajoute d’abord une rue dans l’onglet « Tracé des rues ».')
       setNewPoint(e.lngLat)
+    } else if (mode === 'transfer' && transferBy === 'street') {
+      const best = nearestLine(m, e.lngLat)
+      if (!best) return toast('Touche une rue de la tournée.')
+      setTransfer([{ pieceId: best.p.id, name: best.p.name, taken: best.p.lines, kept: [] }])
     } else if (mode === 'eraser' && eraser === 'delete') {
       const best = nearestLine(m, e.lngLat)
       if (!best) return toast('Touche une rue de la tournée.')
@@ -546,6 +618,35 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
     setHouseSel(null)
     setAskGive(false)
     toast(target ? `« ${house.label} » attribuée à la tournée n°${target.number}` : `« ${house.label} » supprimée`)
+  }
+
+  // Envoie le tronçon choisi à une autre tournée, avec les maisons qui le longent.
+  const moveTransfer = (targetId) => {
+    const t = tourRef.current
+    const target = others.find((x) => x.id === targetId)
+    if (!target || !transfer) return
+    const movedHouses = housesTaken(t.houses, transfer)
+    const gone = new Set(movedHouses.map((h) => h.id))
+    const pieces = t.pieces
+      .map((p) => { const m = transfer.find((x) => x.pieceId === p.id); return m ? { ...p, lines: m.kept } : p })
+      .filter((p) => p.lines.length)
+    // Dans l'autre tournée, le tronçon rejoint la rue du même nom, sinon devient une rue à part.
+    let targetPieces = target.pieces ?? []
+    for (const m of transfer) {
+      const same = targetPieces.find((p) => p.name === m.name)
+      targetPieces = same
+        ? targetPieces.map((p) => (p === same ? { ...p, lines: [...p.lines, ...m.taken] } : p))
+        : [...targetPieces, { id: newId().slice(0, 10), name: m.name, lines: m.taken }]
+    }
+    const targetHouses = [...(target.houses ?? []), ...movedHouses.map((h) => {
+      const loc = locateOnPieces(h.lng, h.lat, targetPieces)
+      return { ...h, pieceId: loc?.pieceId ?? null, along: loc?.along ?? 0 }
+    })]
+    saveTour(target.id, { pieces: targetPieces, houses: targetHouses }).catch((err) => toast(`Erreur : ${err.message}`))
+    update({ pieces, houses: t.houses.filter((h) => !gone.has(h.id)) }, target)
+    setTransfer(null)
+    const n = movedHouses.length
+    toast(`Tronçon déplacé vers la tournée n°${target.number}${n ? ` avec ${n} maison${n > 1 ? 's' : ''}` : ''}`)
   }
 
   // Maisons sans bâtiment sur le plan, dans la zone affichée (vérifiées dans les deux onglets).
@@ -672,6 +773,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
     setMoving(null)
     setAskGive(false)
     setGuide(null)
+    setTransfer(null)
   }
   // Retoucher l'outil choisi le désélectionne.
   const chooseMode = (key) => {
@@ -694,6 +796,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
     fitPoints(map, pts, { padding: EDIT_PAD, maxZoom: 18.5 })
   }
   const help = mode === 'eraser' ? ERASERS.find((x) => x.key === eraser).help
+    : mode === 'transfer' ? TRANSFERS.find((x) => x.key === transferBy).help
     : picked ? 'Touche l’endroit où la rue doit s’arrêter (sur la rue pour raccourcir, plus loin pour l’allonger).'
       : mode === 'draw' && drawStart ? 'Touche maintenant le point d’arrivée.'
         : moving ? 'Touche l’endroit exact de la maison sur le plan.'
@@ -706,7 +809,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
         showHouses={showHouses} streetLabels areas={mapAreas}
         fitPadding={{ top: 170, bottom: 230, left: 40, right: 60 }}
         onMapClick={onMapClick}
-        onHouseClick={mode === 'eraser' && eraser === 'delete' ? onHouseClick : moving ? undefined : (p) => { if (tab !== 'houses') chooseTab('houses'); onHouseEdit(p) }}
+        onHouseClick={mode === 'eraser' && eraser === 'delete' ? onHouseClick : moving || mode === 'transfer' ? undefined : (p) => { if (tab !== 'houses') chooseTab('houses'); onHouseEdit(p) }}
         onReady={setMap}
         className="editor-map"
       />
@@ -817,6 +920,22 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
               </>
             )}
           </div>
+        ) : transfer ? (
+          <div className="editor-confirm house-edit">
+            <div className="row">
+              <strong className="ellipsis spacer">↔️ {[...new Set(transfer.map((m) => m.name))].join(', ')}</strong>
+              <button type="button" className="btn-round btn-ghost" onClick={() => setTransfer(null)} aria-label="Fermer">✕</button>
+            </div>
+            <div className="stack give-list">
+              <strong className="small">À quelle tournée déplacer ce tronçon ? {(() => { const n = housesTaken(tour.houses, transfer).length; return n ? `Ses ${n} maison${n > 1 ? 's' : ''} suivent.` : 'Aucune maison dessus.' })()}</strong>
+              <div className="give-btns">
+                {[...others].sort((x, y) => x.number - y.number).map((t) => (
+                  <button key={t.id} type="button" onClick={() => moveTransfer(t.id)}><i style={{ background: t.color }} />N°{t.number} · {t.name}</button>
+                ))}
+              </div>
+              <button type="button" className="btn-sm btn-ghost" onClick={() => setTransfer(null)}>Annuler</button>
+            </div>
+          </div>
         ) : preview ? (
           <div className="editor-confirm">
             <strong className="ellipsis">{preview.name ?? 'Rue sans nom'}</strong>
@@ -830,7 +949,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
           <div className={`row${mode || moving || picked ? ' editor-instruction' : ''}`} key={`${mode}-${Boolean(moving)}-${Boolean(picked)}`}>
             {mode || moving || picked ? (
               <div className="spacer">
-                <strong className="editor-instruction-title">{ICONS[moving ? 'move' : mode] ?? null}{moving ? 'Déplacer la maison' : activeMode?.label ?? (mode === 'eraser' ? 'Gomme' : 'Rue')}</strong>
+                <strong className="editor-instruction-title">{ICONS[moving ? 'move' : mode] ?? null}{moving ? 'Déplacer la maison' : activeMode?.label ?? (mode === 'eraser' ? 'Gomme' : mode === 'transfer' ? 'Déplacer un tronçon' : 'Rue')}</strong>
                 <div>{help}</div>
               </div>
             ) : <div className="small editor-help spacer">{help}</div>}
@@ -842,6 +961,13 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
           <div className="segmented">
             {ERASERS.map((x) => (
               <button key={x.key} type="button" className={eraser === x.key ? 'on' : ''} onClick={() => setEraser(x.key)}>{x.label}</button>
+            ))}
+          </div>
+        )}
+        {mode === 'transfer' && !transfer && (
+          <div className="segmented">
+            {TRANSFERS.map((x) => (
+              <button key={x.key} type="button" className={transferBy === x.key ? 'on' : ''} onClick={() => setTransferBy(x.key)}>{x.label}</button>
             ))}
           </div>
         )}
