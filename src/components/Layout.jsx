@@ -26,10 +26,10 @@ const ADMIN_NAV = [
   { to: '/admin', icon: <IconPie />, tone: 'green', label: 'Tableau de bord', short: 'Bilan', end: true, stat: (g) => `${formatPercent(g.progress)} fait` },
   { to: '/admin/carte', icon: <IconMap />, tone: 'brand', label: 'Tournées', stat: (g, n) => `${n} binôme${n > 1 ? 's' : ''}` },
   { to: '/admin/dons', icon: <IconCash />, tone: 'ocre', label: 'Dons', stat: (g) => formatEuro(g.amount) },
-  { to: '/admin/reglages', icon: <IconSliders />, tone: 'blue', label: 'Réglages', stat: (g, n, todo) => [
-    todo.missing && `${todo.missing} sans bâtiment`,
-    todo.uncovered && `${todo.uncovered} hors tournée`,
-  ].filter(Boolean).join(', ') || 'Accès, export', badge: (todo) => todo.missing + todo.uncovered },
+  { to: '/admin/reglages', icon: <IconSliders />, tone: 'blue', label: 'Réglages', stat: (g, n, todo) => {
+    const k = todo.missing + todo.uncovered
+    return k ? `${k} maison${k > 1 ? 's' : ''} à vérifier` : 'Accès, export'
+  }, badge: (todo) => todo.missing + todo.uncovered },
 ]
 
 export default function Layout() {
@@ -93,7 +93,7 @@ export default function Layout() {
             <NavLink key={n.to} to={n.to} end={n.end} className={`side-tile tone-${n.tone}`}>
               <span className="side-tile-icon">{n.icon}</span>
               <span className="side-tile-text"><strong>{n.label}</strong><small>{n.stat(global, tours.length, todo)}</small></span>
-              {n.badge?.(todo) ? <span className="nav-badge" title="Maisons à traiter">{n.badge(todo)}</span> : null}
+              {n.badge?.(todo) ? <span className="nav-badge" title="Maisons à vérifier">{n.badge(todo)}</span> : null}
             </NavLink>
           ))}
           <div className="side-goal">
