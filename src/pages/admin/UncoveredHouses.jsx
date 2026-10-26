@@ -4,17 +4,18 @@ import { useData } from '../../context/DataContext'
 import { houseFromBuilding } from '../../lib/addressCheck'
 import { runUncoveredScan, useUncoveredHouses } from '../../lib/uncoveredHouses'
 import { saveTour } from '../../services/tours'
+import UncoveredMission from './UncoveredMission'
 
 const FAR = 150 // m : au-delà, la maison n'est au bord d'aucune rue tracée
-const photo = ([lng, lat]) => `https://www.geoportail.gouv.fr/carte?c=${lng},${lat}&z=19&l0=ORTHOIMAGERY.ORTHOPHOTOS::GEOPORTAIL:OGC:WMTS(1)&permalink=yes`
 
 // Réglages > Maisons hors tournée : bâtiments habités des villages des tournées qu'aucune
 // tournée n'a, à ajouter à une tournée ou à écarter (grange, maison en ruine…).
 export default function UncoveredHouses() {
-  const { tours, toursById } = useData()
+  const { tours, toursById, statesById } = useData()
   const toast = useToast()
   const { buildings, progress, error, rows } = useUncoveredHouses(tours)
   const [choosing, setChoosing] = useState(null)
+  const [mission, setMission] = useState(null) // maison de départ de la mission
   // La recherche part toute seule à la première ouverture de l'onglet.
   useEffect(() => {
     if (!buildings && !progress && !error && tours?.length) runUncoveredScan(tours)
@@ -26,7 +27,7 @@ export default function UncoveredHouses() {
       if (!map.has(city)) map.set(city, [])
       map.get(city).push(r)
     }
-    return [...map].sort((a, b) => a[0].localeCompare(b[0], 'fr'))
+    return [...map].sort((a, b) => (a[0] === 'Commune inconnue') - (b[0] === 'Commune inconnue') || a[0].localeCompare(b[0], 'fr'))
   }, [rows])
 
   const add = (r, tourId) => {
@@ -66,6 +67,15 @@ export default function UncoveredHouses() {
       {buildings && (
         <div className="card stack">
           <h2>{rows.length ? `${rows.length} maison${rows.length > 1 ? 's' : ''} hors tournée` : '✅ Aucune maison oubliée'}</h2>
+          {rows.length > 0 && (
+            <div className="mission-start">
+              <strong>🎯 Mission maisons oubliées</strong>
+              <span className="small">La carte des tournées va sur chaque maison, l’une après l’autre, en photo satellite. Tu l’ajoutes à une tournée ou tu l’écartes, et on passe à la suivante.</span>
+              <div className="row wrap">
+                <button type="button" className="btn-primary" onClick={() => setMission(byCity[0][1][0].b.id)}>C’est parti ({rows.length})</button>
+              </div>
+            </div>
+          )}
           {byCity.map(([city, list]) => (
             <div key={city} className="stack">
               <h3>{city} <span className="muted small">({list.length})</span></h3>
@@ -79,7 +89,7 @@ export default function UncoveredHouses() {
                         <strong>{label(r)}</strong>
                         <span className="small muted">{r.b.logements > 1 ? ` · ${r.b.logements} logements` : ''} · {t ? `à ${Math.round(r.nearest.d)} m de la tournée n°${t.number}` : 'aucune rue tracée'}{far ? ' (rue sans tournée ?)' : ''}</span>
                       </span>
-                      <a className="btn btn-sm btn-ghost" href={photo(r.pt)} target="_blank" rel="noreferrer">🗺️ Voir</a>
+                      <button type="button" className="btn-sm btn-ghost" onClick={() => setMission(r.b.id)}>🗺️ Voir sur la carte</button>
                       {t && <button type="button" className="btn-sm btn-primary" onClick={() => add(r, t.id)}><span className="tour-dot" style={{ background: t.color }}>{t.number}</span> Ajouter</button>}
                       {choosing === r.b.id ? (
                         <select autoFocus className="give-select" defaultValue="" onChange={(e) => add(r, e.target.value)} onBlur={() => setChoosing(null)} aria-label="Tournée qui reçoit la maison">
@@ -96,6 +106,7 @@ export default function UncoveredHouses() {
           ))}
         </div>
       )}
+      {mission && <UncoveredMission rows={rows} tours={tours ?? []} statesById={statesById} startId={mission} onAdd={add} onIgnore={ignore} onClose={() => setMission(null)} />}
     </div>
   )
 }

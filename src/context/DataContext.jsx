@@ -23,7 +23,7 @@ export function DataProvider({ children }) {
     () => setSettings(null),
   ), [])
 
-  const ready = status === 'ready' && settings
+  const ready = status === 'ready' && Boolean(settings)
   const year = settings?.year
   const wantsAll = isAdmin || Boolean(settings?.rankingForMembers)
   const myTourId = profile?.tourId ?? null

@@ -71,13 +71,10 @@ export default function SettingsPage() {
       <div className="segmented settings-tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === 'general'} className={tab === 'general' ? 'on' : ''} onClick={() => setTab('general')}>Général</button>
         <button type="button" role="tab" aria-selected={tab === 'missing'} className={tab === 'missing' ? 'on' : ''} onClick={() => setTab('missing')}>
-          Maisons sans bâtiment{missingCount ? <span className="tab-count">{missingCount}</span> : null}
-        </button>
-        <button type="button" role="tab" aria-selected={tab === 'uncovered'} className={tab === 'uncovered' ? 'on' : ''} onClick={() => setTab('uncovered')}>
-          Maisons hors tournée{uncoveredCount ? <span className="tab-count">{uncoveredCount}</span> : null}
+          Maisons à vérifier{missingCount + uncoveredCount ? <span className="tab-count">{missingCount + uncoveredCount}</span> : null}
         </button>
       </div>
-      {tab === 'missing' ? <MissingBuildings /> : tab === 'uncovered' ? <UncoveredHouses /> : (
+      {tab === 'missing' ? <div className="stack-lg"><UncoveredHouses /><MissingBuildings /></div> : (
       <>
 
       <form className="card stack" onSubmit={(e) => { e.preventDefault(); save({ amicale: amicale.trim() }, 'Nom enregistré') }}>
