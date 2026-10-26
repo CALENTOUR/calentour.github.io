@@ -4,6 +4,8 @@ import { useMissingBuildings } from '../../lib/missingBuildings'
 import { setDoc } from 'firebase/firestore'
 import AccessCard from '../../components/AccessCard'
 import MissingBuildings from './MissingBuildings'
+import UncoveredHouses from './UncoveredHouses'
+import { useUncoveredHouses } from '../../lib/uncoveredHouses'
 import { useToast } from '../../components/ui/Toast'
 import { exportLabels, exportTours } from '../../lib/exports'
 import { useData } from '../../context/DataContext'
@@ -24,6 +26,7 @@ export default function SettingsPage() {
   const [tab, setTab] = useState(location.state?.tab ?? 'general')
   const { rows: missingRows } = useMissingBuildings(toursById)
   const missingCount = missingRows.length
+  const uncoveredCount = useUncoveredHouses(tours).rows.length
 
   const changePassword = async (e) => {
     e.preventDefault()
@@ -70,8 +73,11 @@ export default function SettingsPage() {
         <button type="button" role="tab" aria-selected={tab === 'missing'} className={tab === 'missing' ? 'on' : ''} onClick={() => setTab('missing')}>
           Maisons sans bâtiment{missingCount ? <span className="tab-count">{missingCount}</span> : null}
         </button>
+        <button type="button" role="tab" aria-selected={tab === 'uncovered'} className={tab === 'uncovered' ? 'on' : ''} onClick={() => setTab('uncovered')}>
+          Maisons hors tournée{uncoveredCount ? <span className="tab-count">{uncoveredCount}</span> : null}
+        </button>
       </div>
-      {tab === 'missing' ? <MissingBuildings /> : (
+      {tab === 'missing' ? <MissingBuildings /> : tab === 'uncovered' ? <UncoveredHouses /> : (
       <>
 
       <form className="card stack" onSubmit={(e) => { e.preventDefault(); save({ amicale: amicale.trim() }, 'Nom enregistré') }}>
