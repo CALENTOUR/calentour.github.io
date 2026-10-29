@@ -184,7 +184,9 @@ function ensureEditorLayers(map) {
   setGeoJSON(map, 'guide', EMPTY)
   setGeoJSON(map, 'transfer', EMPTY)
   const below = map.getLayer('pieces-casing') ? 'pieces-casing' : undefined
-  map.addLayer({ id: 'others', type: 'line', source: 'others', layout: { 'line-cap': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': 2.5, 'line-opacity': 0.22, 'line-dasharray': [1.5, 1.5] } }, below)
+  // Tournées voisines : pointillé épais sur liseré blanc, plus fin que la tournée affichée
+  map.addLayer({ id: 'others-casing', type: 'line', source: 'others', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 4, 14, 6.5, 17, 10], 'line-opacity': 0.7 } }, below)
+  map.addLayer({ id: 'others', type: 'line', source: 'others', layout: { 'line-cap': 'butt', 'line-join': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 2.5, 14, 4, 17, 6], 'line-opacity': 0.85, 'line-dasharray': [2, 1.2] } }, below)
   map.addLayer({ id: 'preview-casing', type: 'line', source: 'preview', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': 14 } })
   map.addLayer({ id: 'preview', type: 'line', source: 'preview', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#f97316', 'line-width': 8 } })
   map.addLayer({ id: 'adjust', type: 'line', source: 'adjust', layout: { 'line-cap': 'round' }, paint: { 'line-color': '#f97316', 'line-width': 8, 'line-opacity': 0.9 } })
