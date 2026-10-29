@@ -102,6 +102,15 @@ function ensureAreaLayers(map) {
   })
 }
 
+// Tournées voisines : pointillé épais sur liseré blanc, sous la tournée affichée et plus fin qu'elle.
+export function showNeighbourTours(map, tours) {
+  setGeoJSON(map, 'others', piecesGeoJSON(tours))
+  if (map.getLayer('others')) return
+  const before = map.getLayer('pieces-casing') ? 'pieces-casing' : undefined
+  map.addLayer({ id: 'others-casing', type: 'line', source: 'others', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 5, 14, 7, 17, 10], 'line-opacity': 0.9 } }, before)
+  map.addLayer({ id: 'others', type: 'line', source: 'others', layout: { 'line-cap': 'butt', 'line-join': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 11, 3, 14, 4.5, 17, 6.5], 'line-opacity': 0.95, 'line-dasharray': [2, 1.2] } }, before)
+}
+
 // Contour bleu du village choisi.
 function ensureOutlineLayers(map) {
   if (map.getLayer('village-line')) return
