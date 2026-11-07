@@ -43,7 +43,7 @@ export default function Layout() {
   const todo = { missing, uncovered }
   useEffect(() => {
     if (!isAdmin || missingScan || !tours?.length) return undefined
-    const timer = setTimeout(() => { runMissingScan(tours); loadSavedUncovered(tours) }, 6000)
+    const timer = setTimeout(() => { runMissingScan(tours); loadSavedUncovered() }, 6000)
     return () => clearTimeout(timer)
   }, [isAdmin, missingScan, tours?.length]) // eslint-disable-line react-hooks/exhaustive-deps
   const global = useMemo(() => (isAdmin ? globalStats(tours, statesById) : null), [isAdmin, tours, statesById])

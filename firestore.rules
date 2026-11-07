@@ -48,6 +48,11 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['houses', 'updatedAt', 'notes']);
     }
 
+    // Analyses partagées entre administrateurs (maisons hors tournée).
+    match /analyses/{id} {
+      allow read, write: if isAdmin();
+    }
+
     match /campaigns/{year}/state/{tourId} {
       allow read: if myTour(tourId) || canSeeAll();
       // Un binôme écrit uniquement l'état de sa tournée, pour la campagne en cours.
