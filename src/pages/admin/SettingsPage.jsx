@@ -8,23 +8,23 @@ import UncoveredHouses from './UncoveredHouses'
 import { useUncoveredHouses } from '../../lib/uncoveredHouses'
 import { useToast } from '../../components/ui/Toast'
 import { useIsPhone } from '../../hooks/useIsPhone'
-import { exportLabels, exportTours } from '../../lib/exports'
+import { downloadBlob, exportLabels, exportTours } from '../../lib/exports'
+import { backupSummary, parseBackup, readBackup, restoreBackup } from '../../services/backup'
 import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
 import { settingsRef } from '../../services/paths'
-import { resetProgress, simulateProgress } from '../../services/simulation'
 import { accessText, authErrorMessage, changeMyPassword, copyText, createAccount, createMissingAccesses, generatePassword, tourLogin, updateUser } from '../../services/users'
 
 const PHONE_SECTIONS = [
   { id: 'access', group: 1, title: 'Accès des binômes', sub: (i) => `${i.members} accès · créer, copier, désactiver` },
   { id: 'missing', group: 1, title: 'Maisons à vérifier', sub: () => 'sans bâtiment, hors tournée' },
+  { id: 'backup', group: 1, title: 'Sauvegarde', sub: () => 'télécharger ou restaurer toute la base' },
   { id: 'campaign', group: 2, title: 'Campagne', sub: (i) => `campagne ${i.year ?? ''}` },
   { id: 'amicale', group: 2, title: 'Amicale', sub: () => 'nom affiché à la connexion' },
   { id: 'password', group: 2, title: 'Mon mot de passe', sub: (i) => i.login ?? '' },
   { id: 'admins', group: 2, title: 'Administrateurs', sub: () => 'ajouter, désactiver' },
   { id: 'ranking', group: 2, title: 'Classement', sub: (i) => (i.ranking ? 'visible par les binômes' : 'réservé aux admins') },
   { id: 'exports', group: 2, title: 'Exports', sub: () => 'tournées, étiquettes Word' },
-  { id: 'simulation', group: 2, title: 'Simulation (test)', sub: () => 'remplir ou remettre à zéro' },
 ]
 
 export default function SettingsPage() {
@@ -184,16 +184,8 @@ export default function SettingsPage() {
       </div>
       )}
 
-      {show('simulation') && (
-      <div className="card stack">
-        <h2>Simulation (temporaire)</h2>
-        <p className="small muted">Remplit les tournées avec un avancement au hasard pour tester l’affichage. « Remise à zéro » efface tous les passages de la campagne {settings?.year}, y compris les vrais.</p>
-        <div className="row wrap">
-          <button type="button" className="btn-ghost" onClick={() => simulateProgress(settings.year, tours ?? []).then(() => toast('Simulation générée')).catch((err) => toast(`Erreur : ${err.message}`))}>🎲 Générer une simulation</button>
-          <button type="button" className="btn-ghost" onClick={() => window.confirm(`Remettre toutes les tournées à zéro pour ${settings.year} ?`) && resetProgress(settings.year, tours ?? []).then(() => toast('Tournées remises à zéro')).catch((err) => toast(`Erreur : ${err.message}`))}>↺ Remise à zéro</button>
-        </div>
-      </div>
-      )}
+      {show('backup') && <BackupCard toast={toast} />}
+
       {show('exports') && (
       <div className="card stack">
         <h2>Vérifier les tournées</h2>
@@ -279,6 +271,62 @@ export default function SettingsPage() {
       )}
       </>
       )}
+    </div>
+  )
+}
+
+const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`
+const describe = (s) => `${plural(s.tours, 'tournée')}, ${plural(s.houses, 'maison')}, ${plural(s.users, 'compte')}, ${plural(s.passages, 'passage')}`
+
+// Sauvegarde de toute la base dans un fichier gardé sur l'ordinateur, et restauration.
+function BackupCard({ toast }) {
+  const [busy, setBusy] = useState(false)
+
+  const download = async () => {
+    setBusy(true)
+    try {
+      const b = await readBackup()
+      const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', 'h')
+      downloadBlob(new Blob([JSON.stringify(b)], { type: 'application/json' }), `calentour-sauvegarde-${stamp}.json`)
+      toast(`Sauvegarde téléchargée : ${describe(backupSummary(b))}`)
+    } catch (err) {
+      toast(err?.code === 'unavailable' ? 'Pas de réseau : la sauvegarde doit lire la base en ligne.' : `Erreur : ${err.message}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const restore = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    try {
+      const b = parseBackup(await file.text())
+      const s = backupSummary(b)
+      const when = new Date(b.exportedAt).toLocaleString('fr-FR')
+      const answer = window.prompt(`Restaurer la sauvegarde du ${when} (${describe(s)}) ?\n\nTout ce qui a été modifié depuis sur ces tournées et ces passages sera remplacé par la sauvegarde.\n\nTape RESTAURER pour confirmer.`)
+      if (answer?.trim().toUpperCase() !== 'RESTAURER') return
+      setBusy(true)
+      const n = await restoreBackup(b)
+      toast(`Sauvegarde restaurée (${n} documents)`)
+    } catch (err) {
+      toast(`Erreur : ${err.message}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="card stack">
+      <h2>Sauvegarde</h2>
+      <p className="small muted">Télécharge toute la base dans un fichier à garder sur l’ordinateur : tournées, maisons, comptes, avancement et dons. Le fichier contient les mots de passe des binômes : garde-le pour toi. À faire chaque soir de tournée. En cas de fausse manipulation, « Restaurer » remet les données du fichier.</p>
+      <div className="row wrap">
+        <button type="button" disabled={busy} onClick={download}>{busy ? 'Patiente…' : '⬇ Télécharger une sauvegarde'}</button>
+        <label className="btn btn-ghost" style={busy ? { opacity: .5, pointerEvents: 'none' } : undefined}>
+          Restaurer une sauvegarde…
+          <input type="file" accept="application/json,.json" hidden disabled={busy} onChange={restore} />
+        </label>
+      </div>
     </div>
   )
 }
