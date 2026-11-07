@@ -102,3 +102,6 @@ export function writeBatch() {
   }
   return batch
 }
+
+export const terminate = async () => {}
+export const clearIndexedDbPersistence = async () => {}

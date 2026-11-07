@@ -1239,3 +1239,7 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .access-ids small { color: var(--muted); font-weight: 600; }
 .access-list .access-toggle { padding: 0 .4rem; font-size: .75rem; color: var(--muted); }
 .btn-copy { min-height: 48px; }
+
+/* Écran d'attente trop long : aide et réparation. */
+.loading-help { margin-top: 1rem; padding: .9rem; border-radius: 12px; border: 1px solid var(--border); background: var(--card-2); text-align: left; }
+.loading-help p { margin: 0; }
