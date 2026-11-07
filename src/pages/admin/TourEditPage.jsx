@@ -201,7 +201,7 @@ export default function TourEditPage() {
               <ul className="house-edit-list">
                 {list.map((h) => (
                   <li key={h.id}>
-                    <span className="spacer">{h.label}{h.units?.length ? ` · 🏢 ${h.units.length} logements` : ''}</span>
+                    <span className="spacer">{h.label}{h.units?.length ? ` · 🏢 ${h.units.length} logements` : ''}{tour.notes?.[h.id] ? <span className="small muted note-inline">💬 {tour.notes[h.id].t}</span> : null}</span>
                     <button type="button" className="btn-sm btn-ghost" onClick={() => setUnits(h)}>🏢 Logements</button>
                     <button type="button" className="btn-sm btn-ghost danger" onClick={() => removeHouse(h)} aria-label="Retirer">✕</button>
                   </li>

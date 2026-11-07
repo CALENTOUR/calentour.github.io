@@ -1212,3 +1212,20 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .guide-done .guide-title { color: #16a34a; font-size: 1.3rem; }
 .give-select{width:auto;max-width:12rem;padding:4px 8px;font-size:.85rem}
 .sub-tabs{max-width:none;font-size:.92rem}
+
+/* ---------- Retours de test du 7 novembre ---------- */
+
+/* Téléphone admin : la dernière tournée de la liste passe au-dessus des onglets flottants. */
+@media (max-width: 899px) {
+  .tours-map .tour-cards { padding-bottom: calc(96px + var(--safe-bottom)); }
+  body.immersive .tours-map .tour-cards { padding-bottom: .5rem; }
+}
+
+/* Commentaire sur une maison (fiche de passage). */
+.btn-note { align-self: flex-start; min-height: 38px; padding: 0 .8rem; border-radius: 99px; border: 1px dashed var(--muted); background: transparent; color: var(--text); font-size: .85rem; font-weight: 700; }
+.note-box { display: flex; align-items: flex-start; gap: .5rem; width: 100%; padding: .55rem .7rem; border-radius: 10px; border: 1px solid #e3cf9a; background: #fbf3dc; color: #5c4510; text-align: left; font-size: .9rem; font-weight: 600; white-space: normal; justify-content: flex-start; min-height: 0; }
+.note-box small { font-weight: 600; color: #8a6d2a; }
+.note-edit-hint { flex: none; font-size: .75rem; font-weight: 800; text-decoration: underline; }
+.note-edit textarea { width: 100%; font: inherit; font-size: .95rem; padding: .5rem .6rem; border-radius: 10px; border: 1px solid var(--border); background: var(--card); resize: vertical; }
+.note-inline { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.note-by { display: block; }

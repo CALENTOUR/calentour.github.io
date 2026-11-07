@@ -1,6 +1,7 @@
-// Maisons hors tournée : bâtiments habités des communes des tournées, téléchargés une fois
-// par visite. La liste est recalculée sur les tournées à jour : une maison ajoutée ou
-// écartée disparaît tout de suite.
+// Maisons hors tournée : bâtiments habités des communes des tournées. Le téléchargement
+// est gardé sur l'appareil (30 jours, ou jusqu'à « Relancer ») : l'analyse ne se refait
+// pas à chaque visite. La liste est recalculée sur les tournées à jour : une maison
+// ajoutée ou écartée disparaît tout de suite.
 import { useEffect, useState } from 'react'
 import { buildingsOf, communesOf, uncoveredBuildings } from './addressCheck'
 
@@ -11,13 +12,13 @@ let running = null
 const listeners = new Set()
 const emit = () => listeners.forEach((cb) => cb())
 
-export function runUncoveredScan(tours) {
+export function runUncoveredScan(tours, { force = false } = {}) {
   if (running) return running
   const codes = communesOf(tours ?? [])
   progress = { done: 0, total: codes.length }
   error = null
   emit()
-  running = buildingsOf(codes, (done, total) => { progress = { done, total }; emit() })
+  running = buildingsOf(codes, (done, total) => { progress = { done, total }; emit() }, { force })
     .then((res) => { buildings = res })
     .catch((err) => { error = err.message })
     .finally(() => {
@@ -26,6 +27,17 @@ export function runUncoveredScan(tours) {
       emit()
     })
   return running
+}
+
+// Reprend en silence la dernière analyse gardée sur l'appareil (sans rien télécharger),
+// pour la pastille du menu dès l'ouverture de l'appli.
+let peeked = false
+export function loadSavedUncovered(tours) {
+  if (peeked || buildings || running || !tours?.length) return
+  peeked = true
+  buildingsOf(communesOf(tours), null, { localOnly: true })
+    .then((res) => { if (res && !buildings) { buildings = res; emit() } })
+    .catch(() => {})
 }
 
 // Calcul gardé tant que ni les tournées ni les bâtiments ne changent (menu, onglet et liste

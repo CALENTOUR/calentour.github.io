@@ -10,6 +10,7 @@
 // - les adresses de simples dépendances (garage, hangar, abri) ;
 // - les maisons comptées dans plusieurs tournées (gardées dans la plus proche) ;
 // - les maisons habitées au bord d'une rue tracée mais sans adresse dans la tournée.
+import { loadLocal, saveLocal } from './localStore'
 import { projectOnLine, samplePoints, unflatten } from './geo'
 import { locateOnPieces } from './tourBuilder'
 import { newId } from './format'
@@ -342,15 +343,33 @@ export const needsCheck = (tours) => tours.some((t) => (t.houses ?? []).some((h)
 // Bâtiments gardés pour la session ; après un échec (réseau, quota de l'API), on attend 30 min.
 let running = false
 let failedAt = 0
-const cache = new Map()
-// Bâtiments des communes, téléchargés une fois par visite. `onProgress(faites, total)`.
-export async function buildingsOf(codes, onProgress) {
+const cache = new Map() // commune → { at, buildings }
+// Bâtiments des communes. Une commune téléchargée est gardée sur l'appareil 30 jours
+// (le téléchargement prend environ une minute par commune). `force` retélécharge tout.
+// `onProgress(faites, total)`. Renvoie aussi la date du plus ancien téléchargement.
+const KEEP = 30 * 24 * 3600 * 1000
+const stored = (c) => `bdnb:${c}`
+export async function buildingsOf(codes, onProgress, { force = false, localOnly = false } = {}) {
   let done = 0
+  let oldest = Date.now()
   for (const c of codes) {
-    if (!cache.has(c)) cache.set(c, await fetchBuildings([c]))
+    let entry = force ? null : cache.get(c)
+    if (!entry && !force) {
+      const local = await loadLocal(stored(c))
+      if (local?.at && Date.now() - local.at < KEEP && Array.isArray(local.buildings)) entry = local
+    }
+    if (!entry && localOnly) return null
+    if (!entry) {
+      entry = { at: Date.now(), buildings: await fetchBuildings([c]) }
+      saveLocal(stored(c), entry)
+    }
+    cache.set(c, entry)
+    oldest = Math.min(oldest, entry.at)
     onProgress?.(++done, codes.length)
   }
-  return codes.flatMap((c) => cache.get(c))
+  const list = codes.flatMap((c) => cache.get(c).buildings)
+  list.at = oldest
+  return list
 }
 
 export async function autoCheckAddresses(latest, statesById, save, onDone) {

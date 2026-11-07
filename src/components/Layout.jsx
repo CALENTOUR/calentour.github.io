@@ -15,7 +15,7 @@ import { autoCountUnits } from '../lib/logements'
 import { autoCheckAddresses, needsCheck } from '../lib/addressCheck'
 import { useToast } from './ui/Toast'
 import { runMissingScan, useMissingBuildings } from '../lib/missingBuildings'
-import { useUncoveredHouses } from '../lib/uncoveredHouses'
+import { loadSavedUncovered, useUncoveredHouses } from '../lib/uncoveredHouses'
 
 const MEMBER_NAV = [
   { to: '/tournee', icon: <IconTour />, label: 'Ma tournée', short: 'Ma tournée', sub: 'rues et maisons' },
@@ -38,12 +38,12 @@ export default function Layout() {
   // Maisons sans bâtiment : recherchées une fois par visite, pour la pastille rouge de Réglages.
   const { rows: missingRows, scan: missingScan } = useMissingBuildings(toursById)
   const missing = missingRows.length
-  // Maisons hors tournée : connues une fois l'onglet des réglages ouvert.
+  // Maisons hors tournée : dernière analyse gardée sur l'appareil, ou onglet des réglages ouvert.
   const uncovered = useUncoveredHouses(isAdmin ? tours : null).rows.length
   const todo = { missing, uncovered }
   useEffect(() => {
     if (!isAdmin || missingScan || !tours?.length) return undefined
-    const timer = setTimeout(() => runMissingScan(tours), 6000)
+    const timer = setTimeout(() => { runMissingScan(tours); loadSavedUncovered(tours) }, 6000)
     return () => clearTimeout(timer)
   }, [isAdmin, missingScan, tours?.length]) // eslint-disable-line react-hooks/exhaustive-deps
   const global = useMemo(() => (isAdmin ? globalStats(tours, statesById) : null), [isAdmin, tours, statesById])

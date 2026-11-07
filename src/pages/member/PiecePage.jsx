@@ -152,6 +152,7 @@ export default function PiecePage() {
                     <span className="spacer">
                       {x.label}
                       {x.units?.length ? <span className="small muted"> · 🏢 {x.units.length} logements</span> : null}
+                      {tour.notes?.[x.id] ? <span className="small muted note-inline"> · 💬 {tour.notes[x.id].t}</span> : null}
                     </span>
                     <span className="small" style={{ color: st.key === 'todo' ? 'var(--muted)' : st.stroke }}>
                       {entry?.s === 'given' ? formatEuro(entry.amount) : st.short}

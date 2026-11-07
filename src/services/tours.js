@@ -1,4 +1,4 @@
-import { deleteDoc, doc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore'
+import { deleteDoc, deleteField, doc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { newId } from '../lib/format'
 import { flatten } from '../lib/geo'
@@ -9,6 +9,15 @@ import { updateUser } from './users'
 
 export function saveTour(id, data) {
   return setDoc(tourRef(id), { ...data, updatedAt: serverTimestamp() }, { merge: true })
+}
+
+// Commentaire sur une maison (« chien », « sonnette en panne »…), gardé d'une année sur
+// l'autre. Écrit seul, sans renvoyer la liste des maisons : un binôme hors ligne
+// n'écrase rien. Texte vide = commentaire effacé.
+export function saveHouseNote(tourId, houseId, text, user) {
+  const t = text.trim().slice(0, 300)
+  const entry = t ? { t, at: new Date().toISOString(), by: user?.uid ?? null, byName: user?.name ?? '' } : deleteField()
+  return setDoc(tourRef(tourId), { notes: { [houseId]: entry } }, { merge: true })
 }
 
 // Retire une maison de la tournée et retient ses identifiants d'adresse et de bâtiment,

@@ -56,10 +56,11 @@ export default function UncoveredHouses() {
           Ce qui reste n’est dans aucune tournée : une rue oubliée, un écart, une ferme. Ajoute-la à une tournée, ou écarte-la si personne n’y habite.
         </p>
         <div className="row wrap">
-          <button type="button" className={buildings ? 'btn-ghost' : 'btn-primary'} disabled={Boolean(progress) || !tours?.length} onClick={() => runUncoveredScan(tours)}>
-            {progress ? `Téléchargement… ${progress.done}/${progress.total} communes` : buildings ? '↻ Relancer' : '🔎 Chercher les maisons oubliées'}
+          <button type="button" className={buildings ? 'btn-ghost' : 'btn-primary'} disabled={Boolean(progress) || !tours?.length} onClick={() => runUncoveredScan(tours, { force: Boolean(buildings) })}>
+            {progress ? `Analyse… ${progress.done}/${progress.total} communes` : buildings ? '↻ Relancer l’analyse' : '🔎 Chercher les maisons oubliées'}
           </button>
           {progress && <span className="small muted">Quelques secondes à une minute par commune.</span>}
+          {buildings?.at && !progress && <span className="small muted">Analyse du {new Date(buildings.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}, gardée sur cet appareil. La liste suit tes changements de tournées ; « Relancer » sert seulement si des maisons ont été construites ou démolies.</span>}
           {error && <span className="small warn">Recherche impossible : {error}. Réessaie dans quelques minutes.</span>}
         </div>
       </div>
