@@ -40,7 +40,7 @@ export default function LoginPage() {
         )}
         <form className="stack" onSubmit={(e) => { e.preventDefault(); submit(form) }}>
           <label>Identifiant
-            <input autoComplete="username" autoCapitalize="none" required value={form.login} onChange={(e) => setForm((f) => ({ ...f, login: e.target.value }))} placeholder="ex. tournee7" />
+            <input autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} required value={form.login} onChange={(e) => setForm((f) => ({ ...f, login: e.target.value }))} placeholder="ex. noemie.mathieu" />
           </label>
           <label>Mot de passe
             <input type="password" autoComplete="current-password" required value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />

@@ -12,7 +12,7 @@ import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
 import { settingsRef } from '../../services/paths'
 import { resetProgress, simulateProgress } from '../../services/simulation'
-import { authErrorMessage, changeMyPassword, createAccount, generatePassword, updateUser } from '../../services/users'
+import { accessText, authErrorMessage, changeMyPassword, copyText, createAccount, createMissingAccesses, generatePassword, tourLogin, updateUser } from '../../services/users'
 
 export default function SettingsPage() {
   const { settings, users, toursById, tours } = useData()
@@ -61,6 +61,25 @@ export default function SettingsPage() {
     } catch (err) {
       toast(authErrorMessage(err))
     }
+  }
+
+  // Création en une fois des accès des tournées qui n'en ont pas (les autres ne bougent pas).
+  const [bulk, setBulk] = useState(null) // { done, total } pendant la création, puis { created, failed }
+  const activeTourIds = new Set(users.filter((u) => u.active && u.role !== 'admin' && u.tourId).map((u) => u.tourId))
+  const withoutAccess = (tours ?? []).filter((t) => !activeTourIds.has(t.id))
+  const createAll = async () => {
+    const list = withoutAccess.map((t) => `n°${t.number} ${t.name} → ${tourLogin(t)}`).join('\n')
+    if (!window.confirm(`Créer ${withoutAccess.length} accès ?\n\n${list}\n\nLes tournées qui ont déjà un accès ne sont pas touchées.`)) return
+    setBulk({ done: 0, total: withoutAccess.length })
+    const res = await createMissingAccesses(withoutAccess, users, (done, total) => setBulk({ done, total }))
+    setBulk(res)
+    toast(`${res.created.length} accès créé${res.created.length > 1 ? 's' : ''}${res.failed.length ? `, ${res.failed.length} en échec` : ''}`)
+  }
+  const copyAccess = (u) => copyText(accessText(u)).then((ok) => toast(ok ? (u.password ? 'Identifiant et mot de passe copiés' : 'Identifiant copié (mot de passe inconnu)') : 'Copie impossible sur cet appareil'))
+  const copyAll = () => {
+    const lines = members.filter((u) => u.active && toursById[u.tourId]).sort((a, b) => toursById[a.tourId].number - toursById[b.tourId].number)
+      .map((u) => `Tournée ${toursById[u.tourId].number} (${toursById[u.tourId].name}) : ${u.login}${u.password ? ` / ${u.password}` : ''}`)
+    copyText([`Adresse : ${window.location.href.split('#')[0]}`, ...lines].join('\n')).then((ok) => toast(ok ? 'Liste des accès copiée' : 'Copie impossible sur cet appareil'))
   }
 
   const admins = users.filter((u) => u.role === 'admin')
@@ -164,14 +183,33 @@ export default function SettingsPage() {
 
       <div className="card stack">
         <h2>Accès des binômes</h2>
-        <ul className="plain-list">
-          {members.map((u) => (
-            <li key={u.id} className="row">
-              <span className="spacer"><code>{u.login}</code> · {toursById[u.tourId] ? `Tournée ${toursById[u.tourId].number}` : 'sans tournée'} {u.active ? '' : <span className="warn">(désactivé)</span>}</span>
-              <button type="button" className="btn-sm btn-ghost" onClick={() => updateUser(u.id, { active: !u.active })}>{u.active ? 'Désactiver' : 'Réactiver'}</button>
+        <p className="small muted">Identifiant = prénoms de la tournée (ex. noemie.mathieu), mot de passe = un mot simple. Les accès déjà créés ne sont jamais remplacés.</p>
+        <div className="row wrap">
+          {withoutAccess.length ? (
+            <button type="button" className="btn-primary" disabled={Boolean(bulk?.total && !bulk.created)} onClick={createAll}>
+              {bulk?.total && !bulk.created ? `Création… ${bulk.done}/${bulk.total}` : `🔑 Créer les ${withoutAccess.length} accès manquants`}
+            </button>
+          ) : <span className="small"><strong>✅ Toutes les tournées ont un accès.</strong></span>}
+          {members.some((u) => u.active) && <button type="button" className="btn-ghost" onClick={copyAll}>📋 Copier tous les accès</button>}
+        </div>
+        {bulk?.failed?.length > 0 && (
+          <ul className="plain-list small warn">
+            {bulk.failed.map((f) => <li key={f.tour.id}>Tournée {f.tour.number} ({f.login}) : {f.error}</li>)}
+          </ul>
+        )}
+        <ul className="plain-list access-list">
+          {[...members].sort((a, b) => (toursById[a.tourId]?.number ?? 999) - (toursById[b.tourId]?.number ?? 999) || (b.active - a.active)).map((u) => (
+            <li key={u.id} className={u.active ? '' : 'off'}>
+              {toursById[u.tourId] ? <span className="tour-dot" style={{ background: toursById[u.tourId].color }}>{toursById[u.tourId].number}</span> : <span className="tour-dot">?</span>}
+              <span className="access-ids">
+                <strong>{u.login.split('.').map((part, i) => <span key={i}>{i ? '.' : ''}<wbr />{part}</span>)}</strong>
+                <small>{u.password ? `mot de passe : ${u.password}` : 'mot de passe inconnu'}{u.active ? '' : ' · désactivé'}</small>
+              </span>
+              {u.active && <button type="button" className="btn-sm" onClick={() => copyAccess(u)} aria-label={`Copier l’accès ${u.login}`}>📋 Copier</button>}
+              <button type="button" className="btn-sm btn-ghost access-toggle" onClick={() => updateUser(u.id, { active: !u.active })}>{u.active ? 'Désactiver' : 'Réactiver'}</button>
             </li>
           ))}
-          {!members.length && <li className="muted small">Les accès se créent depuis chaque tournée.</li>}
+          {!members.length && <li className="muted small">Aucun accès pour l’instant.</li>}
         </ul>
       </div>
       </>

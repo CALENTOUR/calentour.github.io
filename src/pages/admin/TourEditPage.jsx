@@ -13,7 +13,7 @@ import { mergeSameName } from '../../lib/tourBuilder'
 import { removeTour, saveTour, withoutHouse } from '../../services/tours'
 import TourMapEditor from './TourMapEditor'
 import { withUnits } from '../../lib/logements'
-import { authErrorMessage, createAccount, generatePassword, normalizeLogin, updateUser } from '../../services/users'
+import { authErrorMessage, createAccount, normalizeLogin, simpleWord, tourLogin, updateUser } from '../../services/users'
 
 export function Identity({ tour }) {
   const toast = useToast()
@@ -46,11 +46,12 @@ export function Access({ tour }) {
     let login = normalizeLogin(form.login)
     if (login && taken.has(login)) return toast('Cet identifiant est déjà pris.')
     if (!login) {
-      login = `tournee${tour.number}`
-      for (let i = 2; taken.has(login); i++) login = `tournee${tour.number}-${i}`
+      const base = tourLogin(tour)
+      login = base
+      for (let i = 2; taken.has(login); i++) login = `${base}${i}`
     }
     if (form.password && form.password.length < 6) return toast('Mot de passe trop court (6 caractères minimum).')
-    const password = form.password || generatePassword()
+    const password = form.password.trim() || simpleWord(new Set(users.map((u) => u.password).filter(Boolean)))
     setBusy(true)
     try {
       if (active) await updateUser(active.id, { active: false })
@@ -67,12 +68,12 @@ export function Access({ tour }) {
   return (
     <div className="card stack">
       <h2>Accès du binôme</h2>
-      {created ? <AccessCard amicale={settings?.amicale} tour={tour} {...created} />
-        : active ? <AccessCard amicale={settings?.amicale} tour={tour} login={active.login} />
+      {created ? <AccessCard amicale={settings?.amicale} tour={tour} {...created} fresh />
+        : active ? <AccessCard amicale={settings?.amicale} tour={tour} login={active.login} password={active.password} />
           : <p className="muted small">Pas encore d’accès. Choisis un identifiant et un mot de passe, ou laisse vide pour qu’ils soient créés automatiquement.</p>}
       <form className="stack" onSubmit={create}>
-        <input value={form.login} onChange={(e) => setForm({ ...form, login: e.target.value })} placeholder={`Identifiant (vide = tournee${tour.number})`} autoComplete="off" />
-        <input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Mot de passe (vide = généré, 6 caractères min.)" autoComplete="new-password" />
+        <input value={form.login} onChange={(e) => setForm({ ...form, login: e.target.value })} placeholder={`Identifiant (vide = ${tourLogin(tour)})`} autoComplete="off" autoCapitalize="none" />
+        <input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Mot de passe (vide = un mot simple, 6 caractères min.)" autoComplete="new-password" autoCapitalize="none" />
         <button type="submit" className={active || created ? 'btn-ghost' : 'btn-primary'} disabled={busy}>
           {busy ? 'Création…' : active || created ? '🔄 Remplacer l’accès' : '🔑 Créer l’accès'}
         </button>
