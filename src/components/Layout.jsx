@@ -14,7 +14,7 @@ import { saveTour } from '../services/tours'
 import { autoCountUnits } from '../lib/logements'
 import { autoCheckAddresses, needsCheck } from '../lib/addressCheck'
 import { useToast } from './ui/Toast'
-import { runMissingScan, useMissingBuildings } from '../lib/missingBuildings'
+import { loadSavedMissing, runMissingScan, useMissingBuildings } from '../lib/missingBuildings'
 import { loadSavedUncovered, useUncoveredHouses } from '../lib/uncoveredHouses'
 
 const MEMBER_NAV = [
@@ -43,8 +43,15 @@ export default function Layout() {
   const todo = { missing, uncovered }
   useEffect(() => {
     if (!isAdmin || missingScan || !tours?.length) return undefined
-    const timer = setTimeout(() => { runMissingScan(tours); loadSavedUncovered() }, 6000)
-    return () => clearTimeout(timer)
+    // Recherche gardée d'une visite à l'autre ; sinon elle est relancée, plus tard, pour
+    // laisser les cartes de la page se charger d'abord.
+    let later = 0
+    let off = false
+    const timer = setTimeout(() => {
+      loadSavedUncovered()
+      loadSavedMissing().then((known) => { if (!known && !off) later = setTimeout(() => runMissingScan(tours), 20000) })
+    }, 6000)
+    return () => { off = true; clearTimeout(timer); clearTimeout(later) }
   }, [isAdmin, missingScan, tours?.length]) // eslint-disable-line react-hooks/exhaustive-deps
   const global = useMemo(() => (isAdmin ? globalStats(tours, statesById) : null), [isAdmin, tours, statesById])
   const nav = isAdmin ? ADMIN_NAV : MEMBER_NAV

@@ -81,7 +81,8 @@ async function fetchTile(key) {
     // Même forme de requête que le comptage des logements (lib/logements.js).
     BBOX: `${w},${s},${e},${n},EPSG:4326`,
   })
-  const res = await fetch(`${WFS}?${params}`)
+  // Priorité basse : les tuiles de la carte (photo satellite comprise, même serveur) passent avant.
+  const res = await fetch(`${WFS}?${params}`, { priority: 'low' })
   if (!res.ok) throw new Error(`IGN ${res.status}`)
   const cells = new Map()
   for (const f of (await res.json()).features ?? []) {
@@ -150,7 +151,7 @@ export async function scanMissing(tours, onProgress) {
   const all = tours.flatMap((tour) => (tour.houses ?? []).filter((h) => !h.noBuilding && Number.isFinite(h.lng)).map((house) => ({ tour, house })))
   const keys = keysFor(all.map(({ house }) => [house.lng, house.lat]))
   let done = 0
-  // Quatre carreaux à la fois.
+  // Deux carreaux à la fois, pour ne pas saturer la connexion.
   const queue = [...keys]
   const worker = async () => {
     while (queue.length) {
@@ -158,7 +159,7 @@ export async function scanMissing(tours, onProgress) {
       onProgress?.(++done, keys.length)
     }
   }
-  await Promise.all(Array.from({ length: 4 }, worker))
+  await Promise.all(Array.from({ length: 2 }, worker))
   const failed = keys.filter((k) => tiles.get(k)?.status !== 'ok').length
   const missing = all.filter(({ house }) => tiles.get(tileKey(house.lng, house.lat))?.status === 'ok' && !ignBuildingAt([house.lng, house.lat]))
   return { missing, failed, checked: all.length }

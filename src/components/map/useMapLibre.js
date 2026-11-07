@@ -102,7 +102,9 @@ export function useMapLibre(containerRef, { rememberView = false, initialPoints 
       instance.setStyle(FALLBACK_STYLE)
       instance.once('style.load', onReady)
     }
-    const fallbackTimer = setTimeout(applyFallback, navigator.onLine ? 10000 : 3000)
+    // En ligne, un style lent finit par arriver : on ne le remplace par le fond de secours
+    // (bleu nuit, sans rues ni photo) qu'après une longue attente.
+    const fallbackTimer = setTimeout(applyFallback, navigator.onLine ? 30000 : 3000)
     // Prête dès que le style est lu, sans attendre toutes les tuiles du fond (l'événement
     // « load » les attend toutes) : rues et maisons de la tournée s'affichent tout de suite,
     // le fond se remplit ensuite. Le style de secours ne remplace donc plus un fond

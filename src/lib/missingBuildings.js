@@ -1,7 +1,13 @@
 // Maisons sans bâtiment : dernière recherche à l'IGN, partagée entre la pastille du menu,
-// l'onglet des réglages et le placement guidé. Gardée en mémoire le temps de la visite.
+// l'onglet des réglages et le placement guidé. Gardée sur l'appareil une journée : la
+// recherche télécharge les bâtiments de toute la zone (une vingtaine de Mo), ce qui
+// ralentissait les cartes ouvertes en même temps (même serveur que la photo satellite).
 import { useEffect, useState } from 'react'
 import { scanMissing } from './ignBuildings'
+import { loadLocal, saveLocal } from './localStore'
+
+const SAVED = 'missing-scan'
+const KEEP = 24 * 3600 * 1000
 
 let scan = null // { ids: [[tourId, houseId, lng, lat]], checked, failed }
 let progress = null // { done, total } pendant une recherche
@@ -15,7 +21,8 @@ export function runMissingScan(tours) {
   emit()
   running = scanMissing(tours ?? [], (done, total) => { progress = { done, total }; emit() })
     .then((res) => {
-      scan = { ...res, ids: res.missing.map(({ tour, house }) => [tour.id, house.id, house.lng, house.lat]) }
+      scan = { at: Date.now(), checked: res.checked, failed: res.failed, ids: res.missing.map(({ tour, house }) => [tour.id, house.id, house.lng, house.lat]) }
+      if (!res.failed) saveLocal(SAVED, scan)
     })
     .finally(() => {
       progress = null
@@ -23,6 +30,23 @@ export function runMissingScan(tours) {
       emit()
     })
   return running
+}
+
+// Dernière recherche gardée sur l'appareil (moins d'un jour), sans rien télécharger.
+// Renvoie vrai si une recherche est connue.
+let peek = null
+export function loadSavedMissing() {
+  if (scan) return Promise.resolve(true)
+  if (!peek) {
+    peek = loadLocal(SAVED).then((saved) => {
+      if (!scan && saved?.at && Date.now() - saved.at < KEEP && Array.isArray(saved.ids)) {
+        scan = saved
+        emit()
+      }
+      return Boolean(scan)
+    })
+  }
+  return peek
 }
 
 // Maisons encore à traiter, d'après les tournées à jour : celles déplacées, gardées
