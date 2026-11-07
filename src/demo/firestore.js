@@ -102,3 +102,12 @@ export function writeBatch() {
   }
   return batch
 }
+
+// Sauvegarde / restauration (src/services/backup.js).
+export const getDocFromServer = (ref) => getDoc(ref)
+export const getDocsFromServer = (ref) => getDocs(ref)
+export class Timestamp {
+  constructor(date) { this.date = date }
+  static fromDate(date) { return new Timestamp(date) }
+  toDate() { return this.date }
+}
