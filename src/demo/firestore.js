@@ -103,6 +103,8 @@ export function writeBatch() {
   return batch
 }
 
+export const terminate = async () => {}
+export const clearIndexedDbPersistence = async () => {}
 // Sauvegarde / restauration (src/services/backup.js).
 export const getDocFromServer = (ref) => getDoc(ref)
 export const getDocsFromServer = (ref) => getDocs(ref)

@@ -1,6 +1,13 @@
-// Carte d'accès imprimable remise au binôme.
+import { useToast } from './ui/Toast'
+import { accessText, copyText } from '../services/users'
+
+// Carte d'accès imprimable remise au binôme, avec un bouton pour copier
+// l'identifiant et le mot de passe (à coller dans un SMS).
 const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
-export default function AccessCard({ amicale, tour, login, password }) {
+export default function AccessCard({ amicale, tour, login, password, fresh = false }) {
+  const toast = useToast()
+  const copy = () => copyText(accessText({ login, password }))
+    .then((ok) => toast(ok ? (password ? 'Identifiant et mot de passe copiés' : 'Identifiant copié (mot de passe inconnu)') : 'Copie impossible sur cet appareil'))
   const url = window.location.href.split('#')[0]
   const print = () => {
     const w = window.open('', '_blank', 'width=480,height=640')
@@ -19,8 +26,12 @@ export default function AccessCard({ amicale, tour, login, password }) {
       <div className="small muted">Tournée n°{tour.number} · {tour.name}</div>
       <div>Identifiant : <code className="big-code">{login}</code></div>
       {password && <div>Mot de passe : <code className="big-code">{password}</code></div>}
-      {password && <div className="small warn">Note-le maintenant : le mot de passe ne sera plus affiché.</div>}
-      <button type="button" className="btn-sm" onClick={print}>🖨️ Imprimer la carte d’accès</button>
+      {!password && <div className="small muted">Mot de passe inconnu : accès créé avant l’enregistrement des mots de passe. « Remplacer l’accès » en crée un nouveau.</div>}
+      {fresh && password && <div className="small muted">Le mot de passe reste visible ici et dans Réglages pour les admins.</div>}
+      <div className="row wrap">
+        <button type="button" className="btn-primary btn-copy" onClick={copy}>📋 Copier identifiant{password ? ' et mot de passe' : ''}</button>
+        <button type="button" className="btn-sm btn-ghost" onClick={print}>🖨️ Imprimer</button>
+      </div>
     </div>
   )
 }

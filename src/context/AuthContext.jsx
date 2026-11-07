@@ -22,7 +22,8 @@ export function AuthProvider({ children }) {
     setProfile(undefined)
     return onSnapshot(
       userRef(firebaseUser.uid),
-      (snap) => setProfile(snap.exists() ? { id: snap.id, uid: snap.id, ...snap.data() } : null),
+      // Fiche absente du cache (hors ligne) : on attend le serveur avant de refuser l'accès.
+      (snap) => { if (snap.exists() || !snap.metadata?.fromCache) setProfile(snap.exists() ? { id: snap.id, uid: snap.id, ...snap.data() } : null) },
       () => setProfile(null),
     )
   }, [firebaseUser])

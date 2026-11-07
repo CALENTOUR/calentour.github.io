@@ -19,7 +19,9 @@ export function DataProvider({ children }) {
 
   useEffect(() => onSnapshot(
     settingsRef(),
-    (snap) => setSettings(snap.exists() ? snap.data() : null),
+    // Absent du cache du téléphone (hors ligne) ne veut pas dire absent de la base : on
+    // attend la réponse du serveur avant de proposer de créer l'amicale.
+    (snap) => { if (snap.exists() || !snap.metadata?.fromCache) setSettings(snap.exists() ? snap.data() : null) },
     () => setSettings(null),
   ), [])
 

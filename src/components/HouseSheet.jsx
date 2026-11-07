@@ -3,7 +3,7 @@ import Sheet from './ui/Sheet'
 import { PAYMENT_MODES, QUICK_AMOUNTS, RESULT_STATUSES, STATUSES } from '../config/constants'
 import { formatDate, formatEuro, toNumber } from '../lib/format'
 import { dwellingKey, recordPassage } from '../services/state'
-import { saveTour } from '../services/tours'
+import { saveHouseNote, saveTour } from '../services/tours'
 import { withUnits } from '../lib/logements'
 
 function navigationUrl(house) {
@@ -75,6 +75,45 @@ function DwellingForm({ entry, onSave, onReset }) {
         </div>
       )}
     </div>
+  )
+}
+
+// Commentaire de la maison, visible par le binôme et les admins, gardé d'une année sur l'autre.
+function HouseNote({ tour, house, user }) {
+  const note = tour.notes?.[house.id]
+  const [text, setText] = useState(null)
+  const [error, setError] = useState('')
+  const save = (value) => {
+    setError('')
+    // Pas d'attente : hors ligne, l'écriture part dans la file locale.
+    saveHouseNote(tour.id, house.id, value, user).catch((err) => setError(err.code === 'permission-denied' ? 'Commentaire refusé : demande à un admin de mettre à jour les règles.' : `Erreur : ${err.message}`))
+    setText(null)
+  }
+  if (text != null) {
+    return (
+      <form className="note-edit stack" onSubmit={(e) => { e.preventDefault(); save(text) }}>
+        <textarea autoFocus rows={2} maxLength={300} value={text} onChange={(e) => setText(e.target.value)} placeholder="Ex. chien dans la cour, sonner à l’arrière, repasser le soir…" aria-label="Commentaire sur la maison" />
+        <div className="row">
+          <button type="button" className="btn-ghost btn-sm" onClick={() => setText(null)}>Annuler</button>
+          {note && <button type="button" className="btn-ghost btn-sm danger" onClick={() => save('')}>Effacer</button>}
+          <button type="submit" className="btn-primary btn-sm spacer" disabled={!text.trim() && !note}>Enregistrer</button>
+        </div>
+      </form>
+    )
+  }
+  return (
+    <>
+      {note ? (
+        <button type="button" className="note-box" onClick={() => setText(note.t)} title="Modifier le commentaire">
+          <span aria-hidden="true">💬</span>
+          <span className="spacer">{note.t}{note.byName ? <small className="note-by">{note.byName}</small> : null}</span>
+          <span className="note-edit-hint">Modifier</span>
+        </button>
+      ) : (
+        <button type="button" className="btn-note" onClick={() => setText('')}>＋ Ajouter un commentaire</button>
+      )}
+      {error && <p className="error small">{error}</p>}
+    </>
   )
 }
 
@@ -158,6 +197,7 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
           {isBuilding && <button type="button" className="btn-ghost btn-sm" onClick={() => setUnitId(null)}>← Tous les logements</button>}
         </>
       )}
+      {!unit && !naming && !askUnits && <HouseNote key={house.id} tour={tour} house={house} user={user} />}
       {!unit && !naming && (askUnits ? (
         <div className="units-ask stack">
           <strong className="small">Combien de logements dans ce bâtiment ?</strong>

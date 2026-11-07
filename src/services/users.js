@@ -33,7 +33,84 @@ export function generatePassword() {
   return `${r(c)}${r(v)}${r(c)}${r(v)}${r(c)}${r(v)}${Math.floor(10 + Math.random() * 90)}`
 }
 
-// Compte créé par l'administrateur (binôme ou autre administrateur).
+// Mots simples à dicter pour les accès des binômes (6 lettres minimum, sans accent).
+const SIMPLE_WORDS = [
+  'camion', 'flocon', 'cerise', 'tomate', 'banane', 'carotte', 'citron', 'orange', 'girafe', 'renard',
+  'castor', 'cheval', 'mouton', 'poulet', 'canard', 'tortue', 'abeille', 'soleil', 'jardin', 'ballon',
+  'bateau', 'violon', 'crayon', 'cahier', 'chemin', 'sirene', 'echelle', 'casque', 'bougie', 'etoile',
+  'lavande', 'myrtille', 'noisette', 'pigeon', 'papillon', 'raisin', 'pompon', 'marron', 'grenier', 'lanterne',
+]
+export function simpleWord(used = new Set()) {
+  const free = SIMPLE_WORDS.filter((w) => !used.has(w))
+  const pool = free.length ? free : SIMPLE_WORDS
+  return pool[Math.floor(Math.random() * pool.length)]
+}
+
+// Identifiant d'une tournée d'après ses membres : « Noémie / Mathieu » → noemie.mathieu,
+// « Nathalie / Maxime L » → nathalie.maximel, « Arnaud / J-C » → arnaud.jc.
+export function tourLogin(tour) {
+  const names = (tour.members?.length ? tour.members : String(tour.name ?? '').split('/'))
+    .map((n) => normalizeLogin(n).replace(/[^a-z0-9]/g, ''))
+    .filter(Boolean)
+  return names.join('.') || `tournee${tour.number}`
+}
+
+// Accès de toutes les tournées qui n'en ont pas encore. Les accès existants ne sont
+// jamais touchés. `onProgress(faites, total)`. Renvoie les accès créés et les échecs.
+export async function createMissingAccesses(tours, users, onProgress) {
+  const withAccess = new Set(users.filter((u) => u.active && u.role !== 'admin' && u.tourId).map((u) => u.tourId))
+  const todo = tours.filter((t) => !withAccess.has(t.id))
+  const taken = new Set(users.map((u) => u.login))
+  const words = new Set(users.map((u) => u.password).filter(Boolean))
+  const created = []
+  const failed = []
+  let done = 0
+  for (const tour of todo) {
+    const base = tourLogin(tour)
+    let login = base
+    for (let i = 2; taken.has(login); i++) login = `${base}${i}`
+    const password = simpleWord(words)
+    try {
+      await createAccount({ login, password, name: tour.name, role: 'member', tourId: tour.id })
+      taken.add(login)
+      words.add(password)
+      created.push({ tour, login, password })
+    } catch (err) {
+      failed.push({ tour, login, error: authErrorMessage(err) })
+    }
+    onProgress?.(++done, todo.length)
+  }
+  return { created, failed }
+}
+
+// Texte à coller dans un message au binôme.
+export function accessText({ login: identifier, password }) {
+  const url = window.location.href.split('#')[0]
+  return [`Identifiant : ${identifier}`, password ? `Mot de passe : ${password}` : null, `Adresse : ${url}`].filter(Boolean).join('\n')
+}
+
+export async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    // Anciens navigateurs, ou page sans permission : copie à l'ancienne.
+    const area = document.createElement('textarea')
+    area.value = text
+    area.setAttribute('readonly', '')
+    area.style.position = 'fixed'
+    area.style.opacity = '0'
+    document.body.appendChild(area)
+    area.select()
+    const ok = document.execCommand('copy')
+    area.remove()
+    return ok
+  }
+}
+
+// Compte créé par l'administrateur (binôme ou autre administrateur). Le mot de passe d'un
+// binôme est gardé dans sa fiche (lisible par les admins et lui seul) pour pouvoir le
+// recopier plus tard.
 export async function createAccount({ login: identifier, password, name, role, tourId = null }) {
   const sec = secondaryAuth()
   const cred = await createUserWithEmailAndPassword(sec, loginToEmail(identifier), password)
@@ -44,6 +121,7 @@ export async function createAccount({ login: identifier, password, name, role, t
     role,
     tourId,
     active: true,
+    ...(role !== 'admin' ? { password } : {}),
     createdAt: serverTimestamp(),
   })
   return cred.user.uid

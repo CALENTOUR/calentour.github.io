@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import CollectedCard from '../../components/ui/CollectedCard'
 import ProgressPie from '../../components/ui/ProgressPie'
@@ -8,10 +8,12 @@ import StatusBar from '../../components/ui/StatusBar'
 import { useData } from '../../context/DataContext'
 import { formatEuro, formatPercent } from '../../lib/format'
 import { globalStats } from '../../lib/stats'
+import { useIsPhone } from '../../hooks/useIsPhone'
 
 export default function DashboardPage() {
   const { tours, statesById, settings, year } = useData()
   const g = useMemo(() => globalStats(tours, statesById), [tours, statesById])
+  const phone = useIsPhone()
 
   if (!tours.length) {
     return (
@@ -23,6 +25,8 @@ export default function DashboardPage() {
       </div></div>
     )
   }
+
+  if (phone) return <PhoneDashboard g={g} year={year} tours={tours} />
 
   return (
     <div className="page stack-lg">
@@ -76,6 +80,53 @@ export default function DashboardPage() {
         </div>
       </section>
 
+    </div>
+  )
+}
+
+// Bilan sur téléphone : tout tient sur un écran, les tournées les moins avancées d'abord.
+function PhoneDashboard({ g, year, tours }) {
+  const [order, setOrder] = useState('late')
+  const list = [...g.perTour].sort((a, b) => (order === 'late'
+    ? a.stats.progress - b.stats.progress || a.tour.number - b.tour.number
+    : a.tour.number - b.tour.number))
+  return (
+    <div className="page stack phone-dash">
+      <div className="phone-live"><i />En direct · campagne {year}</div>
+      <section className="phone-sum">
+        <div className="phone-sum-top">
+          <div><span>Collecté</span><strong className="phone-sum-amount">{formatEuro(g.amount)}</strong></div>
+          <div className="phone-sum-right"><span>Maisons</span><strong>{g.done} / {g.total}</strong></div>
+        </div>
+        <div className="phone-bar"><i style={{ width: `${Math.round(g.progress * 100)}%` }} /></div>
+        <div className="phone-chips">
+          <div className="pc-given"><strong>{g.counts.given}</strong><span>dons</span></div>
+          <div className="pc-again"><strong>{g.counts.again}</strong><span>à repasser</span></div>
+          <div className="pc-todo"><strong>{g.counts.todo}</strong><span>à faire</span></div>
+        </div>
+      </section>
+      <div className="row phone-tours-head">
+        <h2 className="spacer">Tournées</h2>
+        <div className="phone-toggle" role="group" aria-label="Ordre des tournées">
+          <button type="button" className={order === 'late' ? 'on' : ''} aria-pressed={order === 'late'} onClick={() => setOrder('late')}>Moins avancées</button>
+          <button type="button" className={order === 'num' ? 'on' : ''} aria-pressed={order === 'num'} onClick={() => setOrder('num')}>Par numéro</button>
+        </div>
+      </div>
+      <ul className="phone-tours">
+        {list.map(({ tour, stats: s }) => (
+          <li key={tour.id}>
+            <Link to={`/admin/tournees/${tour.id}`}>
+              <span className="tour-num" style={{ '--tour': tour.color }}>{tour.number}</span>
+              <span className="phone-tour-text">
+                <span className="phone-tour-line"><strong>{tour.name}</strong><span>{s.done} / {s.total}</span></span>
+                <span className="phone-bar thin"><i style={{ width: `${Math.round(s.progress * 100)}%` }} /></span>
+              </span>
+              <span className="phone-chevron" aria-hidden="true">›</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {tours.length > 0 && <p className="small muted">{tours.length} tournées · {formatPercent(g.progress)} fait</p>}
     </div>
   )
 }

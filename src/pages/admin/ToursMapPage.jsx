@@ -240,13 +240,15 @@ export default function ToursMapPage() {
       />
 
       <aside className="tours-panel" aria-label="Liste des tournées">
+        {/* Téléphone : la liste est un panneau du bas, qu'on ouvre ou replie en touchant la poignée. */}
+        <button type="button" className="sheet-grab" onClick={() => setPanelOpen((v) => !v)} aria-expanded={panelOpen} aria-label={panelOpen ? 'Replier la liste des tournées' : 'Déplier la liste des tournées'}><i /></button>
         <div className="tours-panel-head">
           <strong className="spacer tours-count">{tours.length} tournées <span className="small muted">{doneCount} terminée{doneCount > 1 ? 's' : ''}</span></strong>
           <button type="button" className="btn-round btn-ghost tours-panel-close" onClick={() => setPanelOpen(false)} aria-label="Fermer la liste">✕</button>
         </div>
         <label className="tours-search">
           <IconSearch width={16} height={16} />
-          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Chercher un binôme, un village" aria-label="Chercher une tournée" />
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} onFocus={() => setPanelOpen(true)} placeholder="Chercher un binôme, un village" aria-label="Chercher une tournée" />
         </label>
         <div className="tours-filters" role="group" aria-label="Filtrer les tournées">
           {[['all', 'Toutes'], ['late', 'À relancer'], ['done', 'Terminées']].map(([k, label]) => (

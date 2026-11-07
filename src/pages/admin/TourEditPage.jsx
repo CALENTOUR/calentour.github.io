@@ -8,12 +8,15 @@ import AccessCard from '../../components/AccessCard'
 import TourForm from '../../components/TourForm'
 import { useToast } from '../../components/ui/Toast'
 import { useData } from '../../context/DataContext'
-import { sortHouses } from '../../lib/stats'
+import { sortHouses, tourStats } from '../../lib/stats'
+import { formatEuro } from '../../lib/format'
+import ProgressRing from '../../components/ui/ProgressRing'
+import { useIsPhone } from '../../hooks/useIsPhone'
 import { mergeSameName } from '../../lib/tourBuilder'
 import { removeTour, saveTour, withoutHouse } from '../../services/tours'
 import TourMapEditor from './TourMapEditor'
 import { withUnits } from '../../lib/logements'
-import { authErrorMessage, createAccount, generatePassword, normalizeLogin, updateUser } from '../../services/users'
+import { authErrorMessage, createAccount, normalizeLogin, simpleWord, tourLogin, updateUser } from '../../services/users'
 
 export function Identity({ tour }) {
   const toast = useToast()
@@ -46,11 +49,12 @@ export function Access({ tour }) {
     let login = normalizeLogin(form.login)
     if (login && taken.has(login)) return toast('Cet identifiant est déjà pris.')
     if (!login) {
-      login = `tournee${tour.number}`
-      for (let i = 2; taken.has(login); i++) login = `tournee${tour.number}-${i}`
+      const base = tourLogin(tour)
+      login = base
+      for (let i = 2; taken.has(login); i++) login = `${base}${i}`
     }
     if (form.password && form.password.length < 6) return toast('Mot de passe trop court (6 caractères minimum).')
-    const password = form.password || generatePassword()
+    const password = form.password.trim() || simpleWord(new Set(users.map((u) => u.password).filter(Boolean)))
     setBusy(true)
     try {
       if (active) await updateUser(active.id, { active: false })
@@ -67,12 +71,12 @@ export function Access({ tour }) {
   return (
     <div className="card stack">
       <h2>Accès du binôme</h2>
-      {created ? <AccessCard amicale={settings?.amicale} tour={tour} {...created} />
-        : active ? <AccessCard amicale={settings?.amicale} tour={tour} login={active.login} />
+      {created ? <AccessCard amicale={settings?.amicale} tour={tour} {...created} fresh />
+        : active ? <AccessCard amicale={settings?.amicale} tour={tour} login={active.login} password={active.password} />
           : <p className="muted small">Pas encore d’accès. Choisis un identifiant et un mot de passe, ou laisse vide pour qu’ils soient créés automatiquement.</p>}
       <form className="stack" onSubmit={create}>
-        <input value={form.login} onChange={(e) => setForm({ ...form, login: e.target.value })} placeholder={`Identifiant (vide = tournee${tour.number})`} autoComplete="off" />
-        <input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Mot de passe (vide = généré, 6 caractères min.)" autoComplete="new-password" />
+        <input value={form.login} onChange={(e) => setForm({ ...form, login: e.target.value })} placeholder={`Identifiant (vide = ${tourLogin(tour)})`} autoComplete="off" autoCapitalize="none" />
+        <input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Mot de passe (vide = un mot simple, 6 caractères min.)" autoComplete="new-password" autoCapitalize="none" />
         <button type="submit" className={active || created ? 'btn-ghost' : 'btn-primary'} disabled={busy}>
           {busy ? 'Création…' : active || created ? '🔄 Remplacer l’accès' : '🔑 Créer l’accès'}
         </button>
@@ -99,6 +103,9 @@ export default function TourEditPage() {
   useEffect(() => { if (previewMap) showNeighbourTours(previewMap, others) }, [previewMap, others])
   const areas = useMemo(() => (tour ? tourAreas(tour) : []), [tour])
   const mapAreas = useMemo(() => (areas.length > 1 ? areas.map((a) => ({ ...a, active: a.id === areaSel })) : null), [areas, areaSel])
+
+  const phone = useIsPhone()
+  const phoneStats = useMemo(() => (phone && tour ? tourStats(tour, statesById[tour.id]) : null), [phone, tour, statesById])
 
   if (!tour) return <div className="page"><p className="muted">Tournée introuvable.</p><Link to="/admin/carte">← Tournées</Link></div>
 
@@ -155,19 +162,31 @@ export default function TourEditPage() {
         <Link to={`/admin/tournees/${tour.id}/terrain`} className="btn btn-sm">📱 Vue terrain</Link>
       </div>
 
+      {phoneStats && (
+        <div className="phone-tour-sum">
+          <ProgressRing value={phoneStats.progress} size={60} stroke={7} color="var(--green)"><strong>{Math.round(phoneStats.progress * 100)}%</strong></ProgressRing>
+          <div>
+            <strong>{phoneStats.done} / {phoneStats.total} maisons</strong>
+            <span className="small muted">{areas.length > 1 ? `${areas.length} secteurs` : areas[0]?.name ?? ''}</span>
+            <span className="small phone-tour-money">{formatEuro(phoneStats.amount)} · {phoneStats.counts.given} dons · {phoneStats.counts.again} à repasser</span>
+          </div>
+        </div>
+      )}
+      {phoneStats && <Access tour={tour} />}
+
       <button type="button" className="btn-primary btn-hero btn-hero-edit" onClick={() => setEditing(true)}>
         <span className="btn-hero-icon" aria-hidden="true">✏️</span>
         <span className="spacer">
           <strong>Modifier la tournée sur la carte</strong>
-          <span>Rues, maisons, logements : tout se modifie ici</span>
+          <span>{phoneStats ? 'Plus confortable sur PC' : 'Rues, maisons, logements : tout se modifie ici'}</span>
         </span>
         <span className="btn-hero-go" aria-hidden="true">Ouvrir ›</span>
       </button>
 
       <div className="edit-layout">
         <div className="stack">
+          {!phoneStats && <Access tour={tour} />}
           <Identity key={`${tour.id}-${tour.number}-${tour.name}-${tour.color}`} tour={tour} />
-          <Access tour={tour} />
         </div>
 
         <div className="card stack">
@@ -201,7 +220,7 @@ export default function TourEditPage() {
               <ul className="house-edit-list">
                 {list.map((h) => (
                   <li key={h.id}>
-                    <span className="spacer">{h.label}{h.units?.length ? ` · 🏢 ${h.units.length} logements` : ''}</span>
+                    <span className="spacer">{h.label}{h.units?.length ? ` · 🏢 ${h.units.length} logements` : ''}{tour.notes?.[h.id] ? <span className="small muted note-inline">💬 {tour.notes[h.id].t}</span> : null}</span>
                     <button type="button" className="btn-sm btn-ghost" onClick={() => setUnits(h)}>🏢 Logements</button>
                     <button type="button" className="btn-sm btn-ghost danger" onClick={() => removeHouse(h)} aria-label="Retirer">✕</button>
                   </li>

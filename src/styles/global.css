@@ -1212,3 +1212,145 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .guide-done .guide-title { color: #16a34a; font-size: 1.3rem; }
 .give-select{width:auto;max-width:12rem;padding:4px 8px;font-size:.85rem}
 .sub-tabs{max-width:none;font-size:.92rem}
+
+/* ---------- Retours de test du 7 novembre ---------- */
+
+/* Téléphone admin : la dernière tournée de la liste passe au-dessus des onglets flottants. */
+@media (max-width: 899px) {
+  .tours-map .tour-cards { padding-bottom: calc(96px + var(--safe-bottom)); }
+  body.immersive .tours-map .tour-cards { padding-bottom: .5rem; }
+}
+
+/* Commentaire sur une maison (fiche de passage). */
+.btn-note { align-self: flex-start; min-height: 38px; padding: 0 .8rem; border-radius: 99px; border: 1px dashed var(--muted); background: transparent; color: var(--text); font-size: .85rem; font-weight: 700; }
+.note-box { display: flex; align-items: flex-start; gap: .5rem; width: 100%; padding: .55rem .7rem; border-radius: 10px; border: 1px solid #e3cf9a; background: #fbf3dc; color: #5c4510; text-align: left; font-size: .9rem; font-weight: 600; white-space: normal; justify-content: flex-start; min-height: 0; }
+.note-box small { font-weight: 600; color: #8a6d2a; }
+.note-edit-hint { flex: none; font-size: .75rem; font-weight: 800; text-decoration: underline; }
+.note-edit textarea { width: 100%; font: inherit; font-size: .95rem; padding: .5rem .6rem; border-radius: 10px; border: 1px solid var(--border); background: var(--card); resize: vertical; }
+.note-inline { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.note-by { display: block; }
+
+/* Réglages : liste des accès des binômes. */
+.access-list li { display: flex; align-items: center; gap: .5rem; padding: .45rem 0; border-bottom: 1px solid var(--border); }
+.access-list li.off { opacity: .55; }
+.access-list .tour-dot { background: var(--muted); }
+.access-ids { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.access-ids strong { font-family: ui-monospace, monospace; font-size: .92rem; overflow-wrap: anywhere; word-break: normal; }
+.access-ids small { color: var(--muted); font-weight: 600; }
+.access-list .access-toggle { padding: 0 .4rem; font-size: .75rem; color: var(--muted); }
+.btn-copy { min-height: 48px; }
+
+/* Écran d'attente trop long : aide et réparation. */
+.loading-help { margin-top: 1rem; padding: .9rem; border-radius: 12px; border: 1px solid var(--border); background: var(--card-2); text-align: left; }
+.loading-help p { margin: 0; }
+
+/* ---------- Admin sur téléphone (maquette validée le 7 novembre) ---------- */
+@media (max-width: 899px) {
+  /* Onglets posés en bas, plus flottants : rien n'est caché dessous. */
+  :root { --admin-tab: 62px; }
+  .shell-admin .tabbar { left: 0; right: 0; bottom: 0; height: auto; padding: 6px 6px calc(6px + var(--safe-bottom)); gap: 4px; border: none; border-top: 1px solid var(--border); border-radius: 0; background: var(--card); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+  .shell-admin .tab { padding: 4px 0; }
+  .shell-admin .tab .tab-icon { width: 30px; height: 28px; }
+  .shell-admin .main { padding-bottom: calc(var(--admin-tab) + var(--safe-bottom) + 12px); }
+  .shell-admin .fullmap { bottom: calc(var(--admin-tab) + var(--safe-bottom)); }
+  body.immersive .shell-admin .fullmap { bottom: 0; }
+  .tours-map .tour-cards { padding-bottom: .5rem; }
+  .tours-map .tour-float { bottom: .6rem; }
+  .tours-map .map-btns { bottom: 3.2rem; }
+}
+
+/* Bilan sur téléphone. */
+.phone-dash { gap: .8rem; }
+.phone-live { display: flex; align-items: center; gap: .4rem; font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #2f5a2e; }
+.phone-live i { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+.phone-sum { display: flex; flex-direction: column; gap: .6rem; padding: .9rem; border-radius: 14px; border: 1px solid var(--border); background: var(--card); }
+.phone-sum-top { display: flex; justify-content: space-between; align-items: flex-end; gap: .5rem; }
+.phone-sum-top > div { display: flex; flex-direction: column; }
+.phone-sum-top span { font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.phone-sum-top strong { font-size: 1.25rem; font-weight: 900; }
+.phone-sum-top .phone-sum-amount { font-size: 2rem; letter-spacing: -.02em; line-height: 1.1; }
+.phone-sum-right { align-items: flex-end; }
+.phone-bar { display: block; height: 10px; border-radius: 5px; background: var(--card-2); overflow: hidden; }
+.phone-bar i { display: block; height: 100%; background: var(--green); }
+.phone-bar.thin { height: 6px; border-radius: 3px; }
+.phone-chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+.phone-chips div { display: flex; flex-direction: column; padding: .4rem .55rem; border-radius: 8px; }
+.phone-chips strong { font-size: 1.05rem; font-weight: 900; }
+.phone-chips span { font-size: .7rem; font-weight: 800; }
+.pc-given { background: #e1ecdc; color: #2f5a2e; }
+.pc-again { background: #f6ead0; color: #6e4b0e; }
+.pc-todo { background: #e3ebf3; color: var(--blue); }
+.phone-tours-head h2 { margin: 0; font-size: 1.05rem; }
+.phone-toggle { display: flex; gap: 3px; padding: 3px; border-radius: 99px; background: var(--card-2); }
+.phone-toggle button { min-height: 30px; padding: 0 .65rem; border: none; border-radius: 99px; background: transparent; font-size: .75rem; font-weight: 800; color: var(--text); }
+.phone-toggle button.on { background: var(--ink); color: #fff; }
+.phone-tours { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .45rem; }
+.phone-tours a { display: flex; align-items: center; gap: .6rem; padding: .55rem .65rem; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); text-decoration: none; }
+.phone-tours .tour-num { width: 30px; height: 30px; font-size: .8rem; }
+.phone-tour-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .3rem; }
+.phone-tour-line { display: flex; justify-content: space-between; gap: .4rem; }
+.phone-tour-line strong { font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.phone-tour-line span { font-size: .75rem; font-weight: 800; color: var(--muted); white-space: nowrap; }
+.phone-chevron { font-size: 1.3rem; color: var(--muted); }
+
+/* Carte des tournées sur téléphone : la liste devient un panneau du bas. */
+.sheet-grab { display: none; }
+@media (max-width: 899px) {
+  .tours-map .tours-panel { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-width: none; height: 172px; border-right: none; border-top: 1px solid var(--border); border-radius: 18px 18px 0 0; box-shadow: 0 -4px 16px rgba(31, 42, 36, .14); background: var(--card); transform: none; transition: height .22s ease; padding-bottom: 0; gap: .5rem; }
+  .tours-map.panel-open .tours-panel { height: min(78%, 620px); }
+  .tours-map.has-float .tours-panel { display: none; }
+  .tours-map .sheet-grab { display: grid; place-items: center; flex: none; width: 100%; height: 22px; min-height: 22px; padding: 0; border: none; background: none; }
+  .tours-map .sheet-grab i { width: 44px; height: 5px; border-radius: 3px; background: var(--border); }
+  .tours-map .tours-panel-head { padding: 0 .85rem; }
+  .tours-map .tours-panel-close, .tours-map .tours-panel-btn { display: none; }
+  .tours-map:not(.panel-open) .tours-filters { display: none; }
+  .tours-map .tour-cards { padding-bottom: .6rem; }
+  .tours-map .maplibregl-ctrl-top-right { top: 172px !important; }
+  .tours-map:not(.has-float) .map-btns { bottom: calc(172px + .6rem); }
+  .tours-map:not(.has-float) .progress-legend { bottom: calc(172px + .6rem); }
+  .tours-map.panel-open .tours-map-top { visibility: hidden; }
+  .tours-map:not(.panel-open) .tours-map-top { visibility: visible; left: .6rem; }
+  /* Villages sur une seule ligne qui défile. */
+  .tours-map-top .village-chips:not(.tour-places) { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; max-height: none; scrollbar-width: none; }
+  .tours-map-top .village-chips::-webkit-scrollbar { display: none; }
+}
+
+/* Fiche d'une tournée sur téléphone : avancement puis accès en haut. */
+.phone-tour-sum { display: flex; align-items: center; gap: .9rem; padding: .8rem .9rem; border-radius: 14px; border: 1px solid var(--border); background: var(--card); }
+.phone-tour-sum > div { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
+.phone-tour-sum > div > strong { font-size: 1.25rem; font-weight: 900; }
+.phone-tour-money { font-weight: 800; color: #2f5a2e; }
+@media (max-width: 899px) {
+  .btn-hero-edit { min-height: 0; padding: .7rem .9rem; }
+  .btn-hero-edit .btn-hero-icon { display: none; }
+}
+
+/* Dons sur téléphone : une ligne par passage. */
+.phone-chips-row { display: flex; gap: .4rem; overflow-x: auto; scrollbar-width: none; }
+.phone-chips-row::-webkit-scrollbar { display: none; }
+.phone-chips-row button { flex: none; min-height: 34px; padding: 0 .8rem; border-radius: 99px; border: 1px solid var(--border); background: var(--card); font-size: .82rem; font-weight: 800; color: var(--text); }
+.phone-chips-row button.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.phone-dons { list-style: none; margin: 0; padding: 0; border-radius: 14px; border: 1px solid var(--border); background: var(--card); overflow: hidden; }
+.phone-dons li + li { border-top: 1px solid var(--card-2); }
+.phone-dons button { width: 100%; display: flex; align-items: center; gap: .6rem; min-height: 58px; padding: .4rem .75rem; border: none; border-radius: 0; background: none; text-align: left; justify-content: flex-start; font-weight: 400; }
+.phone-dons .tour-num { width: 26px; height: 26px; font-size: .72rem; }
+.phone-don-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.phone-don-text strong { font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.phone-don-text span, .phone-don-amount span { font-size: .72rem; font-weight: 700; color: var(--muted); }
+.phone-don-amount { display: flex; flex-direction: column; align-items: flex-end; }
+.phone-don-amount strong { font-size: .95rem; }
+@media (max-width: 899px) {
+  .hide-phone { display: none !important; }
+  .shell-admin .page h1 { font-size: 1.45rem; }
+  .shell-admin .filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; padding: .7rem; }
+  .shell-admin .filters input { grid-column: 1 / -1; }
+}
+
+/* Réglages sur téléphone : liste de rubriques. */
+.phone-menu-group { gap: .35rem; }
+.phone-menu { list-style: none; margin: 0; padding: 0; border-radius: 14px; border: 1px solid var(--border); background: var(--card); overflow: hidden; }
+.phone-menu li + li { border-top: 1px solid var(--card-2); }
+.phone-menu button { width: 100%; display: flex; align-items: center; gap: .6rem; min-height: 58px; padding: .4rem .9rem; border: none; border-radius: 0; background: none; text-align: left; justify-content: flex-start; color: var(--text); }
+.phone-menu .spacer { display: flex; flex-direction: column; }
+.phone-menu strong { font-size: .95rem; }
+.phone-menu small { font-size: .75rem; font-weight: 600; color: var(--muted); }

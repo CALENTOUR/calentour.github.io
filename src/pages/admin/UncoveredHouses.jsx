@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useToast } from '../../components/ui/Toast'
 import { useData } from '../../context/DataContext'
 import { houseFromBuilding } from '../../lib/addressCheck'
-import { runUncoveredScan, useUncoveredHouses } from '../../lib/uncoveredHouses'
+import { loadSavedUncovered, runUncoveredScan, useUncoveredHouses } from '../../lib/uncoveredHouses'
+import { useAuth } from '../../context/AuthContext'
 import { saveTour } from '../../services/tours'
 import UncoveredMission from './UncoveredMission'
 
@@ -16,9 +17,11 @@ export default function UncoveredHouses() {
   const { buildings, progress, error, rows } = useUncoveredHouses(tours)
   const [choosing, setChoosing] = useState(null)
   const [mission, setMission] = useState(null) // maison de départ de la mission
-  // La recherche part toute seule à la première ouverture de l'onglet.
+  const { profile } = useAuth()
+  // Dernière analyse enregistrée ; s'il n'y en a jamais eu, elle part toute seule.
   useEffect(() => {
-    if (!buildings && !progress && !error && tours?.length) runUncoveredScan(tours)
+    if (buildings || progress || error || !tours?.length) return
+    loadSavedUncovered().then((found) => { if (!found) runUncoveredScan(tours, { user: profile }) })
   }, [tours?.length]) // eslint-disable-line react-hooks/exhaustive-deps
   const byCity = useMemo(() => {
     const map = new Map()
@@ -56,10 +59,11 @@ export default function UncoveredHouses() {
           Ce qui reste n’est dans aucune tournée : une rue oubliée, un écart, une ferme. Ajoute-la à une tournée, ou écarte-la si personne n’y habite.
         </p>
         <div className="row wrap">
-          <button type="button" className={buildings ? 'btn-ghost' : 'btn-primary'} disabled={Boolean(progress) || !tours?.length} onClick={() => runUncoveredScan(tours)}>
-            {progress ? `Téléchargement… ${progress.done}/${progress.total} communes` : buildings ? '↻ Relancer' : '🔎 Chercher les maisons oubliées'}
+          <button type="button" className={buildings ? 'btn-ghost' : 'btn-primary'} disabled={Boolean(progress) || !tours?.length} onClick={() => runUncoveredScan(tours, { force: Boolean(buildings), user: profile })}>
+            {progress ? `Analyse… ${progress.done}/${progress.total} communes` : buildings ? '↻ Relancer l’analyse' : '🔎 Chercher les maisons oubliées'}
           </button>
           {progress && <span className="small muted">Quelques secondes à une minute par commune.</span>}
+          {buildings?.at && !progress && <span className="small muted">Analyse du {new Date(buildings.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}{buildings.byName ? ` par ${buildings.byName}` : ''}, enregistrée pour tous les admins. La liste suit les changements de tournées ; « Relancer » sert seulement si des maisons ont été construites ou démolies, ou retirées d’une tournée.</span>}
           {error && <span className="small warn">Recherche impossible : {error}. Réessaie dans quelques minutes.</span>}
         </div>
       </div>

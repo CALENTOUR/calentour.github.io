@@ -42,9 +42,15 @@ service cloud.firestore {
     match /tours/{tourId} {
       allow read: if myTour(tourId) || canSeeAll();
       allow write: if isAdmin();
-      // Un binôme peut ajouter une maison oubliée à sa tournée (liste des maisons seulement).
+      // Un binôme peut ajouter une maison oubliée à sa tournée (liste des maisons seulement)
+      // et noter un commentaire sur une maison.
       allow update: if myTour(tourId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['houses', 'updatedAt']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['houses', 'updatedAt', 'notes']);
+    }
+
+    // Analyses partagées entre administrateurs (maisons hors tournée).
+    match /analyses/{id} {
+      allow read, write: if isAdmin();
     }
 
     match /campaigns/{year}/state/{tourId} {

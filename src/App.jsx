@@ -16,6 +16,7 @@ import TourEditPage from './pages/admin/TourEditPage'
 import DonsPage from './pages/admin/DonsPage'
 import SettingsPage from './pages/admin/SettingsPage'
 import Logo from './components/ui/Logo'
+import LoadingScreen from './components/LoadingScreen'
 
 function Screen({ children }) {
   return <div className="login-screen"><div className="login-card stack">{children}</div></div>
@@ -25,7 +26,10 @@ function Gate() {
   const { status, isAdmin } = useAuth()
   const { settings, loading } = useData()
 
-  if (status === 'loading' || settings === undefined) return <Screen><Logo size={72} className="logo-big pulse" /><p className="muted">Chargement…</p></Screen>
+  if (status === 'loading' || settings === undefined) {
+    const waiting = [status === 'loading' && 'compte', settings === undefined && 'réglages de l’amicale'].filter(Boolean)
+    return <LoadingScreen waiting={waiting} />
+  }
   if (status === 'signedOut') return settings === null ? <SetupPage /> : <LoginPage />
   if (status === 'noProfile' || status === 'inactive') {
     return (
@@ -36,7 +40,7 @@ function Gate() {
       </Screen>
     )
   }
-  if (loading) return <Screen><Logo size={72} className="logo-big pulse" /><p className="muted">Chargement de la tournée…</p></Screen>
+  if (loading) return <LoadingScreen label="Chargement de la tournée…" waiting={['tournée']} />
 
   return (
     <Routes>
