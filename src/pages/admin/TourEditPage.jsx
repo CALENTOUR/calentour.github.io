@@ -8,7 +8,10 @@ import AccessCard from '../../components/AccessCard'
 import TourForm from '../../components/TourForm'
 import { useToast } from '../../components/ui/Toast'
 import { useData } from '../../context/DataContext'
-import { sortHouses } from '../../lib/stats'
+import { sortHouses, tourStats } from '../../lib/stats'
+import { formatEuro } from '../../lib/format'
+import ProgressRing from '../../components/ui/ProgressRing'
+import { useIsPhone } from '../../hooks/useIsPhone'
 import { mergeSameName } from '../../lib/tourBuilder'
 import { removeTour, saveTour, withoutHouse } from '../../services/tours'
 import TourMapEditor from './TourMapEditor'
@@ -101,6 +104,9 @@ export default function TourEditPage() {
   const areas = useMemo(() => (tour ? tourAreas(tour) : []), [tour])
   const mapAreas = useMemo(() => (areas.length > 1 ? areas.map((a) => ({ ...a, active: a.id === areaSel })) : null), [areas, areaSel])
 
+  const phone = useIsPhone()
+  const phoneStats = useMemo(() => (phone && tour ? tourStats(tour, statesById[tour.id]) : null), [phone, tour, statesById])
+
   if (!tour) return <div className="page"><p className="muted">Tournée introuvable.</p><Link to="/admin/carte">← Tournées</Link></div>
 
   const update = (data) => saveTour(tourId, data).catch((err) => toast(`Erreur : ${err.message}`))
@@ -156,19 +162,31 @@ export default function TourEditPage() {
         <Link to={`/admin/tournees/${tour.id}/terrain`} className="btn btn-sm">📱 Vue terrain</Link>
       </div>
 
+      {phoneStats && (
+        <div className="phone-tour-sum">
+          <ProgressRing value={phoneStats.progress} size={60} stroke={7} color="var(--green)"><strong>{Math.round(phoneStats.progress * 100)}%</strong></ProgressRing>
+          <div>
+            <strong>{phoneStats.done} / {phoneStats.total} maisons</strong>
+            <span className="small muted">{areas.length > 1 ? `${areas.length} secteurs` : areas[0]?.name ?? ''}</span>
+            <span className="small phone-tour-money">{formatEuro(phoneStats.amount)} · {phoneStats.counts.given} dons · {phoneStats.counts.again} à repasser</span>
+          </div>
+        </div>
+      )}
+      {phoneStats && <Access tour={tour} />}
+
       <button type="button" className="btn-primary btn-hero btn-hero-edit" onClick={() => setEditing(true)}>
         <span className="btn-hero-icon" aria-hidden="true">✏️</span>
         <span className="spacer">
           <strong>Modifier la tournée sur la carte</strong>
-          <span>Rues, maisons, logements : tout se modifie ici</span>
+          <span>{phoneStats ? 'Plus confortable sur PC' : 'Rues, maisons, logements : tout se modifie ici'}</span>
         </span>
         <span className="btn-hero-go" aria-hidden="true">Ouvrir ›</span>
       </button>
 
       <div className="edit-layout">
         <div className="stack">
+          {!phoneStats && <Access tour={tour} />}
           <Identity key={`${tour.id}-${tour.number}-${tour.name}-${tour.color}`} tour={tour} />
-          <Access tour={tour} />
         </div>
 
         <div className="card stack">

@@ -7,12 +7,25 @@ import MissingBuildings from './MissingBuildings'
 import UncoveredHouses from './UncoveredHouses'
 import { useUncoveredHouses } from '../../lib/uncoveredHouses'
 import { useToast } from '../../components/ui/Toast'
+import { useIsPhone } from '../../hooks/useIsPhone'
 import { exportLabels, exportTours } from '../../lib/exports'
 import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
 import { settingsRef } from '../../services/paths'
 import { resetProgress, simulateProgress } from '../../services/simulation'
 import { accessText, authErrorMessage, changeMyPassword, copyText, createAccount, createMissingAccesses, generatePassword, tourLogin, updateUser } from '../../services/users'
+
+const PHONE_SECTIONS = [
+  { id: 'access', group: 1, title: 'Accès des binômes', sub: (i) => `${i.members} accès · créer, copier, désactiver` },
+  { id: 'missing', group: 1, title: 'Maisons à vérifier', sub: () => 'sans bâtiment, hors tournée' },
+  { id: 'campaign', group: 2, title: 'Campagne', sub: (i) => `campagne ${i.year ?? ''}` },
+  { id: 'amicale', group: 2, title: 'Amicale', sub: () => 'nom affiché à la connexion' },
+  { id: 'password', group: 2, title: 'Mon mot de passe', sub: (i) => i.login ?? '' },
+  { id: 'admins', group: 2, title: 'Administrateurs', sub: () => 'ajouter, désactiver' },
+  { id: 'ranking', group: 2, title: 'Classement', sub: (i) => (i.ranking ? 'visible par les binômes' : 'réservé aux admins') },
+  { id: 'exports', group: 2, title: 'Exports', sub: () => 'tournées, étiquettes Word' },
+  { id: 'simulation', group: 2, title: 'Simulation (test)', sub: () => 'remplir ou remettre à zéro' },
+]
 
 export default function SettingsPage() {
   const { settings, users, toursById, tours } = useData()
@@ -82,18 +95,50 @@ export default function SettingsPage() {
     copyText([`Adresse : ${window.location.href.split('#')[0]}`, ...lines].join('\n')).then((ok) => toast(ok ? 'Liste des accès copiée' : 'Copie impossible sur cet appareil'))
   }
 
+  // Téléphone : une liste de rubriques, chacune ouvre sa page.
+  const phone = useIsPhone()
+  const [section, setSection] = useState(location.state?.tab === 'missing' ? 'missing' : null)
+  const show = (id) => !phone || section === id
+  const phoneInfo = { year: settings?.year, members: users.filter((u) => u.role !== 'admin' && u.active).length, login: profile?.login, ranking: settings?.rankingForMembers }
+
   const admins = users.filter((u) => u.role === 'admin')
   const members = users.filter((u) => u.role !== 'admin')
 
   return (
     <div className="page stack-lg">
-      <h1>Réglages</h1>
-      <div className="segmented settings-tabs" role="tablist">
+      {phone && section ? (
+        <div className="row"><button type="button" className="btn btn-ghost btn-sm" onClick={() => setSection(null)} aria-label="Retour aux réglages">←</button><h1 className="spacer">{PHONE_SECTIONS.find((x) => x.id === section)?.title}</h1></div>
+      ) : <h1>Réglages</h1>}
+      {phone && !section ? (
+        <div className="stack">
+          {[['Pendant la tournée', PHONE_SECTIONS.filter((x) => x.group === 1)], ['Amicale', PHONE_SECTIONS.filter((x) => x.group === 2)]].map(([label, list]) => (
+            <section key={label} className="stack phone-menu-group">
+              <span className="kicker">{label}</span>
+              <ul className="phone-menu">
+                {list.map((x) => {
+                  const badge = x.id === 'missing' ? missingCount + uncoveredCount : x.id === 'access' ? withoutAccess.length : 0
+                  return (
+                    <li key={x.id}>
+                      <button type="button" onClick={() => { setSection(x.id); setTab(x.id === 'missing' ? 'missing' : 'general'); window.scrollTo(0, 0) }}>
+                        <span className="spacer"><strong>{x.title}</strong><small>{x.sub(phoneInfo)}</small></span>
+                        {badge ? <span className="tab-count">{badge}</span> : null}
+                        <span className="phone-chevron" aria-hidden="true">›</span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
+      ) : (
+      <>
+      {!phone && <div className="segmented settings-tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === 'general'} className={tab === 'general' ? 'on' : ''} onClick={() => setTab('general')}>Général</button>
         <button type="button" role="tab" aria-selected={tab === 'missing'} className={tab === 'missing' ? 'on' : ''} onClick={() => setTab('missing')}>
           Maisons à vérifier{missingCount + uncoveredCount ? <span className="tab-count">{missingCount + uncoveredCount}</span> : null}
         </button>
-      </div>
+      </div>}
       {tab === 'missing' ? (
         <div className="stack-lg">
           <div className="segmented settings-tabs sub-tabs" role="tablist">
@@ -109,11 +154,14 @@ export default function SettingsPage() {
       ) : (
       <>
 
+      {show('amicale') && (
       <form className="card stack" onSubmit={(e) => { e.preventDefault(); save({ amicale: amicale.trim() }, 'Nom enregistré') }}>
         <h2>Amicale</h2>
         <div className="row"><input value={amicale} onChange={(e) => setAmicale(e.target.value)} placeholder="Amicale des sapeurs-pompiers de …" /><button type="submit">Enregistrer</button></div>
       </form>
+      )}
 
+      {show('password') && (
       <form className="card stack" onSubmit={changePassword}>
         <h2>Mon mot de passe</h2>
         <p className="small muted">Identifiant : <code>{profile?.login}</code></p>
@@ -123,7 +171,9 @@ export default function SettingsPage() {
           <button type="submit">Changer</button>
         </div>
       </form>
+      )}
 
+      {show('campaign') && (
       <div className="card stack">
         <h2>Campagne en cours : {settings?.year}</h2>
         <p className="small muted">Une campagne par année. Les rues, maisons et accès sont gardés d’une année sur l’autre.</p>
@@ -132,7 +182,9 @@ export default function SettingsPage() {
           <button type="button" className="btn-ghost" onClick={previousCampaign}>Revenir à {(settings?.year ?? 0) - 1}</button>
         </div>
       </div>
+      )}
 
+      {show('simulation') && (
       <div className="card stack">
         <h2>Simulation (temporaire)</h2>
         <p className="small muted">Remplit les tournées avec un avancement au hasard pour tester l’affichage. « Remise à zéro » efface tous les passages de la campagne {settings?.year}, y compris les vrais.</p>
@@ -141,18 +193,24 @@ export default function SettingsPage() {
           <button type="button" className="btn-ghost" onClick={() => window.confirm(`Remettre toutes les tournées à zéro pour ${settings.year} ?`) && resetProgress(settings.year, tours ?? []).then(() => toast('Tournées remises à zéro')).catch((err) => toast(`Erreur : ${err.message}`))}>↺ Remise à zéro</button>
         </div>
       </div>
+      )}
+      {show('exports') && (
       <div className="card stack">
         <h2>Vérifier les tournées</h2>
         <p className="small muted">Télécharge les rues et les maisons de toutes les tournées (sans les dons ni les comptes), pour faire vérifier les tracés et les villages.</p>
         <div className="row wrap"><button type="button" className="btn-ghost" onClick={() => exportTours(tours ?? [])}>Télécharger les tournées</button></div>
       </div>
+      )}
 
+      {show('exports') && (
       <div className="card stack">
         <h2>Étiquettes des tournées</h2>
         <p className="small muted">Document Word à imprimer et découper : une étiquette par tournée, avec les noms des membres et les secteurs.</p>
         <div className="row wrap"><button type="button" className="btn-ghost" disabled={!tours?.length} onClick={() => exportLabels(tours ?? [], { amicale: settings?.amicale, year: settings?.year }).catch((err) => toast(`Erreur : ${err.message}`))}>Générer les étiquettes (Word)</button></div>
       </div>
+      )}
 
+      {show('ranking') && (
       <div className="card stack">
         <h2>Classement</h2>
         <label className="switch">
@@ -160,7 +218,9 @@ export default function SettingsPage() {
           <span>Les binômes voient le classement des tournées</span>
         </label>
       </div>
+      )}
 
+      {show('admins') && (
       <div className="card stack">
         <h2>Administrateurs</h2>
         <ul className="plain-list">
@@ -180,7 +240,9 @@ export default function SettingsPage() {
         </form>
         {created && <AccessCard amicale={settings?.amicale} tour={{ number: '-', name: 'Administrateur' }} {...created} />}
       </div>
+      )}
 
+      {show('access') && (
       <div className="card stack">
         <h2>Accès des binômes</h2>
         <p className="small muted">Identifiant = prénoms de la tournée (ex. noemie.mathieu), mot de passe = un mot simple. Les accès déjà créés ne sont jamais remplacés.</p>
@@ -212,6 +274,9 @@ export default function SettingsPage() {
           {!members.length && <li className="muted small">Aucun accès pour l’instant.</li>}
         </ul>
       </div>
+      )}
+      </>
+      )}
       </>
       )}
     </div>
