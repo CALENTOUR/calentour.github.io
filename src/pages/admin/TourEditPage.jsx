@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import TourMap, { tourPoints } from '../../components/map/TourMap'
+import TourMap, { showNeighbourTours, tourPoints } from '../../components/map/TourMap'
 import { fitPoints } from '../../components/map/useMapLibre'
 import SectorTabs from '../../components/SectorTabs'
 import { tourAreas } from '../../lib/places'
@@ -85,7 +85,7 @@ export default function TourEditPage() {
   const { tourId } = useParams()
   const navigate = useNavigate()
   const toast = useToast()
-  const { toursById, statesById, users } = useData()
+  const { tours: allTours, toursById, statesById, users } = useData()
   const tour = toursById[tourId]
   const location = useLocation()
   // Une tournée qui vient d'être créée s'ouvre directement dans l'éditeur.
@@ -95,6 +95,8 @@ export default function TourEditPage() {
   const [previewHouses, setPreviewHouses] = useState(true)
   const [areaSel, setAreaSel] = useState(null)
   const [previewMap, setPreviewMap] = useState(null)
+  const others = useMemo(() => allTours.filter((t) => t.id !== tourId), [allTours, tourId])
+  useEffect(() => { if (previewMap) showNeighbourTours(previewMap, others) }, [previewMap, others])
   const areas = useMemo(() => (tour ? tourAreas(tour) : []), [tour])
   const mapAreas = useMemo(() => (areas.length > 1 ? areas.map((a) => ({ ...a, active: a.id === areaSel })) : null), [areas, areaSel])
 
