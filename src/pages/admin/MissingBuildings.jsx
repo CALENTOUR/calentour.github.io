@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../components/ui/Toast'
 import { useData } from '../../context/DataContext'
-import { runMissingScan, useMissingBuildings } from '../../lib/missingBuildings'
+import { loadSavedMissing, runMissingScan, useMissingBuildings } from '../../lib/missingBuildings'
 import { saveTour, withoutHouse } from '../../services/tours'
 
 // Réglages > Maisons sans bâtiment : les maisons de toutes les tournées dont l'adresse ne
@@ -14,7 +14,7 @@ export default function MissingBuildings() {
   const { scan, progress, rows } = useMissingBuildings(toursById)
   const run = () => runMissingScan(tours)
   useEffect(() => {
-    if (!scan && !progress && tours?.length) run()
+    if (!scan && !progress && tours?.length) loadSavedMissing().then((known) => { if (!known) run() })
   }, [tours?.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const kept = (tours ?? []).flatMap((tour) => (tour.houses ?? []).filter((h) => h.noBuilding).map((house) => ({ tour, house })))
@@ -45,7 +45,7 @@ export default function MissingBuildings() {
           <button type="button" className="btn-ghost" disabled={Boolean(progress) || !tours?.length} onClick={run}>
             {progress ? `Recherche… ${progress.total ? `${progress.done}/${progress.total} zones` : ''}` : '↻ Relancer la recherche'}
           </button>
-          {scan && !progress && <span className="small muted">{scan.checked} maisons vérifiées{scan.failed ? `, ${scan.failed} zone${scan.failed > 1 ? 's' : ''} sans réponse de l’IGN (réessaie plus tard)` : ''}</span>}
+          {scan && !progress && <span className="small muted">{scan.checked} maisons vérifiées{scan.at ? ` le ${new Date(scan.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}` : ''}{scan.failed ? `, ${scan.failed} zone${scan.failed > 1 ? 's' : ''} sans réponse de l’IGN (réessaie plus tard)` : ''}</span>}
         </div>
       </div>
 
