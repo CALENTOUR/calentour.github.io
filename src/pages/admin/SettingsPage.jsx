@@ -7,7 +7,8 @@ import MissingBuildings from './MissingBuildings'
 import UncoveredHouses from './UncoveredHouses'
 import { useUncoveredHouses } from '../../lib/uncoveredHouses'
 import { useToast } from '../../components/ui/Toast'
-import { exportLabels, exportTours } from '../../lib/exports'
+import { downloadBlob, exportLabels, exportTours } from '../../lib/exports'
+import { backupSummary, parseBackup, readBackup, restoreBackup } from '../../services/backup'
 import { useData } from '../../context/DataContext'
 import { useAuth } from '../../context/AuthContext'
 import { settingsRef } from '../../services/paths'
@@ -114,6 +115,8 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      <BackupCard toast={toast} />
+
       <div className="card stack">
         <h2>Simulation (temporaire)</h2>
         <p className="small muted">Remplit les tournées avec un avancement au hasard pour tester l’affichage. « Remise à zéro » efface tous les passages de la campagne {settings?.year}, y compris les vrais.</p>
@@ -176,6 +179,62 @@ export default function SettingsPage() {
       </div>
       </>
       )}
+    </div>
+  )
+}
+
+const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`
+const describe = (s) => `${plural(s.tours, 'tournée')}, ${plural(s.houses, 'maison')}, ${plural(s.users, 'compte')}, ${plural(s.passages, 'passage')}`
+
+// Sauvegarde de toute la base dans un fichier gardé sur l'ordinateur, et restauration.
+function BackupCard({ toast }) {
+  const [busy, setBusy] = useState(false)
+
+  const download = async () => {
+    setBusy(true)
+    try {
+      const b = await readBackup()
+      const stamp = new Date().toISOString().slice(0, 16).replace('T', '-').replace(':', 'h')
+      downloadBlob(new Blob([JSON.stringify(b)], { type: 'application/json' }), `calentour-sauvegarde-${stamp}.json`)
+      toast(`Sauvegarde téléchargée : ${describe(backupSummary(b))}`)
+    } catch (err) {
+      toast(err?.code === 'unavailable' ? 'Pas de réseau : la sauvegarde doit lire la base en ligne.' : `Erreur : ${err.message}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const restore = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    try {
+      const b = parseBackup(await file.text())
+      const s = backupSummary(b)
+      const when = new Date(b.exportedAt).toLocaleString('fr-FR')
+      const answer = window.prompt(`Restaurer la sauvegarde du ${when} (${describe(s)}) ?\n\nTout ce qui a été modifié depuis sur ces tournées et ces passages sera remplacé par la sauvegarde.\n\nTape RESTAURER pour confirmer.`)
+      if (answer?.trim().toUpperCase() !== 'RESTAURER') return
+      setBusy(true)
+      const n = await restoreBackup(b)
+      toast(`Sauvegarde restaurée (${n} documents)`)
+    } catch (err) {
+      toast(`Erreur : ${err.message}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="card stack">
+      <h2>Sauvegarde</h2>
+      <p className="small muted">Télécharge toute la base dans un fichier à garder sur l’ordinateur : tournées, maisons, comptes (sans les mots de passe), avancement et dons. À faire chaque soir de tournée. En cas de fausse manipulation, « Restaurer » remet les données du fichier.</p>
+      <div className="row wrap">
+        <button type="button" disabled={busy} onClick={download}>{busy ? 'Patiente…' : '⬇ Télécharger une sauvegarde'}</button>
+        <label className="btn btn-ghost" style={busy ? { opacity: .5, pointerEvents: 'none' } : undefined}>
+          Restaurer une sauvegarde…
+          <input type="file" accept="application/json,.json" hidden disabled={busy} onChange={restore} />
+        </label>
+      </div>
     </div>
   )
 }
