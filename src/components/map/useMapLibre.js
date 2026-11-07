@@ -57,11 +57,15 @@ export function useMapLibre(containerRef, { rememberView = false, initialPoints 
   useEffect(() => {
     const { rememberView: remember, initialPoints: points, geolocate: withGps, flat: isFlat, fitPadding: padding } = optionsRef.current
     const last = remember ? readLastView() : null
+    // Cadrage direct sur la tournée dès la création : on ne télécharge pas les tuiles
+    // d'une vue par défaut que personne ne verra.
+    const box = !last && points?.length ? pointsBox(points) : null
     const instance = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE_URL,
       center: last?.center ?? DEFAULT_MAP_VIEW.center,
       zoom: last?.zoom ?? DEFAULT_MAP_VIEW.zoom,
+      ...(box ? { bounds: box, fitBoundsOptions: { padding, maxZoom: 18, bearing: isFlat ? 0 : -15 } } : {}),
       pitch: isFlat ? 0 : last?.pitch ?? 50,
       bearing: isFlat ? 0 : last?.bearing ?? -15,
       maxPitch: 75,
@@ -99,7 +103,11 @@ export function useMapLibre(containerRef, { rememberView = false, initialPoints 
       instance.once('style.load', onReady)
     }
     const fallbackTimer = setTimeout(applyFallback, navigator.onLine ? 10000 : 3000)
-    instance.on('load', onReady)
+    // Prête dès que le style est lu, sans attendre toutes les tuiles du fond (l'événement
+    // « load » les attend toutes) : rues et maisons de la tournée s'affichent tout de suite,
+    // le fond se remplit ensuite. Le style de secours ne remplace donc plus un fond
+    // simplement lent.
+    instance.once('style.load', onReady)
     instance.on('error', (e) => {
       // Une erreur avant le premier chargement = le style lui-même n'a pas pu être lu.
       if (!ready && !instance.isStyleLoaded()) {
@@ -134,6 +142,12 @@ export function useMapLibre(containerRef, { rememberView = false, initialPoints 
   }, [containerRef])
 
   return map
+}
+
+function pointsBox(points) {
+  let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity
+  for (const [x, y] of points) { w = Math.min(w, x); e = Math.max(e, x); s = Math.min(s, y); n = Math.max(n, y) }
+  return Number.isFinite(w) ? [[w, s], [e, n]] : null
 }
 
 // Crée ou met à jour une source GeoJSON.
