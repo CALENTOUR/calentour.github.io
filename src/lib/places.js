@@ -9,13 +9,34 @@ const mostCommon = (values) => {
   return [...count.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
 }
 
+const NO_STREET = /^maison sans adresse$/i
+
+// Toutes les rues des maisons d'un morceau, dans l'ordre de passage, avec leur
+// nombre de maisons. Un trait du KML suit souvent plusieurs petites rues (impasse,
+// chemin…) : le morceau porte le nom de la principale, les autres sont listées ici.
+function streetsOf(own, main) {
+  const byKey = new Map()
+  for (const h of [...own].sort((a, b) => (a.along ?? 0) - (b.along ?? 0))) {
+    const name = (h.street ?? '').trim()
+    if (!name || NO_STREET.test(name)) continue
+    const key = name.toLowerCase()
+    const x = byKey.get(key)
+    if (x) x.count++
+    else byKey.set(key, { name, count: 1 })
+  }
+  const mainKey = main.trim().toLowerCase()
+  return [...byKey.entries()].filter(([k]) => k !== mainKey).map(([, x]) => x)
+}
+
 export function pieceLabels(tour) {
   const raw = {}
   for (const p of tour?.pieces ?? []) {
     // Les rues nommées d'après la Base Adresse s'appellent « Rue · Village ».
     const [street, suffix] = p.name.split(' · ')
-    const village = mostCommon((tour.houses ?? []).filter((h) => h.pieceId === p.id).map((h) => h.city)) || suffix || ''
-    raw[p.id] = { street: suffix ? street : p.name, village }
+    const own = (tour.houses ?? []).filter((h) => h.pieceId === p.id)
+    const village = mostCommon(own.map((h) => h.city)) || suffix || ''
+    const main = suffix ? street : p.name
+    raw[p.id] = { street: main, village, others: streetsOf(own, main) }
   }
   const several = new Set(Object.values(raw).map((x) => x.village).filter(Boolean)).size > 1
   const out = {}
