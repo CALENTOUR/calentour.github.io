@@ -158,3 +158,13 @@ export function IconCheck(props) {
     </svg>
   )
 }
+
+// Signalements : un drapeau planté.
+export function IconFlag(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M5 21V4" />
+      <path d="M5 4h11l-2 4 2 4H5" />
+    </svg>
+  )
+}

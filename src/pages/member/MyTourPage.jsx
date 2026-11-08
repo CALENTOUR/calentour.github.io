@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import NoTour from '../../components/NoTour'
+import ReportButton from '../../components/ReportButton'
+import { useAuth } from '../../context/AuthContext'
 import StreetArt from '../../components/ui/StreetArt'
 import { useTourContext } from '../../hooks/useTourContext'
 import { formatEuro } from '../../lib/format'
@@ -10,7 +12,8 @@ import { tourStats } from '../../lib/stats'
 // toucher une rue ouvre sa carte en plein écran. En haut, bascule vers la carte
 // de toute la tournée.
 export default function MyTourPage() {
-  const { tour, state, base } = useTourContext()
+  const { tour, state, base, user, year } = useTourContext()
+  const { isAdmin } = useAuth()
   if (!tour) return <NoTour />
   const s = tourStats(tour, state)
   const labels = pieceLabels(tour)
@@ -34,6 +37,7 @@ export default function MyTourPage() {
         </div>
         <StreetArt />
       </div>
+      {!isAdmin && <ReportButton tour={tour} user={user} year={year} />}
 
       <div className="sector-list">
         {groups.map(([v, pieces]) => (

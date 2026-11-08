@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { onSnapshot } from 'firebase/firestore'
 import { useAuth } from './AuthContext'
-import { settingsRef, stateRef, statesCol, tourRef, toursCol, usersCol } from '../services/paths'
+import { reportsCol, settingsRef, stateRef, statesCol, tourRef, toursCol, usersCol } from '../services/paths'
 
 const DataContext = createContext(null)
 
@@ -16,6 +16,7 @@ export function DataProvider({ children }) {
   const [tours, setTours] = useState(null)
   const [states, setStates] = useState(null)
   const [users, setUsers] = useState([])
+  const [reports, setReports] = useState([])
 
   useEffect(() => onSnapshot(
     settingsRef(),
@@ -53,6 +54,12 @@ export function DataProvider({ children }) {
     return onSnapshot(usersCol(), (s) => setUsers(docsToList(s)), () => setUsers([]))
   }, [ready, isAdmin])
 
+  // Signalements des binômes, lus par les administrateurs seulement (les plus récents d'abord).
+  useEffect(() => {
+    if (!ready || !isAdmin) return undefined
+    return onSnapshot(reportsCol(), (s) => setReports(docsToList(s).sort((a, b) => String(b.at).localeCompare(String(a.at)))), () => setReports([]))
+  }, [ready, isAdmin])
+
   const value = useMemo(() => {
     const sortedTours = (tours ?? []).slice().sort((a, b) => (a.number ?? 0) - (b.number ?? 0))
     return {
@@ -64,8 +71,9 @@ export function DataProvider({ children }) {
       statesById: states ?? {},
       myTour: sortedTours.find((t) => t.id === myTourId) ?? null,
       users,
+      reports,
     }
-  }, [settings, year, ready, tours, states, myTourId, users])
+  }, [settings, year, ready, tours, states, myTourId, users, reports])
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

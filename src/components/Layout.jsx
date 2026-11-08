@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import OfflineBanner from './OfflineBanner'
 import Logo from './ui/Logo'
-import { IconCash, IconDashboard, IconMap, IconPie, IconSliders, IconTour } from './ui/Icons'
+import { IconCash, IconDashboard, IconFlag, IconMap, IconPie, IconSliders, IconTour } from './ui/Icons'
 import { useAuth } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { IS_DEMO } from '../demo/demoInfo'
@@ -26,6 +26,7 @@ const ADMIN_NAV = [
   { to: '/admin', icon: <IconPie />, tone: 'green', label: 'Tableau de bord', short: 'Bilan', end: true, stat: (g) => `${formatPercent(g.progress)} fait` },
   { to: '/admin/carte', icon: <IconMap />, tone: 'brand', label: 'Tournées', stat: (g, n) => `${n} binôme${n > 1 ? 's' : ''}` },
   { to: '/admin/dons', icon: <IconCash />, tone: 'ocre', label: 'Dons', stat: (g) => formatEuro(g.amount) },
+  { to: '/admin/signalements', icon: <IconFlag />, tone: 'red', label: 'Signalements', short: 'Signaler', stat: (g, n, todo) => (todo.reports ? `${todo.reports} en attente` : 'aucun en attente'), badge: (todo) => todo.reports, badgeTitle: 'Signalements en attente' },
   { to: '/admin/reglages', icon: <IconSliders />, tone: 'blue', label: 'Réglages', stat: (g, n, todo) => {
     const k = todo.missing + todo.uncovered
     return k ? `${k} maison${k > 1 ? 's' : ''} à vérifier` : 'Accès, export'
@@ -34,13 +35,13 @@ const ADMIN_NAV = [
 
 export default function Layout() {
   const { isAdmin, profile } = useAuth()
-  const { settings, year, tours, toursById, statesById } = useData()
+  const { settings, year, tours, toursById, statesById, reports } = useData()
   // Maisons sans bâtiment : recherchées une fois par visite, pour la pastille rouge de Réglages.
   const { rows: missingRows, scan: missingScan } = useMissingBuildings(toursById)
   const missing = missingRows.length
   // Maisons hors tournée : dernière analyse gardée sur l'appareil, ou onglet des réglages ouvert.
   const uncovered = useUncoveredHouses(isAdmin ? tours : null).rows.length
-  const todo = { missing, uncovered }
+  const todo = { missing, uncovered, reports: reports.filter((r) => !r.done).length }
   useEffect(() => {
     if (!isAdmin || missingScan || !tours?.length) return undefined
     // Recherche gardée d'une visite à l'autre ; sinon elle est relancée, plus tard, pour
@@ -100,7 +101,7 @@ export default function Layout() {
             <NavLink key={n.to} to={n.to} end={n.end} className={`side-tile tone-${n.tone}`}>
               <span className="side-tile-icon">{n.icon}</span>
               <span className="side-tile-text"><strong>{n.label}</strong><small>{n.stat(global, tours.length, todo)}</small></span>
-              {n.badge?.(todo) ? <span className="nav-badge" title="Maisons à vérifier">{n.badge(todo)}</span> : null}
+              {n.badge?.(todo) ? <span className="nav-badge" title={n.badgeTitle ?? 'Maisons à vérifier'}>{n.badge(todo)}</span> : null}
             </NavLink>
           ))}
           <div className="side-goal">
