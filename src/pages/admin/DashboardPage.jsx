@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import ReportsCard from '../../components/ReportsCard'
 import CollectedCard from '../../components/ui/CollectedCard'
 import ProgressPie from '../../components/ui/ProgressPie'
 import StatTile from '../../components/ui/StatTile'
@@ -39,7 +38,6 @@ export default function DashboardPage() {
         </div>
         <StreetArt className="dash-art" />
       </div>
-      <ReportsCard />
       <div className="dash-grid">
         <CollectedCard stats={g} />
         <section className="card stack">
@@ -107,7 +105,6 @@ function PhoneDashboard({ g, year, tours }) {
           <div className="pc-todo"><strong>{g.counts.todo}</strong><span>à faire</span></div>
         </div>
       </section>
-      <ReportsCard />
       <div className="row phone-tours-head">
         <h2 className="spacer">Tournées</h2>
         <div className="phone-toggle" role="group" aria-label="Ordre des tournées">

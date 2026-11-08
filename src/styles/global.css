@@ -873,6 +873,7 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .tone-brand .side-tile-icon, .tone-brand .tab-icon { background: var(--brand-soft); color: var(--brand); }
 .tone-ocre .side-tile-icon, .tone-ocre .tab-icon { background: #f6ead0; color: #8a5f12; }
 .tone-blue .side-tile-icon, .tone-blue .tab-icon { background: #e3ebf3; color: var(--blue); }
+.tone-red .side-tile-icon, .tone-red .tab-icon { background: #fbe1de; color: #b91c1c; }
 
 /* Onglets du bas de l'admin sur téléphone : mêmes icônes colorées, flottants. */
 .shell-admin .tabbar { left: .6rem; right: .6rem; bottom: calc(.5rem + var(--safe-bottom)); height: auto; padding: .35rem; gap: .35rem; border: 1px solid var(--border); border-radius: 16px; background: rgba(251, 249, 244, .88); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: var(--float); }
@@ -1362,3 +1363,4 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .reports li.report-done { border-color: var(--border); border-left-color: var(--muted); background: var(--card-2); opacity: .8; }
 .report-meta { display: flex; flex-wrap: wrap; gap: .25rem .6rem; align-items: baseline; }
 .report-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.tab-count-muted { background: var(--muted); }

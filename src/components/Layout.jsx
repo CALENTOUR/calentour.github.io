@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import OfflineBanner from './OfflineBanner'
 import Logo from './ui/Logo'
-import { IconCash, IconDashboard, IconMap, IconPie, IconSliders, IconTour } from './ui/Icons'
+import { IconCash, IconDashboard, IconFlag, IconMap, IconPie, IconSliders, IconTour } from './ui/Icons'
 import { useAuth } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { IS_DEMO } from '../demo/demoInfo'
@@ -23,9 +23,10 @@ const MEMBER_NAV = [
 ]
 // Menu admin : une tuile par rubrique, avec sa couleur et un chiffre clé.
 const ADMIN_NAV = [
-  { to: '/admin', icon: <IconPie />, tone: 'green', label: 'Tableau de bord', short: 'Bilan', end: true, stat: (g, n, todo) => (todo.reports ? `${todo.reports} signalement${todo.reports > 1 ? 's' : ''}` : `${formatPercent(g.progress)} fait`), badge: (todo) => todo.reports, badgeTitle: 'Signalements des binômes' },
+  { to: '/admin', icon: <IconPie />, tone: 'green', label: 'Tableau de bord', short: 'Bilan', end: true, stat: (g) => `${formatPercent(g.progress)} fait` },
   { to: '/admin/carte', icon: <IconMap />, tone: 'brand', label: 'Tournées', stat: (g, n) => `${n} binôme${n > 1 ? 's' : ''}` },
   { to: '/admin/dons', icon: <IconCash />, tone: 'ocre', label: 'Dons', stat: (g) => formatEuro(g.amount) },
+  { to: '/admin/signalements', icon: <IconFlag />, tone: 'red', label: 'Signalements', short: 'Signaler', stat: (g, n, todo) => (todo.reports ? `${todo.reports} en attente` : 'aucun en attente'), badge: (todo) => todo.reports, badgeTitle: 'Signalements en attente' },
   { to: '/admin/reglages', icon: <IconSliders />, tone: 'blue', label: 'Réglages', stat: (g, n, todo) => {
     const k = todo.missing + todo.uncovered
     return k ? `${k} maison${k > 1 ? 's' : ''} à vérifier` : 'Accès, export'

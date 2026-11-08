@@ -15,6 +15,7 @@ import ToursMapPage from './pages/admin/ToursMapPage'
 import TourEditPage from './pages/admin/TourEditPage'
 import DonsPage from './pages/admin/DonsPage'
 import SettingsPage from './pages/admin/SettingsPage'
+import ReportsPage from './pages/admin/ReportsPage'
 import Logo from './components/ui/Logo'
 import LoadingScreen from './components/LoadingScreen'
 
@@ -61,6 +62,7 @@ function Gate() {
             <Route path="/admin/tournees/:tourId/terrain" element={<MyTourPage />} />
             <Route path="/admin/tournees/:tourId/terrain/:pieceId" element={<PiecePage />} />
             <Route path="/admin/dons" element={<DonsPage />} />
+            <Route path="/admin/signalements" element={<ReportsPage />} />
             <Route path="/admin/reglages" element={<SettingsPage />} />
           </>
         )}
