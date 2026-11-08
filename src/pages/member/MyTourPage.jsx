@@ -29,7 +29,6 @@ export default function MyTourPage() {
           <div className="spacer">
             <span className="kicker">Tournée n°{tour.number}</span>
             <h1>{tour.name}</h1>
-            {!isAdmin && <ReportButton tour={tour} user={user} year={year} />}
           </div>
           <div className="tour-head-left">
             <strong>{s.counts.todo}</strong>
@@ -38,6 +37,7 @@ export default function MyTourPage() {
         </div>
         <StreetArt />
       </div>
+      {!isAdmin && <ReportButton tour={tour} user={user} year={year} />}
 
       <div className="sector-list">
         {groups.map(([v, pieces]) => (

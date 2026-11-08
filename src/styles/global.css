@@ -1357,7 +1357,7 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 .phone-menu small { font-size: .75rem; font-weight: 600; color: var(--muted); }
 
 /* Signaler une erreur (binôme) et liste des signalements (admin). */
-.btn-report { align-self: flex-start; margin-top: .45rem; min-height: 38px; padding: 0 .85rem; border-radius: 99px; border: 1px solid #b91c1c; background: #fff5f5; color: #b91c1c; font-size: .88rem; font-weight: 800; }
+.btn-report { align-self: flex-start; min-height: 38px; padding: 0 .85rem; border-radius: 99px; border: 1px solid #b91c1c; background: #fff5f5; color: #b91c1c; font-size: .88rem; font-weight: 800; }
 .reports { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .6rem; }
 .reports li { display: flex; flex-direction: column; gap: .35rem; padding: .7rem .8rem; border: 1px solid #f1c4c0; border-left: 4px solid #c0392b; border-radius: 10px; background: #fffaf9; }
 .reports li.report-done { border-color: var(--border); border-left-color: var(--muted); background: var(--card-2); opacity: .8; }
