@@ -408,6 +408,8 @@ body:has(.fullmap) .toast, body:has(.editor) .toast { top: calc(var(--safe-top) 
 .sector-trophy { font-size: 2rem; }
 .sector-done .sector-count { background: #dcfce7; }
 .sector-name { display: block; font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Petites rues rattachées au même morceau (impasse, chemin…) : en entier, sur plusieurs lignes. */
+.sector-others { display: block; font-size: .82rem; font-weight: 600; color: var(--muted); line-height: 1.25; margin-top: .1rem; }
 .sector-bar { height: 7px; border-radius: 99px; background: var(--card-2); overflow: hidden; margin: .35rem 0 .25rem; }
 .sector-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--green), #4ade80); border-radius: 99px; }
 .sector-go { font-size: 1.5rem; }
