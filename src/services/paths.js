@@ -10,3 +10,5 @@ export const stateRef = (year, tourId) => doc(db, 'campaigns', String(year), 'st
 export const statesCol = (year) => collection(db, 'campaigns', String(year), 'state')
 export const passagesCol = (year) => collection(db, 'campaigns', String(year), 'passages')
 export const analysisRef = (id) => doc(db, 'analyses', id)
+export const reportsCol = () => collection(db, 'reports')
+export const reportRef = (id) => doc(db, 'reports', id)
