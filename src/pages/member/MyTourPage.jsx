@@ -53,6 +53,9 @@ export default function MyTourPage() {
               </div>
               <div className="spacer">
                 <strong className="sector-name">{labels[p.id].street}</strong>
+                {labels[p.id].others.length > 0 && (
+                  <span className="sector-others">+ {labels[p.id].others.map((r) => `${r.name} (${r.count})`).join(', ')}</span>
+                )}
                 <div className="sector-bar"><i style={{ width: `${Math.round(ps.progress * 100)}%` }} /></div>
                 <div className="small muted">
                   {ps.done}/{ps.total} faites{ps.counts.again ? ` · ${ps.counts.again} à repasser` : ''}{ps.amount ? ` · ${formatEuro(ps.amount)}` : ''}
