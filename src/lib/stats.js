@@ -26,7 +26,7 @@ function finish(s) {
     ...s,
     progress: ratio(s.done, s.total),
     giveRate: ratio(s.counts.given, s.visited),
-    refuseRate: ratio(s.counts.refused + s.counts.empty, s.visited),
+    refuseRate: ratio(s.counts.refused, s.visited),
     againRate: ratio(s.counts.again, s.visited),
     average: ratio(s.amount, s.counts.given),
     perVisit: ratio(s.amount, s.visited),
@@ -37,7 +37,9 @@ function add(s, entry) {
   s.total++
   const status = entry?.s ?? 'todo'
   s.counts[status] = (s.counts[status] ?? 0) + 1
-  if (status !== 'todo') s.visited++
+  // Habitation vide : faite (elle fait avancer la tournée), mais pas une visite :
+  // elle ne compte pas dans les taux de dons ni dans les euros par maison visitée.
+  if (status !== 'todo' && status !== 'empty') s.visited++
   if (DONE_STATUSES.includes(status)) s.done++
   if (status === 'given') {
     const amount = Number(entry.amount) || 0

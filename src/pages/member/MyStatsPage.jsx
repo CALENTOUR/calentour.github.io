@@ -1,3 +1,4 @@
+import LastDons from '../../components/LastDons'
 import NoTour from '../../components/NoTour'
 import PrepareOffline from '../../components/PrepareOffline'
 import CollectedCard from '../../components/ui/CollectedCard'
@@ -20,7 +21,7 @@ function cheer(progress) {
 
 // Statistiques du binôme, mises à jour à chaque saisie.
 export default function MyStatsPage() {
-  const { tour, state, settings } = useTourContext()
+  const { tour, state, settings, year, user } = useTourContext()
   const { tours, statesById } = useData()
   if (!tour) return <NoTour />
   const s = tourStats(tour, state)
@@ -53,6 +54,7 @@ export default function MyStatsPage() {
         <StatTile icon="🔁" label="À repasser" value={s.counts.again} tone="orange" />
         <StatTile icon="📍" label="Par maison visitée" value={formatEuro(s.perVisit)} />
       </div>
+      <LastDons tour={tour} state={state} year={year} user={user} />
 
       <section className="card stack">
         <h2>Où en sont les maisons</h2>

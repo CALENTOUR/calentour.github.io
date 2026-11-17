@@ -47,7 +47,7 @@ export default function DashboardPage() {
       </div>
       <div className="tiles tiles-wide">
         <StatTile icon="🤝" label="Ont donné" value={formatPercent(g.giveRate)} sub={`${g.counts.given} dons sur les maisons visitées`} tone="green" />
-        <StatTile icon="✋" label="Refus ou vides" value={formatPercent(g.refuseRate)} sub={`${g.counts.refused} refus · ${g.counts.empty} vides`} tone="red" />
+        <StatTile icon="✋" label="Refus" value={formatPercent(g.refuseRate)} sub={`${g.counts.refused} refus · ${g.counts.empty} vides (hors taux)`} tone="red" />
         <StatTile icon="🔁" label="À repasser" value={formatPercent(g.againRate)} sub={`${g.counts.again} maisons`} tone="orange" />
         <StatTile icon="📍" label="Par maison visitée" value={formatEuro(g.perVisit)} />
       </div>

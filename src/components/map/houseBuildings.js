@@ -77,7 +77,85 @@ function fakeBuilding([lng, lat]) {
 
 const PALE = { todo: '#c9d8e6', given: '#cddbc9', again: '#ecdcb6', refused: '#e5c4bc', empty: '#bdb9b0' }
 
+// --- Bâtiment à plusieurs adresses (5 et 5 bis) : une part par adresse. ---
+// Calculs dans un repère local en mètres, pour que les distances soient justes.
+const toLocal = (lat0) => {
+  const kx = Math.cos((lat0 * Math.PI) / 180)
+  return { to: ([x, y]) => [x * kx, y], from: ([x, y]) => [x / kx, y] }
+}
+const area = (ring) => {
+  let a = 0
+  for (let i = 0; i < ring.length - 1; i++) a += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1]
+  return Math.abs(a) / 2
+}
+// Garde la partie du contour où (p - o) · d <= 0 (Sutherland-Hodgman sur un demi-plan).
+function clip(ring, o, d) {
+  const side = (p) => (p[0] - o[0]) * d[0] + (p[1] - o[1]) * d[1]
+  const out = []
+  for (let i = 0; i < ring.length - 1; i++) {
+    const a = ring[i], b = ring[i + 1]
+    const sa = side(a), sb = side(b)
+    if (sa <= 0) out.push(a)
+    if ((sa < 0 && sb > 0) || (sa > 0 && sb < 0)) {
+      const t = sa / (sa - sb)
+      out.push([a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])])
+    }
+  }
+  if (out.length < 3) return null
+  out.push(out[0])
+  return out
+}
+// Chaque adresse prend la partie du bâtiment plus proche d'elle que des autres.
+function splitByAddress(ring, points) {
+  const parts = []
+  for (let i = 0; i < points.length; i++) {
+    let part = ring
+    for (let j = 0; j < points.length && part; j++) {
+      if (i === j) continue
+      const a = points[i], b = points[j]
+      const d = [b[0] - a[0], b[1] - a[1]]
+      if (!d[0] && !d[1]) return null // deux adresses au même point
+      part = clip(part, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], d)
+    }
+    parts.push(part)
+  }
+  return parts
+}
+// Secours : tranches égales le long du grand côté, dans l'ordre des adresses.
+function splitInSlices(ring, points) {
+  const xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1])
+  const w = Math.max(...xs) - Math.min(...xs), hgt = Math.max(...ys) - Math.min(...ys)
+  const axis = w >= hgt ? [1, 0] : [0, 1]
+  const proj = (p) => p[0] * axis[0] + p[1] * axis[1]
+  const lo = Math.min(...ring.map(proj)), hi = Math.max(...ring.map(proj))
+  const n = points.length
+  const order = points.map((p, i) => i).sort((i, j) => proj(points[i]) - proj(points[j]) || i - j)
+  const parts = new Array(n)
+  order.forEach((idx, k) => {
+    let part = clip(ring, [axis[0] * (lo + ((k + 1) * (hi - lo)) / n), axis[1] * (lo + ((k + 1) * (hi - lo)) / n)], axis)
+    if (part) part = clip(part, [axis[0] * (lo + (k * (hi - lo)) / n), axis[1] * (lo + (k * (hi - lo)) / n)], [-axis[0], -axis[1]])
+    parts[idx] = part
+  })
+  return parts
+}
+export function splitBuilding(ring, points) {
+  if (points.length < 2) return [ring]
+  const lat0 = ring[0][1]
+  const L = toLocal(lat0)
+  const r = ring.map(L.to)
+  const pts = points.map(L.to)
+  const total = area(r) || 1
+  // Une part vide ou minuscule (adresses toutes du même côté) : on coupe en tranches.
+  const ok = (parts) => parts && parts.every((x) => x && area(x) > total * 0.12)
+  let parts = splitByAddress(r, pts)
+  if (!ok(parts)) parts = splitInSlices(r, pts)
+  if (!ok(parts)) return null
+  return parts.map((x) => x.map(L.from))
+}
+
 // Bâtiments colorés des maisons (`houses` : entités de la couche des pastilles).
+// Un bâtiment partagé par plusieurs adresses est coupé en parts, chacune de la
+// couleur de son adresse, pour voir le statut de chacune.
 // Renvoie les maisons allumées (leurs pastilles peuvent être cachées) et une
 // signature pour ne redessiner que si quelque chose a changé.
 export function litHouses(map, houses, selectedId = null) {
@@ -86,25 +164,41 @@ export function litHouses(map, houses, selectedId = null) {
   const features = []
   if (!src || map.getZoom() < 14.5) return { lit, features, sig: '' }
   const cells = buildingIndex(map, src)
-  const taken = new Map()
+  const groups = new Map()
   for (const h of houses) {
     const b = findBuilding(cells, h.geometry.coordinates) ?? fakeBuilding(h.geometry.coordinates)
-    lit.add(h.properties.houseId)
-    // Un bâtiment partagé par plusieurs adresses : la plus urgente donne la couleur.
-    const prev = taken.get(b)
-    const selected = h.properties.houseId === selectedId
-    if (prev && !selected && (prev.properties.selected || prev.properties.order >= h.properties.order)) continue
-    const { status, focus } = h.properties
-    const f = {
-      type: 'Feature',
-      properties: { ...h.properties, selected, height: b.height, color: selected ? SELECTED_COLOR : (focus ? LIT_COLORS : PALE)[status] ?? LIT_COLORS.todo },
-      geometry: { type: 'Polygon', coordinates: [shrink(b.ring)] },
-    }
-    if (prev) features[features.indexOf(prev)] = f
-    else features.push(f)
-    taken.set(b, f)
+    if (!groups.has(b)) groups.set(b, [])
+    groups.get(b).push(h)
   }
-  const sig = features.map((f) => `${f.properties.houseId}:${f.properties.color}:${f.geometry.coordinates[0][0].join(',')}`).join('|')
+  const feature = (h, b, ring, split) => {
+    const selected = h.properties.houseId === selectedId
+    const { status, focus, units, unitsDone } = h.properties
+    return {
+      type: 'Feature',
+      properties: {
+        ...h.properties, selected, split, height: b.height,
+        tag: units ? `${unitsDone}/${units}` : '',
+        color: selected ? SELECTED_COLOR : (focus ? LIT_COLORS : PALE)[status] ?? LIT_COLORS.todo,
+      },
+      geometry: { type: 'Polygon', coordinates: [shrink(ring)] },
+    }
+  }
+  for (const [b, list] of groups) {
+    const parts = list.length > 1 ? splitBuilding(b.ring, list.map((h) => h.geometry.coordinates)) : null
+    if (parts) {
+      list.forEach((h, i) => { lit.add(h.properties.houseId); features.push(feature(h, b, parts[i], 1)) })
+      continue
+    }
+    // Bâtiment impossible à couper : l'adresse la plus urgente donne la couleur.
+    let win = list[0]
+    for (const h of list) {
+      if (h.properties.houseId === selectedId) { win = h; break }
+      if (h.properties.order > win.properties.order) win = h
+    }
+    for (const h of list) lit.add(h.properties.houseId)
+    features.push(feature(win, b, b.ring, 0))
+  }
+  const sig = features.map((f) => `${f.properties.houseId}:${f.properties.color}:${f.properties.tag}:${f.geometry.coordinates[0][0].join(',')}`).join('|')
   return { lit, features, sig }
 }
 
@@ -120,6 +214,12 @@ export function drawLitHouses(map, features) {
       'fill-extrusion-opacity': 0.95,
     },
   }, map.getLayer('houses') ? 'houses' : undefined) // sous les pastilles, pour que le nombre de logements reste visible
+  // Immeuble : logements faits sur total (« 2/4 »), écrit en gros sur le bâtiment.
+  map.addLayer({
+    id: 'lit-tags', type: 'symbol', source: 'lit-houses', filter: ['!=', ['get', 'tag'], ''], minzoom: 15.5,
+    layout: { 'text-field': ['get', 'tag'], 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 15.5, 14, 18, 22], 'text-allow-overlap': true, 'text-ignore-placement': true },
+    paint: { 'text-color': '#1f2a24', 'text-halo-color': '#ffffff', 'text-halo-width': 2.4 },
+  })
   // Les autres bâtiments passent en retrait, plus clairs.
   const src = buildingSource(map)
   if (src && map.getLayer(src.layerId)?.type === 'fill-extrusion') {
