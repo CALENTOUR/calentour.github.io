@@ -3,6 +3,7 @@ import { bounds, lineLength, pointAt, unflatten } from '../../lib/geo'
 import { tourStats } from '../../lib/stats'
 import { IconGps } from '../ui/Icons'
 import { dwellingKey } from '../../services/state'
+import { DONE_STATUSES } from '../../config/constants'
 import { LIT_COLORS, SELECTED_COLOR, drawLitHouses, litHouses } from './houseBuildings'
 import { loadIgnForBounds, onIgnLoaded } from '../../lib/ignBuildings'
 import { addStatusIcons } from './icons'
@@ -57,6 +58,7 @@ export function housesGeoJSON(tours, statesById, focusPieceId, focusTourId) {
             // Dessinées par-dessus : les maisons du morceau choisi, puis celles à faire.
             order: inFocus(t, house.pieceId, focusPieceId, focusTourId) * 10 + (status === 'todo' ? 2 : status === 'again' ? 1 : 0),
             units: isBuilding ? house.units.length : 0,
+            unitsDone: isBuilding ? house.units.filter((u) => DONE_STATUSES.includes(h[dwellingKey(house.id, u.id)]?.s)).length : 0,
           },
           geometry: { type: 'Point', coordinates: [house.lng, house.lat] },
         }
@@ -278,10 +280,16 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
         drawLitHouses(map, features)
       }
       map.setLayoutProperty('lit-houses', 'visibility', on ? 'visible' : 'none')
+      if (map.getLayer('lit-tags')) map.setLayoutProperty('lit-tags', 'visibility', on ? 'visible' : 'none')
       const key = [...lit].sort().join(',')
       if (key !== litSig.current.lit) {
         litSig.current.lit = key
         map.setPaintProperty('houses', 'icon-opacity', ['case', ['in', ['get', 'houseId'], ['literal', [...lit]]], 0, ['==', ['get', 'focus'], 1], 1, ['==', ['get', 'focus'], 0.5], 0.6, 0.25])
+        // Le nombre de logements est alors écrit sur le bâtiment : la petite pastille s'efface.
+        const isLit = ['in', ['get', 'houseId'], ['literal', [...lit]]]
+        map.setPaintProperty('units-badge', 'circle-opacity', ['case', isLit, 0, ['>', ['get', 'focus'], 0], 1, 0.3])
+        map.setPaintProperty('units-badge', 'circle-stroke-opacity', ['case', isLit, 0, ['>', ['get', 'focus'], 0], 1, 0.3])
+        map.setPaintProperty('units-count', 'text-opacity', ['case', isLit, 0, ['>', ['get', 'focus'], 0], 1, 0.3])
       }
     }
     let timer = 0

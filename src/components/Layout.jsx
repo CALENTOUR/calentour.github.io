@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import OfflineBanner from './OfflineBanner'
+import WhatsNew from './WhatsNew'
 import Logo from './ui/Logo'
 import { IconCash, IconDashboard, IconFlag, IconMap, IconPie, IconSliders, IconTour } from './ui/Icons'
 import { useAuth } from '../context/AuthContext'
@@ -114,6 +115,7 @@ export default function Layout() {
       <main className="main">
         <OfflineBanner />
         <Outlet />
+        <WhatsNew isAdmin={isAdmin} />
       </main>
       {!isAdmin && !fullMap && (
         <nav className="member-bar" aria-label="Navigation">

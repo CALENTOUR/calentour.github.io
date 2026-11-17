@@ -16,6 +16,8 @@ function DwellingForm({ entry, onSave, onReset }) {
   const [amount, setAmount] = useState(entry?.s === 'given' ? String(entry.amount) : '')
   const [mode, setMode] = useState(entry?.mode ?? 'cash')
   const value = toNumber(amount)
+  const [confirmCancel, setConfirmCancel] = useState(false)
+  const given = entry?.s === 'given'
 
   if (step === 'amount') {
     return (
@@ -52,6 +54,25 @@ function DwellingForm({ entry, onSave, onReset }) {
 
   return (
     <div className="stack">
+      {given && (
+        <div className="don-box">
+          <span className="spacer">
+            💶 Don de <strong>{formatEuro(entry.amount)}</strong>{entry.mode === 'cheque' ? ' par chèque' : ' en espèces'}
+            <small className="muted"> · le {formatDate(entry.at)}</small>
+          </span>
+          {confirmCancel ? (
+            <div className="row don-actions">
+              <button type="button" className="btn-sm btn-ghost" onClick={() => setConfirmCancel(false)}>Garder</button>
+              <button type="button" className="btn-sm btn-danger" onClick={onReset}>Oui, annuler le don</button>
+            </div>
+          ) : (
+            <div className="row don-actions">
+              <button type="button" className="btn-sm" onClick={() => setStep('amount')}>✏️ Modifier le montant</button>
+              <button type="button" className="btn-sm btn-ghost danger" onClick={() => setConfirmCancel(true)}>Annuler le don</button>
+            </div>
+          )}
+        </div>
+      )}
       <div className="status-grid">
         {RESULT_STATUSES.map((s) => (
           <button
@@ -66,12 +87,12 @@ function DwellingForm({ entry, onSave, onReset }) {
           </button>
         ))}
       </div>
-      {entry && (
+      {entry && !given && (
         <div className="row small muted">
           <span className="spacer">
             Dernier passage : {STATUSES[entry.s]?.label}{entry.s === 'given' ? ` ${formatEuro(entry.amount)}` : ''}, le {formatDate(entry.at)}
           </span>
-          <button type="button" className="btn-ghost btn-sm" onClick={onReset}>Remettre à faire</button>
+          <button type="button" className="btn-ghost btn-sm" onClick={onReset}>Annuler ce passage</button>
         </div>
       )}
     </div>
@@ -117,9 +138,9 @@ function HouseNote({ tour, house, user }) {
   )
 }
 
-export default function HouseSheet({ tour, house, state, year, user, onClose, onSaved }) {
+export default function HouseSheet({ tour, house, state, year, user, onClose, onSaved, initialUnitId = null }) {
   const h = state?.h ?? {}
-  const [unitId, setUnitId] = useState(house.units?.length ? null : undefined)
+  const [unitId, setUnitId] = useState(house.units?.length ? initialUnitId : undefined)
   const isBuilding = Boolean(house.units?.length)
   const unit = isBuilding && unitId ? house.units.find((u) => u.id === unitId) : null
   const key = dwellingKey(house.id, unit?.id)

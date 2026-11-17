@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import TourMap, { buildingStatus, tourPoints } from '../../components/map/TourMap'
 import { fitPoints } from '../../components/map/useMapLibre'
 import MapLegend from '../../components/map/MapLegend'
@@ -29,6 +29,9 @@ const FIT_PADDING = { top: 70, bottom: 50, left: 30, right: 90 }
 export default function PiecePage() {
   const { pieceId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  // Rue choisie en touchant la carte : on garde le zoom au lieu de recadrer toute la rue.
+  const keepView = Boolean(location.state?.keepView)
   const toast = useToast()
   const { tour, state, year, user, base } = useTourContext()
   const [openHouseId, setOpenHouseId] = useState(null)
@@ -60,9 +63,9 @@ export default function PiecePage() {
   const fit = (id) => {
     fitPoints(mapRef.current, tourPoints(tours, id), { padding: FIT_PADDING, maxZoom: 18 })
   }
-  const choosePiece = (id) => {
-    if (id === focus) fit(id)
-    else navigate(`${base}/${id ?? 'tout'}`)
+  const choosePiece = (id, { keep = false } = {}) => {
+    if (id === focus) { if (!keep) fit(id) }
+    else navigate(`${base}/${id ?? 'tout'}`, keep ? { state: { keepView: true } } : undefined)
   }
   const chipCount = (todo, total) => (total && !todo ? '✓' : todo)
   const goTo = (house) => {
@@ -84,7 +87,7 @@ export default function PiecePage() {
     const gap = (f) => Math.min(...(f.geometry.type === 'LineString' ? [f.geometry.coordinates] : f.geometry.coordinates)
       .flat().map((c) => { const p = m.project(c); return Math.hypot(p.x - e.point.x, p.y - e.point.y) }))
     const hit = m.queryRenderedFeatures(box, { layers: ['pieces'] }).filter((f) => f.properties.pieceId !== focus).sort((a, b) => gap(a) - gap(b))[0]
-    if (hit && hit.properties.pieceId !== focus) choosePiece(hit.properties.pieceId)
+    if (hit && hit.properties.pieceId !== focus) choosePiece(hit.properties.pieceId, { keep: true })
   }
   const addHouse = (house) => saveTour(tour.id, { houses: [...tour.houses, house] })
     .then(() => toast(`${house.label} ajoutée`))
@@ -94,7 +97,9 @@ export default function PiecePage() {
     if (status === 'given') {
       setParty(Date.now())
       toast(`Merci ! ${formatEuro(amount)} enregistrés 🎉`)
-    } else if (status !== 'todo') {
+    } else if (status === 'todo') {
+      toast('Passage annulé')
+    } else {
       toast(navigator.onLine ? `${STATUSES[status].label} enregistré` : 'Enregistré sur le téléphone, envoi au retour du réseau')
     }
   }
@@ -110,9 +115,15 @@ export default function PiecePage() {
         showMe
         streetLabels
         selectedHouseId={openHouse?.id ?? null}
-        onHouseClick={adding ? undefined : (p) => { const house = tour.houses.find((x) => x.id === p.houseId); if (!house) return; if (focus && house.pieceId !== focus) choosePiece(house.pieceId); else goTo(house) }}
+        onHouseClick={adding ? undefined : (p) => { const house = tour.houses.find((x) => x.id === p.houseId); if (!house) return; if (focus && house.pieceId !== focus) choosePiece(house.pieceId, { keep: true }); goTo(house) }}
         onMapClick={onMapClick}
-        onReady={(m) => { mapRef.current = m }}
+        autoFit={!keepView}
+        onReady={(m) => {
+          mapRef.current = m
+          // Arrivée par « Me localiser » : la carte s'ouvre centrée sur le binôme.
+          const me = location.state?.me
+          if (me) m.jumpTo({ center: me, zoom: Math.max(m.getZoom(), 17.5) })
+        }}
         className="fullmap-map"
       />
 

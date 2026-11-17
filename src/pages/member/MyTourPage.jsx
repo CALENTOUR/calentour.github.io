@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import LocateButton from '../../components/LocateButton'
 import NoTour from '../../components/NoTour'
 import ReportButton from '../../components/ReportButton'
 import { useAuth } from '../../context/AuthContext'
@@ -38,6 +39,8 @@ export default function MyTourPage() {
         <StreetArt />
       </div>
       {!isAdmin && <ReportButton tour={tour} user={user} year={year} />}
+
+      {tour.pieces.length > 0 && <LocateButton tour={tour} base={base} />}
 
       <div className="sector-list">
         {groups.map(([v, pieces]) => (

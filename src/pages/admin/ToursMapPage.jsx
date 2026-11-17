@@ -21,6 +21,8 @@ import TourMapEditor from './TourMapEditor'
 // avancement, ses villages en haut (un toucher zoome sur le village) et un gros
 // bouton vers sa fiche, où se trouvent tous ses réglages. Le mode plein écran
 // masque le reste de l'application.
+const isPhoneNow = () => !(window.matchMedia?.('(min-width: 900px)').matches ?? true)
+
 export default function ToursMapPage() {
   const { tours, toursById, statesById, settings } = useData()
   const toast = useToast()
@@ -31,6 +33,10 @@ export default function ToursMapPage() {
   const [editId, setEditId] = useState(null)
   // Tournées masquées (toutes visibles au départ, les nouvelles aussi).
   const [hidden, setHidden] = useState(() => new Set())
+  const swipeY = useRef(null)
+  const swipedAt = useRef(0)
+  // Un glissé est suivi d'un « clic » du navigateur : on l'ignore pour ne pas replier aussitôt.
+  const togglePanel = () => { if (Date.now() - swipedAt.current > 500) setPanelOpen((v) => !v) }
   const [panelOpen, setPanelOpen] = useState(() => window.matchMedia?.('(min-width: 900px)').matches ?? false)
   const [showHouses, setShowHouses] = useState(false)
   const [showProgress, setShowProgress] = useState(false)
@@ -226,6 +232,18 @@ export default function ToursMapPage() {
   }
 
 
+  // Téléphone : le panneau du bas monte ou descend en glissant le doigt sur sa poignée ou son titre.
+  const swipe = {
+    onTouchStart: (e) => { swipeY.current = e.touches[0].clientY },
+    onTouchEnd: (e) => {
+      const dy = e.changedTouches[0].clientY - (swipeY.current ?? e.changedTouches[0].clientY)
+      swipeY.current = null
+      if (Math.abs(dy) < 25) return
+      swipedAt.current = Date.now()
+      setPanelOpen(dy < 0)
+    },
+  }
+
   return (
     <div className={`fullmap tours-map${panelOpen ? ' panel-open' : ''}${full ? ' is-full' : ''}${selected ? ' has-float' : ''}`}>
       <TourMap
@@ -241,8 +259,8 @@ export default function ToursMapPage() {
 
       <aside className="tours-panel" aria-label="Liste des tournées">
         {/* Téléphone : la liste est un panneau du bas, qu'on ouvre ou replie en touchant la poignée. */}
-        <button type="button" className="sheet-grab" onClick={() => setPanelOpen((v) => !v)} aria-expanded={panelOpen} aria-label={panelOpen ? 'Replier la liste des tournées' : 'Déplier la liste des tournées'}><i /></button>
-        <div className="tours-panel-head">
+        <button type="button" className="sheet-grab" onClick={togglePanel} {...swipe} aria-expanded={panelOpen} aria-label={panelOpen ? 'Replier la liste des tournées' : 'Déplier la liste des tournées'}><i /></button>
+        <div className="tours-panel-head" {...swipe} onClick={(e) => { if (isPhoneNow() && !e.target.closest('button')) togglePanel() }}>
           <strong className="spacer tours-count">{tours.length} tournées <span className="small muted">{doneCount} terminée{doneCount > 1 ? 's' : ''}</span></strong>
           <button type="button" className="btn-round btn-ghost tours-panel-close" onClick={() => setPanelOpen(false)} aria-label="Fermer la liste">✕</button>
         </div>
