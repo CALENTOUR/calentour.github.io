@@ -30,7 +30,8 @@ function docSnapshot(ref) {
 }
 
 function collectionSnapshot(ref) {
-  const docs = listCollection(ref.path).map(({ id, data }) => ({
+  const keep = ({ data }) => (ref.filters ?? []).every((f) => f.op === '==' && data?.[f.field] === f.value)
+  const docs = listCollection(ref.path).filter(keep).map(({ id, data }) => ({
     id,
     data: () => structuredClone(data),
     exists: () => true,
@@ -112,4 +113,10 @@ export class Timestamp {
   constructor(date) { this.date = date }
   static fromDate(date) { return new Timestamp(date) }
   toDate() { return this.date }
+}
+
+// Requêtes simples (égalité sur un champ), filtrées sur place.
+export const where = (field, op, value) => ({ field, op, value })
+export function query(ref, ...filters) {
+  return { ...ref, filters }
 }

@@ -58,12 +58,14 @@ export async function unitsFromIGN(houses) {
 
 // Comptage automatique, une fois par maison : les maisons déjà vues par l'IGN ou réglées à la main sont marquées « ign ».
 let running = false
-export async function autoCountUnits(tours, save) {
+// Une maison déjà visitée cette année n'est pas changée en immeuble : son passage serait perdu.
+export async function autoCountUnits(tours, save, statesById = {}) {
   if (running) return
   running = true
   try {
     for (const t of tours) {
-      const todo = (t.houses ?? []).filter((h) => !h.ign && !h.units?.length)
+      const h = statesById[t.id]?.h ?? {}
+      const todo = (t.houses ?? []).filter((x) => !x.ign && !x.units?.length && !h[x.id])
       if (!todo.length) continue
       const found = await unitsFromIGN(todo)
       const ids = new Set(todo.map((h) => h.id))

@@ -5,6 +5,7 @@ import { fitPoints } from '../../components/map/useMapLibre'
 import SectorTabs from '../../components/SectorTabs'
 import { tourAreas } from '../../lib/places'
 import AccessCard from '../../components/AccessCard'
+import TourHistory from '../../components/TourHistory'
 import TourForm from '../../components/TourForm'
 import { useToast } from '../../components/ui/Toast'
 import { useData } from '../../context/DataContext'
@@ -14,6 +15,7 @@ import ProgressRing from '../../components/ui/ProgressRing'
 import { useIsPhone } from '../../hooks/useIsPhone'
 import { mergeSameName } from '../../lib/tourBuilder'
 import { removeTour, saveTour, withoutHouse } from '../../services/tours'
+import { carryPassage } from '../../services/state'
 import TourMapEditor from './TourMapEditor'
 import { withUnits } from '../../lib/logements'
 import { authErrorMessage, createAccount, normalizeLogin, simpleWord, tourLogin, updateUser } from '../../services/users'
@@ -89,7 +91,7 @@ export default function TourEditPage() {
   const { tourId } = useParams()
   const navigate = useNavigate()
   const toast = useToast()
-  const { tours: allTours, toursById, statesById, users } = useData()
+  const { tours: allTours, toursById, statesById, users, year } = useData()
   const tour = toursById[tourId]
   const location = useLocation()
   // Une tournée qui vient d'être créée s'ouvre directement dans l'éditeur.
@@ -131,7 +133,9 @@ export default function TourEditPage() {
     const answer = window.prompt('Nombre de logements (0 = maison simple) :', String(house.units?.length ?? 0))
     if (answer == null) return
     const n = Number.parseInt(answer, 10) || 0
-    update({ houses: tour.houses.map((h) => (h === house ? withUnits(h, n) : h)) })
+    const next = withUnits(house, n)
+    update({ houses: tour.houses.map((h) => (h === house ? next : h)) })
+    carryPassage({ year, tourId: tour.id, state: statesById[tour.id], before: house, after: next })
   }
   const removeHouse = (house) => update(withoutHouse(tour, house))
 
@@ -231,6 +235,8 @@ export default function TourEditPage() {
           )
         })}
       </div>
+
+      <TourHistory key={tour.id} tour={tour} />
 
       <div className="card row wrap">
         <div className="spacer">

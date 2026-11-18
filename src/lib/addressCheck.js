@@ -226,7 +226,8 @@ export const communesOf = (tours) => [...new Set(tours.flatMap((t) => (t.houses 
 
 // Une maison ne bouge plus de tournée ni ne disparaît si un passage y est déjà noté, ou si
 // elle a été ajoutée à la main.
-const locked = (h, state) => h.added || Boolean(state?.h?.[h.id])
+// Maison déjà visitée cette année (elle, ou un logement de son immeuble) : on n'y touche pas.
+const locked = (h, state) => h.added || Object.keys(state?.h ?? {}).some((k) => k === h.id || k.startsWith(`${h.id}__`))
 
 // Calcul pur : renvoie les nouvelles listes de maisons (seulement les tournées changées) et le bilan.
 export function checkTours(tours, buildings, statesById = {}) {

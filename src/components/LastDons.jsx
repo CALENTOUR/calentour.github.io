@@ -18,28 +18,29 @@ export default function LastDons({ tour, state, year, user }) {
       const [houseId, unitId] = key.split('__')
       const house = byId.get(houseId)
       const unit = unitId ? house?.units?.find((u) => u.id === unitId) : null
-      return house ? { key, e, house, unit } : null
+      // Habitation qui n'existe plus sous cette forme : le don compte toujours, mais seul un admin peut le corriger.
+      const lost = !house || (unitId ? !unit : Boolean(house.units?.length))
+      return { key, e, house, unit, lost }
     })
-    .filter(Boolean)
     .sort((a, b) => String(b.e.at ?? '').localeCompare(String(a.e.at ?? '')))
   if (!dons.length) return null
   const list = all ? dons : dons.slice(0, SHOWN)
-  const current = open && dons.find((d) => d.key === open)
+  const current = open && dons.find((d) => d.key === open && !d.lost)
 
   return (
     <section className="card stack">
       <h2>Mes derniers dons</h2>
       <p className="small muted">Une erreur ? Touche le don pour changer le montant ou l’annuler.</p>
       <ul className="last-dons">
-        {list.map(({ key, e, house, unit }) => (
+        {list.map(({ key, e, house, unit, lost }) => (
           <li key={key}>
-            <button type="button" className="last-don" onClick={() => setOpen(key)}>
+            <button type="button" className="last-don" disabled={lost} onClick={() => setOpen(key)}>
               <span className="spacer">
-                <strong>{house.label}{unit ? ` · ${unit.label}` : ''}</strong>
-                <small className="muted">{formatDate(e.at)}{e.mode === 'cheque' ? ' · chèque' : ''}</small>
+                <strong>{house?.label ?? 'Maison retirée'}{unit ? ` · ${unit.label}` : ''}</strong>
+                <small className="muted">{formatDate(e.at)}{e.mode === 'cheque' ? ' · chèque' : ''}{lost ? ' · logement modifié, voir un admin' : ''}</small>
               </span>
               <strong>{formatEuro(e.amount)}</strong>
-              <span className="last-don-edit">Corriger</span>
+              {!lost && <span className="last-don-edit">Corriger</span>}
             </button>
           </li>
         ))}

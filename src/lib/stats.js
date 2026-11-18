@@ -54,9 +54,25 @@ export function tourStats(tour, state) {
   const h = state?.h ?? {}
   const all = emptyStats()
   const byPiece = Object.fromEntries((tour?.pieces ?? []).map((p) => [p.id, emptyStats()]))
+  const keys = new Set()
   for (const d of dwellings(tour)) {
+    keys.add(d.key)
     add(all, h[d.key])
     if (byPiece[d.house.pieceId]) add(byPiece[d.house.pieceId], h[d.key])
+  }
+  // Dons saisis sur une habitation qui n'existe plus sous cette forme (maison passée
+  // en immeuble, retirée ou déplacée par un admin) : l'argent a bien été reçu, il
+  // compte dans le total collecté, mais pas dans l'avancement.
+  all.orphans = 0
+  for (const [key, e] of Object.entries(h)) {
+    if (keys.has(key) || e?.s !== 'given') continue
+    const amount = Number(e.amount) || 0
+    all.orphans++
+    all.counts.given++
+    all.visited++
+    all.amount += amount
+    if (e.mode) all.byMode[e.mode] = (all.byMode[e.mode] ?? 0) + amount
+    if (e.mode === 'cheque') all.chequeCount++
   }
   return {
     ...finish(all),
