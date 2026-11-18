@@ -26,6 +26,19 @@ export function stateAt(current, passages, until) {
   return target
 }
 
+// Annule les annulations faites depuis `since` (ISO) : chaque habitation remise « à faire »
+// après cette heure retrouve sa dernière saisie (don, refus…), même plus ancienne.
+export function undoCancels(current, passages, since) {
+  const target = { ...(current ?? {}) }
+  const cancelled = new Set(passages.filter((p) => p.s === 'todo' && String(p.at) >= since).map((p) => p.key))
+  for (const key of cancelled) {
+    if (target[key]) continue
+    const e = entryOf(passages.filter((p) => p.key === key && p.s !== 'todo').at(-1))
+    if (e) target[key] = e
+  }
+  return target
+}
+
 const same = (a, b) => (!a && !b) || (a && b && a.s === b.s && (Number(a.amount) || 0) === (Number(b.amount) || 0) && (a.mode ?? null) === (b.mode ?? null))
 
 // Différences entre l'état actuel et l'état visé : [{ key, from, to }].

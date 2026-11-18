@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { useData } from '../context/DataContext'
 import { STATUSES } from '../config/constants'
 import { formatDate, formatEuro } from '../lib/format'
-import { diffStates, loadPassages, restoreState, stateAt } from '../services/history'
+import { diffStates, loadPassages, restoreState, stateAt, undoCancels } from '../services/history'
 import { dwellings } from '../lib/stats'
 import { recordPassage } from '../services/state'
 import { useToast } from './ui/Toast'
@@ -21,9 +21,10 @@ export default function TourHistory({ tour }) {
   const toast = useToast()
   const [passages, setPassages] = useState(null)
   const [error, setError] = useState('')
-  const [when, setWhen] = useState(() => localInput(new Date()))
+  const [when, setWhen] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return localInput(d) })
   const [all, setAll] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [mode, setMode] = useState('undo')
   const current = statesById[tour.id]?.h ?? {}
 
   const label = useMemo(() => {
@@ -80,18 +81,18 @@ export default function TourHistory({ tour }) {
   }
 
   const untilIso = new Date(when).toISOString().replace(/\.\d{3}Z$/, '.999Z')
-  const target = stateAt(current, passages, untilIso)
+  const target = mode === 'undo' ? undoCancels(current, passages, new Date(when).toISOString()) : stateAt(current, passages, untilIso)
   const changes = diffStates(current, target)
   const now = totals(current)
   const then = totals(target)
   const shown = [...passages].reverse().slice(0, all ? undefined : 40)
 
   const restore = async () => {
-    if (!window.confirm(`Remettre la tournée ${tour.number} dans son état du ${formatDate(untilIso)} ?\n${changes.length} habitation(s) changent. Total : ${formatEuro(now.a)} → ${formatEuro(then.a)}.`)) return
+    if (!window.confirm(`Tournée ${tour.number} : ${mode === 'undo' ? `annuler les annulations depuis le ${formatDate(when)}` : `revenir à l’état du ${formatDate(untilIso)}`} ?\n${changes.length} habitation(s) changent. Total : ${formatEuro(now.a)} → ${formatEuro(then.a)}.`)) return
     setBusy(true)
     try {
       await restoreState({ year, tourId: tour.id, changes, user: profile })
-      toast(`Tournée ${tour.number} remise dans son état du ${formatDate(untilIso)}`)
+      toast(`Tournée ${tour.number} remise en état`)
       setPassages(await loadPassages(year, tour.id))
     } catch (err) {
       toast(`Échec : ${err.message}`)
@@ -105,12 +106,19 @@ export default function TourHistory({ tour }) {
       <h2>Historique des dons</h2>
       {lostBlock}
       <div className="history-restore stack">
+        <div className="segmented" role="group" aria-label="Type de remise en état">
+          <button type="button" className={mode === 'undo' ? 'on' : ''} onClick={() => setMode('undo')}>Annuler les annulations</button>
+          <button type="button" className={mode === 'state' ? 'on' : ''} onClick={() => setMode('state')}>Revenir à une heure</button>
+        </div>
         <label className="stack">
-          <strong className="small">Revenir à l’état du</strong>
+          <strong className="small">{mode === 'undo' ? 'Annulations faites depuis le' : 'Revenir à l’état du'}</strong>
           <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
         </label>
+        <p className="small muted">{mode === 'undo'
+          ? 'Chaque maison remise « à faire » depuis cette heure retrouve sa dernière saisie. Les dons saisis depuis sont gardés.'
+          : 'Les maisons touchées après cette heure reprennent leur état de cette heure-là (les saisies faites depuis sont perdues).'}</p>
         <div className="small">
-          À cette heure : <strong>{then.n} dons · {formatEuro(then.a)}</strong>. Maintenant : {now.n} dons · {formatEuro(now.a)}.
+          Après remise en état : <strong>{then.n} dons · {formatEuro(then.a)}</strong>. Maintenant : {now.n} dons · {formatEuro(now.a)}.
         </div>
         {changes.length > 0 ? (
           <>
