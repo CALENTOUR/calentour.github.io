@@ -67,7 +67,7 @@ export default function Layout() {
   useEffect(() => {
     if (!isAdmin || IS_DEMO || !tours?.length) return undefined
     const timer = setTimeout(() => {
-      if (!needsCheck(tours)) return autoCountUnits(tours, saveTour)
+      if (!needsCheck(tours)) return autoCountUnits(tours, saveTour, latest.current.statesById)
       autoCheckAddresses(() => latest.current.tours, latest.current.statesById, saveTour, (r) => {
         const parts = [
           r.moved && `${r.moved} replacée${r.moved > 1 ? 's' : ''} sur leur bâtiment`,

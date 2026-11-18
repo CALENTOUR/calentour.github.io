@@ -21,3 +21,18 @@ export function recordPassage({ year, tourId, key, status, amount = 0, mode = nu
   done.catch((err) => console.error('Enregistrement du passage', err))
   return done
 }
+
+// Maison passée en immeuble (ou l'inverse) : son passage suit le premier logement,
+// sinon il resterait accroché à une habitation qui n'existe plus.
+export function carryPassage({ year, tourId, state, before, after }) {
+  const h = state?.h ?? {}
+  const wasBuilding = Boolean(before.units?.length)
+  const isBuilding = Boolean(after.units?.length)
+  if (wasBuilding === isBuilding) return null
+  const from = wasBuilding ? dwellingKey(before.id, before.units[0].id) : dwellingKey(before.id)
+  const to = isBuilding ? dwellingKey(after.id, after.units[0].id) : dwellingKey(after.id)
+  if (!h[from] || h[to]) return null
+  const done = setDoc(stateRef(year, tourId), { h: { [to]: h[from], [from]: deleteField() } }, { merge: true })
+  done.catch((err) => console.error('Passage du logement', err))
+  return done
+}

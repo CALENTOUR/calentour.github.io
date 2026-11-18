@@ -18,6 +18,7 @@ import { housesWithoutBuilding } from '../../components/map/houseBuildings'
 import { onIgnLoaded } from '../../lib/ignBuildings'
 import { withUnits } from '../../lib/logements'
 import { saveTour, withoutHouse } from '../../services/tours'
+import { carryPassage } from '../../services/state'
 
 // Une colonne d'outils à gauche de la carte : les rues, puis les maisons en dessous. Retoucher l'outil choisi le désélectionne : la main revient, pour se déplacer.
 const svg = (d) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>
@@ -201,7 +202,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
   const toast = useToast()
   const navigate = useNavigate()
   const [party, setParty] = useState(0)
-  const { tours: allTours, statesById } = useData()
+  const { tours: allTours, statesById, year } = useData()
   const [tab, setTab] = useState(initialHouseId ? 'houses' : 'trace')
   const [mode, setMode] = useState(null)
   const [newPoint, setNewPoint] = useState(null)
@@ -600,6 +601,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
     const { tourId, ...house } = houseSel
     const next = withUnits(house, Math.max(1, house.units?.length || 1) + delta)
     update({ houses: tourRef.current.houses.map((h) => (h.id === next.id ? next : h)) })
+    carryPassage({ year, tourId: tourRef.current.id, state: statesById[tourRef.current.id], before: house, after: next })
     setHouseSel({ ...next, tourId })
   }
 

@@ -4,7 +4,7 @@ import PrepareOffline from '../../components/PrepareOffline'
 import CollectedCard from '../../components/ui/CollectedCard'
 import ProgressRing from '../../components/ui/ProgressRing'
 import StatTile from '../../components/ui/StatTile'
-import { DayColumns, StatusDonut, StreetBars } from '../../components/ui/StatsCharts'
+import { StatusDonut, StreetBars } from '../../components/ui/StatsCharts'
 import { useData } from '../../context/DataContext'
 import { useTourContext } from '../../hooks/useTourContext'
 import { formatEuro, formatPercent } from '../../lib/format'
@@ -27,12 +27,6 @@ export default function MyStatsPage() {
   const s = tourStats(tour, state)
   const labels = pieceLabels(tour)
   const ranking = settings?.rankingForMembers ? globalStats(tours, statesById).perTour : null
-  const perDay = Object.values(Object.values(state?.h ?? {}).reduce((acc, e) => {
-    if (e?.s !== 'given' || !e.at) return acc
-    const day = e.at.slice(0, 10)
-    acc[day] = { day, amount: (acc[day]?.amount ?? 0) + (Number(e.amount) || 0) }
-    return acc
-  }, {})).sort((a, b) => a.day.localeCompare(b.day))
   const rank = ranking ? ranking.findIndex((r) => r.tour.id === tour.id) + 1 : 0
 
   return (
@@ -61,12 +55,6 @@ export default function MyStatsPage() {
         <StatusDonut counts={s.counts} total={s.total} />
       </section>
 
-      {perDay.length > 0 && (
-        <section className="card stack">
-          <h2>Dons par jour</h2>
-          <DayColumns days={perDay} />
-        </section>
-      )}
 
       <section className="card stack">
         <h2>Rue par rue</h2>

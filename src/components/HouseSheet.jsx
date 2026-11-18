@@ -2,7 +2,7 @@ import { useState } from 'react'
 import Sheet from './ui/Sheet'
 import { PAYMENT_MODES, QUICK_AMOUNTS, RESULT_STATUSES, STATUSES } from '../config/constants'
 import { formatDate, formatEuro, toNumber } from '../lib/format'
-import { dwellingKey, recordPassage } from '../services/state'
+import { carryPassage, dwellingKey, recordPassage } from '../services/state'
 import { saveHouseNote, saveTour } from '../services/tours'
 import { withUnits } from '../lib/logements'
 
@@ -160,6 +160,7 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
   const saveUnits = (n) => {
     const next = withUnits(house, n)
     saveTour(tour.id, { houses: tour.houses.map((x) => (x.id === house.id ? next : x)) }).catch(() => {})
+    carryPassage({ year, tourId: tour.id, state, before: house, after: next })
     setAskUnits(false)
     onClose()
   }
