@@ -5,7 +5,7 @@ import { STATUSES } from '../config/constants'
 import { formatDate, formatEuro } from '../lib/format'
 import { diffStates, loadPassages, restoreState, stateAt, undoCancels } from '../services/history'
 import { dwellings } from '../lib/stats'
-import { recordPassage } from '../services/state'
+import { dwellingKey, moveEntry, recordPassage } from '../services/state'
 import { useToast } from './ui/Toast'
 
 const pad = (n) => String(n).padStart(2, '0')
@@ -47,16 +47,34 @@ export default function TourHistory({ tour }) {
     recordPassage({ year, tourId: tour.id, key, status: 'todo', user: profile })
     toast('Don annulé')
   }
+  // Habitation qui existe aujourd'hui à la place (la maison, ou le 1er logement de l'immeuble).
+  const homeOf = (key) => {
+    const house = tour.houses.find((x) => x.id === key.split('__')[0])
+    if (!house) return null
+    return house.units?.length ? dwellingKey(house.id, house.units[0].id) : dwellingKey(house.id)
+  }
+  const attachLost = (key, e) => {
+    const to = homeOf(key)
+    const there = current[to]
+    const msg = there
+      ? `Rattacher ce don de ${formatEuro(e.amount)} à « ${label(to)} » ? Il remplace « ${describe(there)} » déjà saisi.`
+      : `Rattacher ce don de ${formatEuro(e.amount)} à « ${label(to)} » ? Il comptera de nouveau dans le bilan.`
+    if (!window.confirm(msg)) return
+    moveEntry({ year, tourId: tour.id, from: key, to, entry: e, user: profile })
+      .then(() => toast('Don rattaché'))
+      .catch((err) => toast(`Échec : ${err.message}`))
+  }
   const lostBlock = lost.length > 0 && (
     <div className="history-restore stack">
       <strong className="small">Dons sur une habitation qui n’existe plus ({lost.length})</strong>
-      <p className="small muted">Ils comptent dans le total collecté, mais le binôme ne peut plus les ouvrir.</p>
+      <p className="small muted">Ils ne comptent pas dans le bilan et le binôme ne peut plus les ouvrir. Rattache-les à la maison s’ils sont réels, sinon annule-les.</p>
       <ul className="history-list small">
         {lost.map(([k, e]) => (
           <li key={k}>
             <span className="muted history-at">{formatDate(e.at)}</span>
             <span className="spacer">{label(k)}</span>
             <strong>{formatEuro(e.amount)}</strong>
+            {homeOf(k) && <button type="button" className="btn-sm" onClick={() => attachLost(k, e)}>Rattacher{current[homeOf(k)] ? ` (remplace ${describe(current[homeOf(k)])})` : ''}</button>}
             <button type="button" className="btn-sm btn-ghost danger" onClick={() => cancelLost(k, e)}>Annuler ce don</button>
           </li>
         ))}
