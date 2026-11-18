@@ -18,7 +18,7 @@ export default function LastDons({ tour, state, year, user }) {
       const [houseId, unitId] = key.split('__')
       const house = byId.get(houseId)
       const unit = unitId ? house?.units?.find((u) => u.id === unitId) : null
-      // Habitation qui n'existe plus sous cette forme : le don compte toujours, mais seul un admin peut le corriger.
+      // Habitation qui n'existe plus sous cette forme : le don ne compte pas, seul un admin peut le rattacher ou l'annuler.
       const lost = !house || (unitId ? !unit : Boolean(house.units?.length))
       return { key, e, house, unit, lost }
     })
@@ -37,7 +37,7 @@ export default function LastDons({ tour, state, year, user }) {
             <button type="button" className="last-don" disabled={lost} onClick={() => setOpen(key)}>
               <span className="spacer">
                 <strong>{house?.label ?? 'Maison retirée'}{unit ? ` · ${unit.label}` : ''}</strong>
-                <small className="muted">{formatDate(e.at)}{e.mode === 'cheque' ? ' · chèque' : ''}{lost ? ' · logement modifié, voir un admin' : ''}</small>
+                <small className="muted">{formatDate(e.at)}{e.mode === 'cheque' ? ' · chèque' : ''}{lost ? ' · ne compte pas, voir un admin' : ''}</small>
               </span>
               <strong>{formatEuro(e.amount)}</strong>
               {!lost && <span className="last-don-edit">Corriger</span>}

@@ -36,3 +36,14 @@ export function carryPassage({ year, tourId, state, before, after }) {
   done.catch((err) => console.error('Passage du logement', err))
   return done
 }
+
+// Admin : rattache un don resté sur une habitation disparue à l'habitation qui existe
+// aujourd'hui (la maison, ou le premier logement de l'immeuble). Noté dans l'historique.
+export function moveEntry({ year, tourId, from, to, entry, user }) {
+  const at = new Date().toISOString()
+  return Promise.all([
+    setDoc(stateRef(year, tourId), { h: { [to]: entry, [from]: deleteField() } }, { merge: true }),
+    addDoc(passagesCol(year), { tourId, key: to, s: entry.s, amount: entry.amount ?? 0, mode: entry.mode ?? null, at, by: user.uid, byName: `${user.name ?? 'Admin'} (rattachement)`, movedFrom: from }),
+    addDoc(passagesCol(year), { tourId, key: from, s: 'todo', amount: 0, mode: null, at, by: user.uid, byName: `${user.name ?? 'Admin'} (rattachement)` }),
+  ])
+}
