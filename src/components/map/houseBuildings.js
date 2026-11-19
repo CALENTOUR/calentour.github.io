@@ -2,6 +2,7 @@
 // (tiré du fond de carte OpenStreetMap) prend la couleur de son statut. Chaque
 // bâtiment est un peu rétréci pour que deux maisons mitoyennes restent distinctes.
 // Bâtiment absent d'OpenStreetMap : on prend celui de l'IGN (lib/ignBuildings.js).
+import maplibregl from 'maplibre-gl'
 import { setGeoJSON } from './useMapLibre'
 import { addToIndex, ignBuildingAt, ignSettled, loadIgnFor, nearestBuilding, ringBox } from '../../lib/ignBuildings'
 
@@ -248,45 +249,95 @@ export function labelPoint(ring) {
   return best
 }
 
-// Numéros écrits au milieu des bâtiments allumés, plus gros quand on zoome.
-function numbersGeoJSON(features) {
-  return {
-    type: 'FeatureCollection',
-    features: features.filter((f) => f.properties.num || f.properties.tag).map((f) => ({
-      type: 'Feature',
-      properties: { houseId: f.properties.houseId, num: f.properties.num, tag: f.properties.tag, order: f.properties.order ?? 0, focus: f.properties.focus ?? 1 },
-      geometry: { type: 'Point', coordinates: labelPoint(f.geometry.coordinates[0]) },
-    })),
-  }
+// Numéros écrits au milieu des bâtiments allumés.
+const M_PER_DEG = 111320
+// Surface d'un contour, en m².
+function ringArea(ring) {
+  const k = Math.cos((ring[0][1] * Math.PI) / 180)
+  let a = 0
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) a += ring[j][0] * k * ring[i][1] - ring[i][0] * k * ring[j][1]
+  return Math.abs(a / 2) * M_PER_DEG * M_PER_DEG
+}
+// Taille de texte (px, au zoom 16) pour que le numéro tienne dans la maison : largeur
+// utile ≈ 0,8 × côté du bâtiment, un chiffre ≈ 0,62 de la taille du texte.
+function fitAt16(f) {
+  const ring = f.geometry.coordinates[0]
+  const side = Math.sqrt(ringArea(ring)) * 0.8
+  const lines = [String(f.properties.num ?? '').length, f.properties.tag ? (f.properties.tag.length + 5) * 0.5 : 0]
+  const em = Math.max(1, ...lines) * 0.62
+  const pxPerM16 = (512 * 2 ** 16) / (40075016.686 * Math.cos((ring[0][1] * Math.PI) / 180))
+  return Math.round(((side / em) * pxPerM16) * 100) / 100
 }
 
-// Numéro (et, pour un immeuble, logements faits sur total en dessous).
-const NUMBER_TEXT = ['case', ['==', ['get', 'tag'], ''], ['get', 'num'],
-  ['==', ['get', 'num'], ''], ['get', 'tag'],
-  ['format', ['get', 'num'], {}, '\n', {}, ['get', 'tag'], { 'font-scale': 0.75 }]]
-// Taille du texte selon le zoom : lisible au téléphone dès qu'on voit la rue, gros de près.
-export const NUMBER_SIZE = ['interpolate', ['linear'], ['zoom'], 16, 14, 17, 17, 18, 21, 19, 26]
+// Bases des numéros (point au sol, hauteur du toit), gardées pour les replacer
+// quand la caméra bouge.
+const numberBases = new WeakMap()
 
-// En 3D, le numéro est posé au sol, sous le toit : on le remonte de la hauteur
-// (habituelle) des maisons à l'écran, selon l'inclinaison et le zoom.
-const roofHeight = new WeakMap()
-function raiseNumbers(map) {
-  if (!map.getLayer('lit-tags')) return
-  const h = roofHeight.get(map) ?? 6.6
-  const lift = Math.sin((map.getPitch() * Math.PI) / 180) * h
-  const mPerPx = (z) => (40075016.686 * Math.cos((map.getCenter().lat * Math.PI) / 180)) / (512 * 2 ** z)
-  const up = (z) => ['literal', [0, -Math.round((lift / mPerPx(z)) * 10) / 10]]
-  map.setPaintProperty('lit-tags', 'text-translate', ['interpolate', ['exponential', 2], ['zoom'], 14, up(14), 22, up(22)])
+// En 3D, un numéro posé au sol tomberait au pied de la maison : on le place là où
+// le centre du toit se voit à l'écran (point au sol aligné avec la caméra et le toit).
+function placeNumbers(map) {
+  const bases = numberBases.get(map) ?? []
+  const tr = map.transform
+  const flat = map.getPitch() < 3 || !tr?.getCameraLngLat || !tr?.getCameraAltitude
+  let cam = null
+  if (!flat) {
+    try { cam = maplibregl.MercatorCoordinate.fromLngLat(tr.getCameraLngLat(), tr.getCameraAltitude()) } catch { cam = null }
+  }
+  const features = bases.map(({ properties, point, roof }) => {
+    let coordinates = point
+    if (cam) {
+      const p = maplibregl.MercatorCoordinate.fromLngLat(point, roof)
+      if (cam.z > p.z * 1.05) {
+        const t = cam.z / (cam.z - p.z)
+        const g = new maplibregl.MercatorCoordinate(cam.x + (p.x - cam.x) * t, cam.y + (p.y - cam.y) * t, 0).toLngLat()
+        coordinates = [g.lng, g.lat]
+      }
+    }
+    return { type: 'Feature', properties, geometry: { type: 'Point', coordinates } }
+  })
+  setGeoJSON(map, 'lit-numbers', { type: 'FeatureCollection', features })
+}
+
+function setNumberBases(map, features) {
+  numberBases.set(map, features.filter((f) => f.properties.num || f.properties.tag).map((f) => ({
+    properties: {
+      houseId: f.properties.houseId, num: f.properties.num, tag: f.properties.tag ? `${f.properties.tag} log.` : '',
+      order: f.properties.order ?? 0, focus: f.properties.focus ?? 1, fit: fitAt16(f),
+    },
+    point: labelPoint(f.geometry.coordinates[0]),
+    roof: (Number(f.properties.height) || 6) + 0.6,
+  })))
+}
+
+// Numéro en gras ; logements faits sur total (« 4/9 log. ») en dessous, plus petit et
+// en gris, pour ne pas le prendre pour un numéro.
+const UNITS_GREY = '#3d4642'
+const UNITS_STYLE = { 'font-scale': 0.62, 'text-color': UNITS_GREY, 'text-font': ['literal', ['Noto Sans Regular']] }
+const NUMBER_TEXT = ['case', ['==', ['get', 'tag'], ''], ['get', 'num'],
+  ['==', ['get', 'num'], ''], ['format', ['get', 'tag'], UNITS_STYLE],
+  ['format', ['get', 'num'], {}, '\n', {}, ['get', 'tag'], UNITS_STYLE]]
+// Taille selon le zoom, réduite si la maison est trop petite à l'écran pour la contenir
+// (jamais sous 11 px, sinon illisible).
+const SIZE_BY_ZOOM = [[16, 13], [17, 16], [18, 19], [19, 21], [20, 22], [22, 22]]
+export const NUMBER_SIZE = ['interpolate', ['linear'], ['zoom'],
+  ...SIZE_BY_ZOOM.flatMap(([z, px]) => [z, ['max', 11, ['min', px, ['*', ['get', 'fit'], 2 ** (z - 16)]]]])]
+
+function watchCamera(map) {
+  let timer = 0, last = 0, tilted = false
+  const run = () => { last = Date.now(); timer = 0; tilted = map.getPitch() >= 3; placeNumbers(map) }
+  // Pendant un geste : au plus toutes les 120 ms ; à la fin : tout de suite.
+  map.on('move', () => {
+    if (map.getPitch() < 3 && !tilted) return
+    if (timer) return
+    timer = setTimeout(run, Math.max(0, 120 - (Date.now() - last)))
+  })
+  map.on('moveend', () => { clearTimeout(timer); run() })
 }
 
 export function drawLitHouses(map, features) {
   setGeoJSON(map, 'lit-houses', { type: 'FeatureCollection', features })
-  setGeoJSON(map, 'lit-numbers', numbersGeoJSON(features))
-  if (features.length) {
-    const hs = features.map((f) => (Number(f.properties.height) || 6) + 0.6).sort((a, b) => a - b)
-    roofHeight.set(map, hs[Math.floor(hs.length / 2)])
-  }
-  raiseNumbers(map)
+  setNumberBases(map, features)
+  placeNumbers(map)
   if (map.getLayer('lit-houses')) return
   map.addLayer({
     id: 'lit-houses', type: 'fill-extrusion', source: 'lit-houses',
@@ -308,10 +359,9 @@ export function drawLitHouses(map, features) {
       'text-allow-overlap': false, 'symbol-sort-key': ['-', 0, ['get', 'order']],
       'text-pitch-alignment': 'viewport', 'text-rotation-alignment': 'viewport',
     },
-    paint: { 'text-color': '#1f2a24', 'text-halo-color': '#ffffff', 'text-halo-width': 2.2, 'text-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.45] },
+    paint: { 'text-color': '#1f2a24', 'text-halo-color': '#ffffff', 'text-halo-width': 2, 'text-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.45] },
   })
-  raiseNumbers(map)
-  map.on('pitch', () => raiseNumbers(map))
+  watchCamera(map)
   // Les autres bâtiments passent en retrait, plus clairs.
   const src = buildingSource(map)
   if (src && map.getLayer(src.layerId)?.type === 'fill-extrusion') {

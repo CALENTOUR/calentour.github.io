@@ -157,15 +157,12 @@ function ensureLayers(map) {
       'text-halo-width': 1.6,
     },
   })
-  // Immeuble : pastille avec le nombre de logements, posée sur la maison et de la couleur de son état.
-  map.addLayer({
-    id: 'units-badge', type: 'circle', source: 'houses', filter: ['>', ['get', 'units'], 0], minzoom: 14,
-    paint: { 'circle-radius': 11, 'circle-color': ['match', ['get', 'status'], ...Object.entries(LIT_COLORS).flat(), LIT_COLORS.todo], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2, 'circle-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3], 'circle-stroke-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3] },
-  })
+  // Immeuble sans bâtiment trouvé : « 9 log. » sur une étiquette de la couleur de son état,
+  // posée sur la pastille (écrit « log. » pour ne pas le confondre avec un numéro).
   map.addLayer({
     id: 'units-count', type: 'symbol', source: 'houses', filter: ['>', ['get', 'units'], 0], minzoom: 14,
-    layout: { 'text-field': ['to-string', ['get', 'units']], 'text-font': ['Noto Sans Bold'], 'text-size': 11, 'text-allow-overlap': true, 'text-ignore-placement': true },
-    paint: { 'text-color': '#ffffff', 'text-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3] },
+    layout: { 'text-field': ['concat', ['to-string', ['get', 'units']], ' log.'], 'text-font': ['Noto Sans Bold'], 'text-size': 11, 'text-anchor': 'bottom', 'text-offset': [0, -0.6], 'text-allow-overlap': true, 'text-ignore-placement': true },
+    paint: { 'text-color': '#ffffff', 'text-halo-color': ['match', ['get', 'status'], ...Object.entries(LIT_COLORS).flat(), LIT_COLORS.todo], 'text-halo-width': 4, 'text-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3] },
   })
 }
 
@@ -219,7 +216,7 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
     setGeoJSON(map, 'houses', housesRef.current)
     ensureLayers(map)
     map.setLayoutProperty('houses', 'visibility', showHouses ? 'visible' : 'none')
-    for (const id of ['units-badge', 'units-count']) map.setLayoutProperty(id, 'visibility', showHouses ? 'visible' : 'none')
+    map.setLayoutProperty('units-count', 'visibility', showHouses ? 'visible' : 'none')
     if (streetLabels && !map.getLayer('street-labels')) {
       // Nom de chaque rue écrit le long de son tracé.
       map.addLayer({
@@ -287,8 +284,6 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
         map.setPaintProperty('houses', 'icon-opacity', ['case', ['in', ['get', 'houseId'], ['literal', [...lit]]], 0, ['==', ['get', 'focus'], 1], 1, ['==', ['get', 'focus'], 0.5], 0.6, 0.25])
         // Le nombre de logements est alors écrit sur le bâtiment : la petite pastille s'efface.
         const isLit = ['in', ['get', 'houseId'], ['literal', [...lit]]]
-        map.setPaintProperty('units-badge', 'circle-opacity', ['case', isLit, 0, ['>', ['get', 'focus'], 0], 1, 0.3])
-        map.setPaintProperty('units-badge', 'circle-stroke-opacity', ['case', isLit, 0, ['>', ['get', 'focus'], 0], 1, 0.3])
         map.setPaintProperty('units-count', 'text-opacity', ['case', isLit, 0, ['>', ['get', 'focus'], 0], 1, 0.3])
         // Son numéro est écrit au milieu du bâtiment : plus sous l'adresse.
         map.setLayoutProperty('houses', 'text-field', ['step', ['zoom'], '', 16, ['case', isLit, '', ['to-string', ['get', 'label']]]])
