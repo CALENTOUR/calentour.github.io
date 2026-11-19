@@ -263,7 +263,7 @@ function ringArea(ring) {
 function fitAt16(f) {
   const ring = f.geometry.coordinates[0]
   const side = Math.sqrt(ringArea(ring)) * 0.8
-  const lines = [String(f.properties.num ?? '').length, f.properties.tag ? (f.properties.tag.length + 5) * 0.5 : 0]
+  const lines = [String(f.properties.num ?? '').length]
   const em = Math.max(1, ...lines) * 0.62
   const pxPerM16 = (512 * 2 ** 16) / (40075016.686 * Math.cos((ring[0][1] * Math.PI) / 180))
   return Math.round(((side / em) * pxPerM16) * 100) / 100
@@ -309,13 +309,24 @@ function setNumberBases(map, features) {
   })))
 }
 
-// Numéro en gras ; logements faits sur total (« 4/9 log. ») en dessous, plus petit et
-// en gris, pour ne pas le prendre pour un numéro.
-const UNITS_GREY = '#3d4642'
-const UNITS_STYLE = { 'font-scale': 0.62, 'text-color': UNITS_GREY, 'text-font': ['literal', ['Noto Sans Regular']] }
-const NUMBER_TEXT = ['case', ['==', ['get', 'tag'], ''], ['get', 'num'],
-  ['==', ['get', 'num'], ''], ['format', ['get', 'tag'], UNITS_STYLE],
-  ['format', ['get', 'num'], {}, '\n', {}, ['get', 'tag'], UNITS_STYLE]]
+// Logements faits sur total (« 4/9 log. ») : écrits en blanc sur une étiquette foncée,
+// sous le numéro, pour bien les voir sans les prendre pour un numéro.
+export const UNITS_PILL = 'calentour-units-pill'
+export function addUnitsPill(map) {
+  if (map.hasImage(UNITS_PILL)) return
+  const size = 32, r = 10, b = 3
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = size
+  const ctx = canvas.getContext('2d')
+  const round = (x, y, w, h, rr) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, rr); ctx.fill() }
+  ctx.fillStyle = '#ffffff'; round(0, 0, size, size, r + b)
+  ctx.fillStyle = '#1f2a24'; round(b, b, size - 2 * b, size - 2 * b, r)
+  map.addImage(UNITS_PILL, ctx.getImageData(0, 0, size, size), {
+    pixelRatio: 2, stretchX: [[14, 18]], stretchY: [[14, 18]], content: [8, 6, 24, 26],
+  })
+}
+export const UNITS_SIZE = ['interpolate', ['linear'], ['zoom'], 16, 11, 18, 13, 20, 15]
+
 // Taille selon le zoom, réduite si la maison est trop petite à l'écran pour la contenir
 // (jamais sous 11 px, sinon illisible).
 const SIZE_BY_ZOOM = [[16, 13], [17, 16], [18, 19], [19, 21], [20, 22], [22, 22]]
@@ -354,12 +365,25 @@ export function drawLitHouses(map, features) {
   map.addLayer({
     id: 'lit-tags', type: 'symbol', source: 'lit-numbers', minzoom: 16,
     layout: {
-      'text-field': NUMBER_TEXT, 'text-font': ['Noto Sans Bold'], 'text-size': NUMBER_SIZE,
-      'text-line-height': 1.05, 'text-anchor': 'center', 'text-padding': 1,
+      'text-field': ['get', 'num'], 'text-font': ['Noto Sans Bold'], 'text-size': NUMBER_SIZE,
+      // Immeuble : le numéro au-dessus du centre du toit, l'étiquette des logements en dessous.
+      'text-anchor': ['case', ['==', ['get', 'tag'], ''], 'center', 'bottom'], 'text-padding': 1,
       'text-allow-overlap': false, 'symbol-sort-key': ['-', 0, ['get', 'order']],
       'text-pitch-alignment': 'viewport', 'text-rotation-alignment': 'viewport',
     },
     paint: { 'text-color': '#1f2a24', 'text-halo-color': '#ffffff', 'text-halo-width': 2, 'text-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.45] },
+  })
+  addUnitsPill(map)
+  map.addLayer({
+    id: 'lit-units', type: 'symbol', source: 'lit-numbers', minzoom: 16, filter: ['!=', ['get', 'tag'], ''],
+    layout: {
+      'text-field': ['get', 'tag'], 'text-font': ['Noto Sans Bold'], 'text-size': UNITS_SIZE,
+      'text-anchor': 'top', 'text-offset': [0, 0.3],
+      'icon-image': UNITS_PILL, 'icon-text-fit': 'both', 'icon-text-fit-padding': [2, 5, 1, 5],
+      'text-allow-overlap': true, 'icon-allow-overlap': true, 'text-ignore-placement': true, 'icon-ignore-placement': true,
+      'text-pitch-alignment': 'viewport', 'text-rotation-alignment': 'viewport', 'icon-pitch-alignment': 'viewport', 'icon-rotation-alignment': 'viewport',
+    },
+    paint: { 'text-color': '#ffffff', 'text-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.45], 'icon-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.45] },
   })
   watchCamera(map)
   // Les autres bâtiments passent en retrait, plus clairs.

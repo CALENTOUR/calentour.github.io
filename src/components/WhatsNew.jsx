@@ -5,13 +5,13 @@ import Sheet from './ui/Sheet'
 // mise à jour : changer `id` et remplacer les listes (le message réapparaît
 // alors une fois chez chacun).
 export const NEWS = {
-  id: '2026-11-19b',
+  id: '2026-11-19c',
   title: 'Quoi de neuf ?',
   member: [
-    ['🔢', 'Numéros de maison', 'Écrits au centre du toit de chaque maison, même en 3D, et plus petits quand la maison est petite à l’écran. Pour un immeuble, « 4/9 log. » en gris sous le numéro : logements faits sur total.'],
+    ['🔢', 'Numéros de maison', 'Écrits au centre du toit de chaque maison, même en 3D, et plus petits quand la maison est petite à l’écran. Pour un immeuble, une étiquette noire « 4/9 log. » sous le numéro : logements faits sur total.'],
   ],
   admin: [
-    ['🔢', 'Numéros de maison', 'Écrits au centre du toit de chaque maison, même en 3D, et plus petits quand la maison est petite à l’écran. Pour un immeuble, « 4/9 log. » en gris sous le numéro : logements faits sur total.'],
+    ['🔢', 'Numéros de maison', 'Écrits au centre du toit de chaque maison, même en 3D, et plus petits quand la maison est petite à l’écran. Pour un immeuble, une étiquette noire « 4/9 log. » sous le numéro : logements faits sur total.'],
   ],
 }
 
