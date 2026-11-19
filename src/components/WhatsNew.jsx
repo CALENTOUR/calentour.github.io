@@ -5,13 +5,17 @@ import Sheet from './ui/Sheet'
 // mise à jour : changer `id` et remplacer les listes (le message réapparaît
 // alors une fois chez chacun).
 export const NEWS = {
-  id: '2026-11-19c',
+  id: '2026-11-19d',
   title: 'Quoi de neuf ?',
   member: [
-    ['🔢', 'Numéros de maison', 'Écrits au centre du toit de chaque maison, même en 3D, et plus petits quand la maison est petite à l’écran. Pour un immeuble, une étiquette noire « 4/9 log. » sous le numéro : logements faits sur total.'],
+    ['🔢', 'Numéros de maison', 'Écrits au centre du toit de chaque maison, même en 3D, et plus petits quand la maison est petite à l’écran.'],
+    ['🏢', 'Immeubles', 'Le bâtiment est coupé en parts comme un camembert, une part par logement, de la couleur de son état. L’étiquette noire « 4/9 log. » donne les logements faits sur le total.'],
+    ['🎨', 'Fiche d’un immeuble', 'Chaque logement est rempli de la couleur de son état, comme sur la carte.'],
   ],
   admin: [
-    ['🔢', 'Numéros de maison', 'Écrits au centre du toit de chaque maison, même en 3D, et plus petits quand la maison est petite à l’écran. Pour un immeuble, une étiquette noire « 4/9 log. » sous le numéro : logements faits sur total.'],
+    ['🔢', 'Numéros de maison', 'Écrits au centre du toit de chaque maison, même en 3D, et plus petits quand la maison est petite à l’écran.'],
+    ['🏢', 'Immeubles', 'Le bâtiment est coupé en parts comme un camembert, une part par logement, de la couleur de son état. L’étiquette noire « 4/9 log. » donne les logements faits sur le total.'],
+    ['🎨', 'Fiche d’un immeuble', 'Chaque logement est rempli de la couleur de son état, comme sur la carte.'],
   ],
 }
 

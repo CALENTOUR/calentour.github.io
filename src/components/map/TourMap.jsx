@@ -59,6 +59,7 @@ export function housesGeoJSON(tours, statesById, focusPieceId, focusTourId) {
             order: inFocus(t, house.pieceId, focusPieceId, focusTourId) * 10 + (status === 'todo' ? 2 : status === 'again' ? 1 : 0),
             units: isBuilding ? house.units.length : 0,
             unitsDone: isBuilding ? house.units.filter((u) => DONE_STATUSES.includes(h[dwellingKey(house.id, u.id)]?.s)).length : 0,
+            unitSt: isBuilding ? house.units.map((u) => h[dwellingKey(house.id, u.id)]?.s ?? 'todo').join(',') : '',
           },
           geometry: { type: 'Point', coordinates: [house.lng, house.lat] },
         }

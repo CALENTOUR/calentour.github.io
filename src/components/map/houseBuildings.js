@@ -3,12 +3,13 @@
 // bâtiment est un peu rétréci pour que deux maisons mitoyennes restent distinctes.
 // Bâtiment absent d'OpenStreetMap : on prend celui de l'IGN (lib/ignBuildings.js).
 import maplibregl from 'maplibre-gl'
+import { MAP_COLORS } from '../../config/constants'
 import { setGeoJSON } from './useMapLibre'
 import { addToIndex, ignBuildingAt, ignSettled, loadIgnFor, nearestBuilding, ringBox } from '../../lib/ignBuildings'
 
 // Maison touchée par le binôme : violet, une couleur qu'aucun statut n'utilise.
 export const SELECTED_COLOR = '#7c3aed'
-export const LIT_COLORS = { todo: '#3f77ad', given: '#4f8a4c', again: '#d39b2a', refused: '#b8432f', empty: '#5e5a50' }
+export const LIT_COLORS = MAP_COLORS
 // Bâtiments sans adresse de la tournée (granges, garages, maisons d'autres rues).
 export const OTHER_BUILDING = '#ebe6dc'
 const SHRINK = 0.82 // part de la taille d'origine
@@ -154,6 +155,43 @@ export function splitBuilding(ring, points) {
   return parts.map((x) => x.map(L.from))
 }
 
+// --- Immeuble : le bâtiment coupé en parts autour de son centre, comme un camembert
+// qui garde la forme du bâtiment, une part par logement, de la couleur de son état. ---
+const PIE_ORDER = ['given', 'again', 'refused', 'empty', 'todo']
+const PIE_GAP = 0.9 // chaque part un peu rétrécie : on voit les traits entre logements
+function shrinkBy(ring, k) {
+  const n = ring.length - 1 || 1
+  let cx = 0, cy = 0
+  for (let i = 0; i < n; i++) { cx += ring[i][0]; cy += ring[i][1] }
+  cx /= n; cy /= n
+  return ring.map(([x, y]) => [cx + (x - cx) * k, cy + (y - cy) * k])
+}
+// Parts du contour (dans l'ordre des états donnés), ou null si impossible.
+export function pieSlices(ring, statuses) {
+  const n = statuses.length
+  if (n < 2) return null
+  const L = toLocal(ring[0][1])
+  const r = ring.map(L.to)
+  const c = L.to(labelPoint(ring))
+  const total = area(r) || 1
+  const parts = []
+  for (let k = 0; k < n; k++) {
+    // Part k : entre les angles a0 et a1 (depuis midi, sens des aiguilles d'une montre).
+    const a0 = (2 * Math.PI * k) / n, a1 = (2 * Math.PI * (k + 1)) / n
+    const dir = (a) => [Math.sin(a), Math.cos(a)]
+    const [x0, y0] = dir(a0), [x1, y1] = dir(a1)
+    // Garder ce qui est à droite du rayon a0 et à gauche du rayon a1.
+    let part = clip(r, c, [-y0, x0])
+    if (part) part = clip(part, c, [y1, -x1])
+    if (n === 2 && part) part = clip(r, c, k === 0 ? [-1, 0] : [1, 0])
+    if (!part || area(part) < total * 0.002) return null
+    parts.push(shrinkBy(part, PIE_GAP).map(L.from))
+  }
+  return parts
+}
+const pieStatuses = (h) => String(h.properties.unitSt ?? '').split(',').filter(Boolean)
+  .sort((a, b) => PIE_ORDER.indexOf(a) - PIE_ORDER.indexOf(b))
+
 // Bâtiments colorés des maisons (`houses` : entités de la couche des pastilles).
 // Un bâtiment partagé par plusieurs adresses est coupé en parts, chacune de la
 // couleur de son adresse, pour voir le statut de chacune.
@@ -185,10 +223,28 @@ export function litHouses(map, houses, selectedId = null) {
       geometry: { type: 'Polygon', coordinates: [shrink(ring)] },
     }
   }
+  // Une adresse sur (une part de) bâtiment ; un immeuble est coupé en parts par logement.
+  const add = (h, b, ring, split, numbers) => {
+    const f = feature(h, b, ring, split, numbers)
+    const statuses = h.properties.units > 1 ? pieStatuses(h) : []
+    const slices = statuses.length > 1 ? pieSlices(shrink(ring), statuses) : null
+    if (!slices) { features.push(f); return }
+    const selected = f.properties.selected
+    slices.forEach((part, k) => features.push({
+      type: 'Feature',
+      labelRing: f.geometry.coordinates[0],
+      properties: {
+        ...f.properties, piece: k,
+        // Même touché, chaque logement garde sa couleur (l'anneau violet montre la sélection).
+        color: (h.properties.focus || selected ? LIT_COLORS : PALE)[statuses[k]] ?? LIT_COLORS.todo,
+      },
+      geometry: { type: 'Polygon', coordinates: [part] },
+    }))
+  }
   for (const [b, list] of groups) {
     const parts = list.length > 1 ? splitBuilding(b.ring, list.map((h) => h.geometry.coordinates)) : null
     if (parts) {
-      list.forEach((h, i) => { lit.add(h.properties.houseId); features.push(feature(h, b, parts[i], 1)) })
+      list.forEach((h, i) => { lit.add(h.properties.houseId); add(h, b, parts[i], 1) })
       continue
     }
     // Bâtiment impossible à couper : l'adresse la plus urgente donne la couleur.
@@ -200,7 +256,7 @@ export function litHouses(map, houses, selectedId = null) {
     for (const h of list) lit.add(h.properties.houseId)
     // Toutes ses adresses restent écrites dessus (« 5 · 5 bis »).
     const numbers = [...new Set(list.map((h) => String(h.properties.label ?? '')).filter(Boolean))].join(' · ')
-    features.push(feature(win, b, b.ring, 0, numbers))
+    add(win, b, b.ring, 0, numbers)
   }
   const sig = features.map((f) => `${f.properties.houseId}:${f.properties.color}:${f.properties.tag}:${f.geometry.coordinates[0][0].join(',')}`).join('|')
   return { lit, features, sig }
@@ -261,7 +317,7 @@ function ringArea(ring) {
 // Taille de texte (px, au zoom 16) pour que le numéro tienne dans la maison : largeur
 // utile ≈ 0,8 × côté du bâtiment, un chiffre ≈ 0,62 de la taille du texte.
 function fitAt16(f) {
-  const ring = f.geometry.coordinates[0]
+  const ring = f.labelRing ?? f.geometry.coordinates[0]
   const side = Math.sqrt(ringArea(ring)) * 0.8
   const lines = [String(f.properties.num ?? '').length]
   const em = Math.max(1, ...lines) * 0.62
@@ -299,12 +355,12 @@ function placeNumbers(map) {
 }
 
 function setNumberBases(map, features) {
-  numberBases.set(map, features.filter((f) => f.properties.num || f.properties.tag).map((f) => ({
+  numberBases.set(map, features.filter((f) => (f.properties.num || f.properties.tag) && !f.properties.piece).map((f) => ({
     properties: {
       houseId: f.properties.houseId, num: f.properties.num, tag: f.properties.tag ? `${f.properties.tag} log.` : '',
       order: f.properties.order ?? 0, focus: f.properties.focus ?? 1, fit: fitAt16(f),
     },
-    point: labelPoint(f.geometry.coordinates[0]),
+    point: labelPoint(f.labelRing ?? f.geometry.coordinates[0]),
     roof: (Number(f.properties.height) || 6) + 0.6,
   })))
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import Sheet from './ui/Sheet'
-import { PAYMENT_MODES, QUICK_AMOUNTS, RESULT_STATUSES, STATUSES } from '../config/constants'
+import { MAP_COLORS, PAYMENT_MODES, QUICK_AMOUNTS, RESULT_STATUSES, STATUSES } from '../config/constants'
 import { formatDate, formatEuro, toNumber } from '../lib/format'
 import { carryPassage, dwellingKey, recordPassage } from '../services/state'
 import { saveHouseNote, saveTour } from '../services/tours'
@@ -202,9 +202,11 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
         <div className="stack">
           <div className="unit-grid">
             {house.units.map((u) => {
-              const s = STATUSES[h[dwellingKey(house.id, u.id)]?.s ?? 'todo']
+              const key = h[dwellingKey(house.id, u.id)]?.s ?? 'todo'
+              const s = STATUSES[key]
+              // Rempli de la couleur de son état, la même que sur la carte.
               return (
-                <button key={u.id} type="button" className="unit-btn" style={{ '--c': s.color, '--cs': s.stroke }} onClick={() => setUnitId(u.id)}>
+                <button key={u.id} type="button" className="unit-btn" style={{ '--c': MAP_COLORS[key] ?? s.color, '--cs': s.stroke }} onClick={() => setUnitId(u.id)}>
                   <strong>{u.label}</strong>
                   <span className="small">{s.short}</span>
                 </button>
