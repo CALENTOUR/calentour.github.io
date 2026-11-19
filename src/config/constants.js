@@ -5,6 +5,9 @@ export const ROLES = { ADMIN: 'admin', MEMBER: 'member' }
 
 // Statuts d'une maison (ou d'un logement) pour une campagne.
 // "todo" est l'état de départ, les quatre autres sont les résultats d'un passage.
+// Couleurs des maisons sur la carte (et des logements dans la fiche).
+export const MAP_COLORS = { todo: '#3f77ad', given: '#4f8a4c', again: '#d39b2a', refused: '#b8432f', empty: '#5e5a50' }
+
 export const STATUSES = {
   todo: { key: 'todo', label: 'À faire', short: 'À faire', icon: '🏠', color: '#ffffff', stroke: '#2f5f8f' },
   given: { key: 'given', label: 'A donné', short: 'Don', icon: '💶', color: '#4f8a4c', stroke: '#2f5a2e' },

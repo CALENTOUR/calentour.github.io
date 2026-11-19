@@ -4,7 +4,7 @@ import { tourStats } from '../../lib/stats'
 import { IconGps } from '../ui/Icons'
 import { dwellingKey } from '../../services/state'
 import { DONE_STATUSES } from '../../config/constants'
-import { LIT_COLORS, SELECTED_COLOR, drawLitHouses, litHouses } from './houseBuildings'
+import { LIT_COLORS, SELECTED_COLOR, UNITS_PILL, UNITS_SIZE, addUnitsPill, drawLitHouses, litHouses } from './houseBuildings'
 import { loadIgnForBounds, onIgnLoaded } from '../../lib/ignBuildings'
 import { addStatusIcons } from './icons'
 import { LOOKS, applyLook, readLook } from './mapLook'
@@ -59,6 +59,7 @@ export function housesGeoJSON(tours, statesById, focusPieceId, focusTourId) {
             order: inFocus(t, house.pieceId, focusPieceId, focusTourId) * 10 + (status === 'todo' ? 2 : status === 'again' ? 1 : 0),
             units: isBuilding ? house.units.length : 0,
             unitsDone: isBuilding ? house.units.filter((u) => DONE_STATUSES.includes(h[dwellingKey(house.id, u.id)]?.s)).length : 0,
+            unitSt: isBuilding ? house.units.map((u) => h[dwellingKey(house.id, u.id)]?.s ?? 'todo').join(',') : '',
           },
           geometry: { type: 'Point', coordinates: [house.lng, house.lat] },
         }
@@ -157,12 +158,18 @@ function ensureLayers(map) {
       'text-halo-width': 1.6,
     },
   })
-  // Immeuble sans bâtiment trouvé : « 9 log. » sur une étiquette de la couleur de son état,
-  // posée sur la pastille (écrit « log. » pour ne pas le confondre avec un numéro).
+  // Immeuble sans bâtiment trouvé : « 9 log. » sur la même étiquette foncée que sur les
+  // bâtiments, sous le numéro de la pastille.
+  addUnitsPill(map)
   map.addLayer({
     id: 'units-count', type: 'symbol', source: 'houses', filter: ['>', ['get', 'units'], 0], minzoom: 14,
-    layout: { 'text-field': ['concat', ['to-string', ['get', 'units']], ' log.'], 'text-font': ['Noto Sans Bold'], 'text-size': 11, 'text-anchor': 'bottom', 'text-offset': [0, -0.6], 'text-allow-overlap': true, 'text-ignore-placement': true },
-    paint: { 'text-color': '#ffffff', 'text-halo-color': ['match', ['get', 'status'], ...Object.entries(LIT_COLORS).flat(), LIT_COLORS.todo], 'text-halo-width': 4, 'text-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3] },
+    layout: {
+      'text-field': ['concat', ['to-string', ['get', 'units']], ' log.'], 'text-font': ['Noto Sans Bold'], 'text-size': UNITS_SIZE,
+      'text-anchor': 'top', 'text-offset': [0, 2],
+      'icon-image': UNITS_PILL, 'icon-text-fit': 'both', 'icon-text-fit-padding': [2, 5, 1, 5],
+      'text-allow-overlap': true, 'icon-allow-overlap': true, 'text-ignore-placement': true, 'icon-ignore-placement': true,
+    },
+    paint: { 'text-color': '#ffffff', 'text-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3], 'icon-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.3] },
   })
 }
 
@@ -277,14 +284,14 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
         drawLitHouses(map, features)
       }
       map.setLayoutProperty('lit-houses', 'visibility', on ? 'visible' : 'none')
-      if (map.getLayer('lit-tags')) map.setLayoutProperty('lit-tags', 'visibility', on ? 'visible' : 'none')
+      for (const id of ['lit-tags', 'lit-units']) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none')
       const key = [...lit].sort().join(',')
       if (key !== litSig.current.lit) {
         litSig.current.lit = key
         map.setPaintProperty('houses', 'icon-opacity', ['case', ['in', ['get', 'houseId'], ['literal', [...lit]]], 0, ['==', ['get', 'focus'], 1], 1, ['==', ['get', 'focus'], 0.5], 0.6, 0.25])
         // Le nombre de logements est alors écrit sur le bâtiment : la petite pastille s'efface.
         const isLit = ['in', ['get', 'houseId'], ['literal', [...lit]]]
-        map.setPaintProperty('units-count', 'text-opacity', ['case', isLit, 0, ['>', ['get', 'focus'], 0], 1, 0.3])
+        for (const prop of ['text-opacity', 'icon-opacity']) map.setPaintProperty('units-count', prop, ['case', isLit, 0, ['>', ['get', 'focus'], 0], 1, 0.3])
         // Son numéro est écrit au milieu du bâtiment : plus sous l'adresse.
         map.setLayoutProperty('houses', 'text-field', ['step', ['zoom'], '', 16, ['case', isLit, '', ['to-string', ['get', 'label']]]])
       }

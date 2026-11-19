@@ -3,12 +3,13 @@
 // bâtiment est un peu rétréci pour que deux maisons mitoyennes restent distinctes.
 // Bâtiment absent d'OpenStreetMap : on prend celui de l'IGN (lib/ignBuildings.js).
 import maplibregl from 'maplibre-gl'
+import { MAP_COLORS } from '../../config/constants'
 import { setGeoJSON } from './useMapLibre'
 import { addToIndex, ignBuildingAt, ignSettled, loadIgnFor, nearestBuilding, ringBox } from '../../lib/ignBuildings'
 
 // Maison touchée par le binôme : violet, une couleur qu'aucun statut n'utilise.
 export const SELECTED_COLOR = '#7c3aed'
-export const LIT_COLORS = { todo: '#3f77ad', given: '#4f8a4c', again: '#d39b2a', refused: '#b8432f', empty: '#5e5a50' }
+export const LIT_COLORS = MAP_COLORS
 // Bâtiments sans adresse de la tournée (granges, garages, maisons d'autres rues).
 export const OTHER_BUILDING = '#ebe6dc'
 const SHRINK = 0.82 // part de la taille d'origine
@@ -154,6 +155,43 @@ export function splitBuilding(ring, points) {
   return parts.map((x) => x.map(L.from))
 }
 
+// --- Immeuble : le bâtiment coupé en parts autour de son centre, comme un camembert
+// qui garde la forme du bâtiment, une part par logement, de la couleur de son état. ---
+const PIE_ORDER = ['given', 'again', 'refused', 'empty', 'todo']
+const PIE_GAP = 0.9 // chaque part un peu rétrécie : on voit les traits entre logements
+function shrinkBy(ring, k) {
+  const n = ring.length - 1 || 1
+  let cx = 0, cy = 0
+  for (let i = 0; i < n; i++) { cx += ring[i][0]; cy += ring[i][1] }
+  cx /= n; cy /= n
+  return ring.map(([x, y]) => [cx + (x - cx) * k, cy + (y - cy) * k])
+}
+// Parts du contour (dans l'ordre des états donnés), ou null si impossible.
+export function pieSlices(ring, statuses) {
+  const n = statuses.length
+  if (n < 2) return null
+  const L = toLocal(ring[0][1])
+  const r = ring.map(L.to)
+  const c = L.to(labelPoint(ring))
+  const total = area(r) || 1
+  const parts = []
+  for (let k = 0; k < n; k++) {
+    // Part k : entre les angles a0 et a1 (depuis midi, sens des aiguilles d'une montre).
+    const a0 = (2 * Math.PI * k) / n, a1 = (2 * Math.PI * (k + 1)) / n
+    const dir = (a) => [Math.sin(a), Math.cos(a)]
+    const [x0, y0] = dir(a0), [x1, y1] = dir(a1)
+    // Garder ce qui est à droite du rayon a0 et à gauche du rayon a1.
+    let part = clip(r, c, [-y0, x0])
+    if (part) part = clip(part, c, [y1, -x1])
+    if (n === 2 && part) part = clip(r, c, k === 0 ? [-1, 0] : [1, 0])
+    if (!part || area(part) < total * 0.002) return null
+    parts.push(shrinkBy(part, PIE_GAP).map(L.from))
+  }
+  return parts
+}
+const pieStatuses = (h) => String(h.properties.unitSt ?? '').split(',').filter(Boolean)
+  .sort((a, b) => PIE_ORDER.indexOf(a) - PIE_ORDER.indexOf(b))
+
 // Bâtiments colorés des maisons (`houses` : entités de la couche des pastilles).
 // Un bâtiment partagé par plusieurs adresses est coupé en parts, chacune de la
 // couleur de son adresse, pour voir le statut de chacune.
@@ -185,10 +223,28 @@ export function litHouses(map, houses, selectedId = null) {
       geometry: { type: 'Polygon', coordinates: [shrink(ring)] },
     }
   }
+  // Une adresse sur (une part de) bâtiment ; un immeuble est coupé en parts par logement.
+  const add = (h, b, ring, split, numbers) => {
+    const f = feature(h, b, ring, split, numbers)
+    const statuses = h.properties.units > 1 ? pieStatuses(h) : []
+    const slices = statuses.length > 1 ? pieSlices(shrink(ring), statuses) : null
+    if (!slices) { features.push(f); return }
+    const selected = f.properties.selected
+    slices.forEach((part, k) => features.push({
+      type: 'Feature',
+      labelRing: f.geometry.coordinates[0],
+      properties: {
+        ...f.properties, piece: k,
+        // Même touché, chaque logement garde sa couleur (l'anneau violet montre la sélection).
+        color: (h.properties.focus || selected ? LIT_COLORS : PALE)[statuses[k]] ?? LIT_COLORS.todo,
+      },
+      geometry: { type: 'Polygon', coordinates: [part] },
+    }))
+  }
   for (const [b, list] of groups) {
     const parts = list.length > 1 ? splitBuilding(b.ring, list.map((h) => h.geometry.coordinates)) : null
     if (parts) {
-      list.forEach((h, i) => { lit.add(h.properties.houseId); features.push(feature(h, b, parts[i], 1)) })
+      list.forEach((h, i) => { lit.add(h.properties.houseId); add(h, b, parts[i], 1) })
       continue
     }
     // Bâtiment impossible à couper : l'adresse la plus urgente donne la couleur.
@@ -200,7 +256,7 @@ export function litHouses(map, houses, selectedId = null) {
     for (const h of list) lit.add(h.properties.houseId)
     // Toutes ses adresses restent écrites dessus (« 5 · 5 bis »).
     const numbers = [...new Set(list.map((h) => String(h.properties.label ?? '')).filter(Boolean))].join(' · ')
-    features.push(feature(win, b, b.ring, 0, numbers))
+    add(win, b, b.ring, 0, numbers)
   }
   const sig = features.map((f) => `${f.properties.houseId}:${f.properties.color}:${f.properties.tag}:${f.geometry.coordinates[0][0].join(',')}`).join('|')
   return { lit, features, sig }
@@ -261,9 +317,9 @@ function ringArea(ring) {
 // Taille de texte (px, au zoom 16) pour que le numéro tienne dans la maison : largeur
 // utile ≈ 0,8 × côté du bâtiment, un chiffre ≈ 0,62 de la taille du texte.
 function fitAt16(f) {
-  const ring = f.geometry.coordinates[0]
+  const ring = f.labelRing ?? f.geometry.coordinates[0]
   const side = Math.sqrt(ringArea(ring)) * 0.8
-  const lines = [String(f.properties.num ?? '').length, f.properties.tag ? (f.properties.tag.length + 5) * 0.5 : 0]
+  const lines = [String(f.properties.num ?? '').length]
   const em = Math.max(1, ...lines) * 0.62
   const pxPerM16 = (512 * 2 ** 16) / (40075016.686 * Math.cos((ring[0][1] * Math.PI) / 180))
   return Math.round(((side / em) * pxPerM16) * 100) / 100
@@ -299,23 +355,34 @@ function placeNumbers(map) {
 }
 
 function setNumberBases(map, features) {
-  numberBases.set(map, features.filter((f) => f.properties.num || f.properties.tag).map((f) => ({
+  numberBases.set(map, features.filter((f) => (f.properties.num || f.properties.tag) && !f.properties.piece).map((f) => ({
     properties: {
       houseId: f.properties.houseId, num: f.properties.num, tag: f.properties.tag ? `${f.properties.tag} log.` : '',
       order: f.properties.order ?? 0, focus: f.properties.focus ?? 1, fit: fitAt16(f),
     },
-    point: labelPoint(f.geometry.coordinates[0]),
+    point: labelPoint(f.labelRing ?? f.geometry.coordinates[0]),
     roof: (Number(f.properties.height) || 6) + 0.6,
   })))
 }
 
-// Numéro en gras ; logements faits sur total (« 4/9 log. ») en dessous, plus petit et
-// en gris, pour ne pas le prendre pour un numéro.
-const UNITS_GREY = '#3d4642'
-const UNITS_STYLE = { 'font-scale': 0.62, 'text-color': UNITS_GREY, 'text-font': ['literal', ['Noto Sans Regular']] }
-const NUMBER_TEXT = ['case', ['==', ['get', 'tag'], ''], ['get', 'num'],
-  ['==', ['get', 'num'], ''], ['format', ['get', 'tag'], UNITS_STYLE],
-  ['format', ['get', 'num'], {}, '\n', {}, ['get', 'tag'], UNITS_STYLE]]
+// Logements faits sur total (« 4/9 log. ») : écrits en blanc sur une étiquette foncée,
+// sous le numéro, pour bien les voir sans les prendre pour un numéro.
+export const UNITS_PILL = 'calentour-units-pill'
+export function addUnitsPill(map) {
+  if (map.hasImage(UNITS_PILL)) return
+  const size = 32, r = 10, b = 3
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = size
+  const ctx = canvas.getContext('2d')
+  const round = (x, y, w, h, rr) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, rr); ctx.fill() }
+  ctx.fillStyle = '#ffffff'; round(0, 0, size, size, r + b)
+  ctx.fillStyle = '#1f2a24'; round(b, b, size - 2 * b, size - 2 * b, r)
+  map.addImage(UNITS_PILL, ctx.getImageData(0, 0, size, size), {
+    pixelRatio: 2, stretchX: [[14, 18]], stretchY: [[14, 18]], content: [8, 6, 24, 26],
+  })
+}
+export const UNITS_SIZE = ['interpolate', ['linear'], ['zoom'], 16, 11, 18, 13, 20, 15]
+
 // Taille selon le zoom, réduite si la maison est trop petite à l'écran pour la contenir
 // (jamais sous 11 px, sinon illisible).
 const SIZE_BY_ZOOM = [[16, 13], [17, 16], [18, 19], [19, 21], [20, 22], [22, 22]]
@@ -354,12 +421,25 @@ export function drawLitHouses(map, features) {
   map.addLayer({
     id: 'lit-tags', type: 'symbol', source: 'lit-numbers', minzoom: 16,
     layout: {
-      'text-field': NUMBER_TEXT, 'text-font': ['Noto Sans Bold'], 'text-size': NUMBER_SIZE,
-      'text-line-height': 1.05, 'text-anchor': 'center', 'text-padding': 1,
+      'text-field': ['get', 'num'], 'text-font': ['Noto Sans Bold'], 'text-size': NUMBER_SIZE,
+      // Immeuble : le numéro au-dessus du centre du toit, l'étiquette des logements en dessous.
+      'text-anchor': ['case', ['==', ['get', 'tag'], ''], 'center', 'bottom'], 'text-padding': 1,
       'text-allow-overlap': false, 'symbol-sort-key': ['-', 0, ['get', 'order']],
       'text-pitch-alignment': 'viewport', 'text-rotation-alignment': 'viewport',
     },
     paint: { 'text-color': '#1f2a24', 'text-halo-color': '#ffffff', 'text-halo-width': 2, 'text-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.45] },
+  })
+  addUnitsPill(map)
+  map.addLayer({
+    id: 'lit-units', type: 'symbol', source: 'lit-numbers', minzoom: 16, filter: ['!=', ['get', 'tag'], ''],
+    layout: {
+      'text-field': ['get', 'tag'], 'text-font': ['Noto Sans Bold'], 'text-size': UNITS_SIZE,
+      'text-anchor': 'top', 'text-offset': [0, 0.3],
+      'icon-image': UNITS_PILL, 'icon-text-fit': 'both', 'icon-text-fit-padding': [2, 5, 1, 5],
+      'text-allow-overlap': true, 'icon-allow-overlap': true, 'text-ignore-placement': true, 'icon-ignore-placement': true,
+      'text-pitch-alignment': 'viewport', 'text-rotation-alignment': 'viewport', 'icon-pitch-alignment': 'viewport', 'icon-rotation-alignment': 'viewport',
+    },
+    paint: { 'text-color': '#ffffff', 'text-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.45], 'icon-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.45] },
   })
   watchCamera(map)
   // Les autres bâtiments passent en retrait, plus clairs.
