@@ -145,7 +145,7 @@ function ensureLayers(map) {
       'symbol-sort-key': ['get', 'order'],
       'text-field': ['step', ['zoom'], '', 16, ['to-string', ['get', 'label']]],
       'text-font': ['Noto Sans Bold'],
-      'text-size': 13,
+      'text-size': ['interpolate', ['linear'], ['zoom'], 16, 14, 18, 18],
       'text-offset': [0, 0.15],
       'text-anchor': 'top',
       'text-optional': true,
@@ -290,6 +290,8 @@ export default function TourMap({ tours, statesById, focusPieceId = null, focusT
         map.setPaintProperty('units-badge', 'circle-opacity', ['case', isLit, 0, ['>', ['get', 'focus'], 0], 1, 0.3])
         map.setPaintProperty('units-badge', 'circle-stroke-opacity', ['case', isLit, 0, ['>', ['get', 'focus'], 0], 1, 0.3])
         map.setPaintProperty('units-count', 'text-opacity', ['case', isLit, 0, ['>', ['get', 'focus'], 0], 1, 0.3])
+        // Son numéro est écrit au milieu du bâtiment : plus sous l'adresse.
+        map.setLayoutProperty('houses', 'text-field', ['step', ['zoom'], '', 16, ['case', isLit, '', ['to-string', ['get', 'label']]]])
       }
     }
     let timer = 0
