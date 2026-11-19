@@ -5,17 +5,13 @@ import Sheet from './ui/Sheet'
 // mise à jour : changer `id` et remplacer les listes (le message réapparaît
 // alors une fois chez chacun).
 export const NEWS = {
-  id: '2026-11-18b',
+  id: '2026-11-19',
   title: 'Quoi de neuf ?',
   member: [
-    ['✏️', 'Corriger un don', 'Dans Mon bilan, « Mes derniers dons » : touche un don pour changer son montant ou l’annuler. Un don grisé ne compte pas dans le bilan : vois avec un admin.'],
-    ['🏢', 'Immeubles', 'Passer une maison en immeuble (ou l’inverse) garde maintenant son don.'],
-    ['📊', 'Mon bilan', 'Le graphique « Dons par jour » est retiré.'],
+    ['🔢', 'Numéros de maison', 'Plus gros sur la carte et écrits au milieu de chaque maison (sur le toit en 3D). Deux numéros trop serrés : zoome pour voir les deux.'],
   ],
   admin: [
-    ['🕓', 'Historique des dons', 'Dans la fiche d’une tournée : qui a saisi quoi et quand, et remise en état d’une tournée (à une heure donnée, ou en annulant les annulations).'],
-    ['💶', 'Dons grisés', 'Un don resté sur un logement qui n’existe plus ne compte pas. Dans l’historique de la tournée : « Rattacher » à la maison, ou « Annuler ».'],
-    ['📊', 'Mon bilan des binômes', 'Le graphique « Dons par jour » est retiré de leur vue.'],
+    ['🔢', 'Numéros de maison', 'Plus gros sur la carte et écrits au milieu de chaque maison (sur le toit en 3D). Deux numéros trop serrés : zoome pour voir les deux.'],
   ],
 }
 

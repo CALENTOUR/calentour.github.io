@@ -170,7 +170,7 @@ export function litHouses(map, houses, selectedId = null) {
     if (!groups.has(b)) groups.set(b, [])
     groups.get(b).push(h)
   }
-  const feature = (h, b, ring, split) => {
+  const feature = (h, b, ring, split, numbers) => {
     const selected = h.properties.houseId === selectedId
     const { status, focus, units, unitsDone } = h.properties
     return {
@@ -178,6 +178,7 @@ export function litHouses(map, houses, selectedId = null) {
       properties: {
         ...h.properties, selected, split, height: b.height,
         tag: units ? `${unitsDone}/${units}` : '',
+        num: numbers ?? String(h.properties.label ?? ''),
         color: selected ? SELECTED_COLOR : (focus ? LIT_COLORS : PALE)[status] ?? LIT_COLORS.todo,
       },
       geometry: { type: 'Polygon', coordinates: [shrink(ring)] },
@@ -196,14 +197,96 @@ export function litHouses(map, houses, selectedId = null) {
       if (h.properties.order > win.properties.order) win = h
     }
     for (const h of list) lit.add(h.properties.houseId)
-    features.push(feature(win, b, b.ring, 0))
+    // Toutes ses adresses restent écrites dessus (« 5 · 5 bis »).
+    const numbers = [...new Set(list.map((h) => String(h.properties.label ?? '')).filter(Boolean))].join(' · ')
+    features.push(feature(win, b, b.ring, 0, numbers))
   }
   const sig = features.map((f) => `${f.properties.houseId}:${f.properties.color}:${f.properties.tag}:${f.geometry.coordinates[0][0].join(',')}`).join('|')
   return { lit, features, sig }
 }
 
+// Point où écrire le numéro : le centre du bâtiment, ou, s'il tombe dehors (bâtiment
+// en L, en U), le point du bâtiment le plus éloigné de ses bords.
+function inRing(ring, x, y) {
+  let inside = false
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j]
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
+  }
+  return inside
+}
+function edgeDistance(ring, x, y, k) {
+  let best = Infinity
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const ax = ring[j][0] * k, ay = ring[j][1], bx = ring[i][0] * k, by = ring[i][1]
+    const dx = bx - ax, dy = by - ay
+    const t = dx || dy ? Math.max(0, Math.min(1, ((x * k - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy))) : 0
+    best = Math.min(best, Math.hypot(x * k - ax - t * dx, y - ay - t * dy))
+  }
+  return best
+}
+export function labelPoint(ring) {
+  let a = 0, cx = 0, cy = 0
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const f = ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1]
+    a += f; cx += (ring[j][0] + ring[i][0]) * f; cy += (ring[j][1] + ring[i][1]) * f
+  }
+  if (a && inRing(ring, cx / (3 * a), cy / (3 * a))) return [cx / (3 * a), cy / (3 * a)]
+  const k = Math.cos((ring[0][1] * Math.PI) / 180) // longitude ramenée à la même échelle que la latitude
+  let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity
+  for (const [x, y] of ring) { w = Math.min(w, x); e = Math.max(e, x); s = Math.min(s, y); n = Math.max(n, y) }
+  let best = ring[0], bestD = -1
+  const N = 10
+  for (let i = 0; i <= N; i++) {
+    for (let j = 0; j <= N; j++) {
+      const x = w + ((e - w) * i) / N, y = s + ((n - s) * j) / N
+      if (!inRing(ring, x, y)) continue
+      const d = edgeDistance(ring, x, y, k)
+      if (d > bestD) { bestD = d; best = [x, y] }
+    }
+  }
+  return best
+}
+
+// Numéros écrits au milieu des bâtiments allumés, plus gros quand on zoome.
+function numbersGeoJSON(features) {
+  return {
+    type: 'FeatureCollection',
+    features: features.filter((f) => f.properties.num || f.properties.tag).map((f) => ({
+      type: 'Feature',
+      properties: { houseId: f.properties.houseId, num: f.properties.num, tag: f.properties.tag, order: f.properties.order ?? 0, focus: f.properties.focus ?? 1 },
+      geometry: { type: 'Point', coordinates: labelPoint(f.geometry.coordinates[0]) },
+    })),
+  }
+}
+
+// Numéro (et, pour un immeuble, logements faits sur total en dessous).
+const NUMBER_TEXT = ['case', ['==', ['get', 'tag'], ''], ['get', 'num'],
+  ['==', ['get', 'num'], ''], ['get', 'tag'],
+  ['format', ['get', 'num'], {}, '\n', {}, ['get', 'tag'], { 'font-scale': 0.75 }]]
+// Taille du texte selon le zoom : lisible au téléphone dès qu'on voit la rue, gros de près.
+export const NUMBER_SIZE = ['interpolate', ['linear'], ['zoom'], 16, 14, 17, 17, 18, 21, 19, 26]
+
+// En 3D, le numéro est posé au sol, sous le toit : on le remonte de la hauteur
+// (habituelle) des maisons à l'écran, selon l'inclinaison et le zoom.
+const roofHeight = new WeakMap()
+function raiseNumbers(map) {
+  if (!map.getLayer('lit-tags')) return
+  const h = roofHeight.get(map) ?? 6.6
+  const lift = Math.sin((map.getPitch() * Math.PI) / 180) * h
+  const mPerPx = (z) => (40075016.686 * Math.cos((map.getCenter().lat * Math.PI) / 180)) / (512 * 2 ** z)
+  const up = (z) => ['literal', [0, -Math.round((lift / mPerPx(z)) * 10) / 10]]
+  map.setPaintProperty('lit-tags', 'text-translate', ['interpolate', ['exponential', 2], ['zoom'], 14, up(14), 22, up(22)])
+}
+
 export function drawLitHouses(map, features) {
   setGeoJSON(map, 'lit-houses', { type: 'FeatureCollection', features })
+  setGeoJSON(map, 'lit-numbers', numbersGeoJSON(features))
+  if (features.length) {
+    const hs = features.map((f) => (Number(f.properties.height) || 6) + 0.6).sort((a, b) => a - b)
+    roofHeight.set(map, hs[Math.floor(hs.length / 2)])
+  }
+  raiseNumbers(map)
   if (map.getLayer('lit-houses')) return
   map.addLayer({
     id: 'lit-houses', type: 'fill-extrusion', source: 'lit-houses',
@@ -214,12 +297,21 @@ export function drawLitHouses(map, features) {
       'fill-extrusion-opacity': 0.95,
     },
   }, map.getLayer('houses') ? 'houses' : undefined) // sous les pastilles, pour que le nombre de logements reste visible
-  // Immeuble : logements faits sur total (« 2/4 »), écrit en gros sur le bâtiment.
+  // Numéro de la maison au milieu de son bâtiment ; pour un immeuble, logements faits
+  // sur total (« 2/4 ») en dessous. Deux numéros qui se chevauchent : le plus urgent
+  // reste, l'autre revient en zoomant.
   map.addLayer({
-    id: 'lit-tags', type: 'symbol', source: 'lit-houses', filter: ['!=', ['get', 'tag'], ''], minzoom: 15.5,
-    layout: { 'text-field': ['get', 'tag'], 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 15.5, 14, 18, 22], 'text-allow-overlap': true, 'text-ignore-placement': true },
-    paint: { 'text-color': '#1f2a24', 'text-halo-color': '#ffffff', 'text-halo-width': 2.4 },
+    id: 'lit-tags', type: 'symbol', source: 'lit-numbers', minzoom: 16,
+    layout: {
+      'text-field': NUMBER_TEXT, 'text-font': ['Noto Sans Bold'], 'text-size': NUMBER_SIZE,
+      'text-line-height': 1.05, 'text-anchor': 'center', 'text-padding': 1,
+      'text-allow-overlap': false, 'symbol-sort-key': ['-', 0, ['get', 'order']],
+      'text-pitch-alignment': 'viewport', 'text-rotation-alignment': 'viewport',
+    },
+    paint: { 'text-color': '#1f2a24', 'text-halo-color': '#ffffff', 'text-halo-width': 2.2, 'text-opacity': ['case', ['>', ['get', 'focus'], 0], 1, 0.45] },
   })
+  raiseNumbers(map)
+  map.on('pitch', () => raiseNumbers(map))
   // Les autres bâtiments passent en retrait, plus clairs.
   const src = buildingSource(map)
   if (src && map.getLayer(src.layerId)?.type === 'fill-extrusion') {
