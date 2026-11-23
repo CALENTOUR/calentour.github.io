@@ -5,17 +5,12 @@ import Sheet from './ui/Sheet'
 // mise à jour : changer `id` et remplacer les listes (le message réapparaît
 // alors une fois chez chacun).
 export const NEWS = {
-  id: '2026-11-19d',
+  id: '2026-11-23',
   title: 'Quoi de neuf ?',
-  member: [
-    ['🔢', 'Numéros de maison', 'Écrits au centre du toit de chaque maison, même en 3D, et plus petits quand la maison est petite à l’écran.'],
-    ['🏢', 'Immeubles', 'Le bâtiment est coupé en parts comme un camembert, une part par logement, de la couleur de son état. L’étiquette noire « 4/9 log. » donne les logements faits sur le total.'],
-    ['🎨', 'Fiche d’un immeuble', 'Chaque logement est rempli de la couleur de son état, comme sur la carte.'],
-  ],
+  member: [],
   admin: [
-    ['🔢', 'Numéros de maison', 'Écrits au centre du toit de chaque maison, même en 3D, et plus petits quand la maison est petite à l’écran.'],
-    ['🏢', 'Immeubles', 'Le bâtiment est coupé en parts comme un camembert, une part par logement, de la couleur de son état. L’étiquette noire « 4/9 log. » donne les logements faits sur le total.'],
-    ['🎨', 'Fiche d’un immeuble', 'Chaque logement est rempli de la couleur de son état, comme sur la carte.'],
+    ['🏢', 'Logements dans la modification de tournée', 'Dans « Ordre de passage » et sur la carte de l’éditeur, le bouton Logements permet de changer le nombre de logements d’une adresse et de nommer chacun (« RDC gauche », « Dupont »…).'],
+    ['🛟', 'Rien ne se perd', 'Les logements déjà passés gardent leur état et leur don. « − » enlève d’abord un logement vide, et supprimer un logement déjà fait demande confirmation.'],
   ],
 }
 
@@ -25,9 +20,9 @@ const markSeen = () => { try { localStorage.setItem(KEY, NEWS.id) } catch { /* n
 
 export default function WhatsNew({ isAdmin }) {
   const [open, setOpen] = useState(() => seen() !== NEWS.id)
-  if (!open) return null
-  const close = () => { markSeen(); setOpen(false) }
   const items = isAdmin ? NEWS.admin : NEWS.member
+  if (!open || !items.length) return null
+  const close = () => { markSeen(); setOpen(false) }
   return (
     <Sheet title={NEWS.title} subtitle="Mise à jour de CalenTour" onClose={close}>
       <ul className="news-list">

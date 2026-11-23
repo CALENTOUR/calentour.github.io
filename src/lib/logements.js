@@ -3,10 +3,17 @@ import { bounds } from './geo'
 
 const WFS = 'https://data.geopf.fr/wfs/ows'
 
+// Identifiant libre pour un nouveau logement : jamais celui d'un logement supprimé,
+// sinon il reprendrait son ancien passage.
+export const nextUnitId = (units = []) => `u${Math.max(0, ...units.map((u) => Number(String(u.id).slice(1)) || 0)) + 1}`
+
 // Logements d'un immeuble : identifiants stables u1, u2…
 export const withUnits = (house, n) => {
   const count = Math.max(0, Math.min(200, n))
-  const units = count > 1 ? Array.from({ length: count }, (_, i) => house.units?.[i] ?? { id: `u${i + 1}`, label: `Appt ${i + 1}` }) : []
+  const units = []
+  if (count > 1) {
+    for (let i = 0; i < count; i++) units.push(house.units?.[i] ?? { id: nextUnitId([...(house.units ?? []), ...units]), label: `Appt ${i + 1}` })
+  }
   return { ...house, units, ign: true }
 }
 
