@@ -15,9 +15,8 @@ import ProgressRing from '../../components/ui/ProgressRing'
 import { useIsPhone } from '../../hooks/useIsPhone'
 import { mergeSameName } from '../../lib/tourBuilder'
 import { removeTour, saveTour, withoutHouse } from '../../services/tours'
-import { carryPassage } from '../../services/state'
 import TourMapEditor from './TourMapEditor'
-import { withUnits } from '../../lib/logements'
+import UnitsEditor from '../../components/UnitsEditor'
 import { authErrorMessage, createAccount, normalizeLogin, simpleWord, tourLogin, updateUser } from '../../services/users'
 
 export function Identity({ tour }) {
@@ -91,7 +90,7 @@ export default function TourEditPage() {
   const { tourId } = useParams()
   const navigate = useNavigate()
   const toast = useToast()
-  const { tours: allTours, toursById, statesById, users, year } = useData()
+  const { tours: allTours, toursById, statesById, users } = useData()
   const tour = toursById[tourId]
   const location = useLocation()
   // Une tournée qui vient d'être créée s'ouvre directement dans l'éditeur.
@@ -99,6 +98,7 @@ export default function TourEditPage() {
   const [houseToEdit, setHouseToEdit] = useState(location.state?.houseId ?? null)
   const tours = useMemo(() => (tour ? [tour] : []), [tour])
   const [previewHouses, setPreviewHouses] = useState(true)
+  const [unitsOf, setUnitsOf] = useState(null)
   const [areaSel, setAreaSel] = useState(null)
   const [previewMap, setPreviewMap] = useState(null)
   const others = useMemo(() => allTours.filter((t) => t.id !== tourId), [allTours, tourId])
@@ -128,14 +128,6 @@ export default function TourEditPage() {
   const removePiece = (p) => {
     if (!window.confirm(`Retirer « ${p.name} » et ses maisons de la tournée ?`)) return
     update({ pieces: tour.pieces.filter((x) => x !== p), houses: tour.houses.filter((h) => h.pieceId !== p.id) })
-  }
-  const setUnits = (house) => {
-    const answer = window.prompt('Nombre de logements (0 = maison simple) :', String(house.units?.length ?? 0))
-    if (answer == null) return
-    const n = Number.parseInt(answer, 10) || 0
-    const next = withUnits(house, n)
-    update({ houses: tour.houses.map((h) => (h === house ? next : h)) })
-    carryPassage({ year, tourId: tour.id, state: statesById[tour.id], before: house, after: next })
   }
   const removeHouse = (house) => update(withoutHouse(tour, house))
 
@@ -223,10 +215,13 @@ export default function TourEditPage() {
               </summary>
               <ul className="house-edit-list">
                 {list.map((h) => (
-                  <li key={h.id}>
-                    <span className="spacer">{h.label}{h.units?.length ? ` · 🏢 ${h.units.length} logements` : ''}{tour.notes?.[h.id] ? <span className="small muted note-inline">💬 {tour.notes[h.id].t}</span> : null}</span>
-                    <button type="button" className="btn-sm btn-ghost" onClick={() => setUnits(h)}>🏢 Logements</button>
-                    <button type="button" className="btn-sm btn-ghost danger" onClick={() => removeHouse(h)} aria-label="Retirer">✕</button>
+                  <li key={h.id} className={unitsOf === h.id ? 'units-open' : ''}>
+                    <div className="row">
+                      <span className="spacer">{h.label}{h.units?.length ? ` · 🏢 ${h.units.length} logements` : ''}{tour.notes?.[h.id] ? <span className="small muted note-inline">💬 {tour.notes[h.id].t}</span> : null}</span>
+                      <button type="button" className="btn-sm btn-ghost" onClick={() => setUnitsOf(unitsOf === h.id ? null : h.id)}>🏢 Logements</button>
+                      <button type="button" className="btn-sm btn-ghost danger" onClick={() => removeHouse(h)} aria-label="Retirer">✕</button>
+                    </div>
+                    {unitsOf === h.id && <UnitsEditor key={h.id} tour={tour} house={h} onDone={() => setUnitsOf(null)} onCancel={() => setUnitsOf(null)} />}
                   </li>
                 ))}
                 {!list.length && <li className="muted small">Aucune maison. Elles arrivent toutes seules en traçant les rues, ou ajoute-les dans l’onglet « Maisons » de l’éditeur.</li>}

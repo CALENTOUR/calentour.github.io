@@ -16,9 +16,8 @@ import { tourAreas } from '../../lib/places'
 import { addFoundHouses, locateOnPieces, searchHouses } from '../../lib/tourBuilder'
 import { housesWithoutBuilding } from '../../components/map/houseBuildings'
 import { onIgnLoaded } from '../../lib/ignBuildings'
-import { withUnits } from '../../lib/logements'
+import UnitsEditor from '../../components/UnitsEditor'
 import { saveTour, withoutHouse } from '../../services/tours'
-import { carryPassage } from '../../services/state'
 
 // Une colonne d'outils à gauche de la carte : les rues, puis les maisons en dessous. Retoucher l'outil choisi le désélectionne : la main revient, pour se déplacer.
 const svg = (d) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>
@@ -202,7 +201,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
   const toast = useToast()
   const navigate = useNavigate()
   const [party, setParty] = useState(0)
-  const { tours: allTours, statesById, year } = useData()
+  const { tours: allTours, statesById } = useData()
   const [tab, setTab] = useState(initialHouseId ? 'houses' : 'trace')
   const [mode, setMode] = useState(null)
   const [newPoint, setNewPoint] = useState(null)
@@ -224,6 +223,7 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
   // Dans l'onglet maisons, les maisons des autres tournées apparaissent pâles pour pouvoir les prendre.
   const tours = useMemo(() => (tab === 'houses' ? [tour, ...others] : [tour]), [tab, tour, others])
   // Maison touchée : `tourId` dit si elle est de cette tournée ou d'une autre.
+  const [editUnitsId, setEditUnitsId] = useState(null)
   const [houseSel, setHouseSel] = useState(() => { const h = tour.houses.find((x) => x.id === initialHouseId); return h ? { ...h, tourId: tour.id } : null })
   const [moving, setMoving] = useState(null)
   const [askGive, setAskGive] = useState(false)
@@ -597,13 +597,6 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
     toast(`« ${house.label} » ajoutée à la tournée`)
   }
 
-  const setUnitsSel = (delta) => {
-    const { tourId, ...house } = houseSel
-    const next = withUnits(house, Math.max(1, house.units?.length || 1) + delta)
-    update({ houses: tourRef.current.houses.map((h) => (h.id === next.id ? next : h)) })
-    carryPassage({ year, tourId: tourRef.current.id, state: statesById[tourRef.current.id], before: house, after: next })
-    setHouseSel({ ...next, tourId })
-  }
 
   const removeHouse = (giveTo) => {
     const { tourId: _owner, ...house } = houseSel
@@ -906,12 +899,18 @@ export default function TourMapEditor({ tour, onClose, initialHouseId = null, in
               </div>
             ) : (
               <>
-                <div className="row units-step">
-                  <span className="spacer">🏢 Logements</span>
-                  <button type="button" className="btn-sm" onClick={() => setUnitsSel(-1)} aria-label="Un logement de moins">−</button>
-                  <strong>{Math.max(1, houseSel.units?.length ?? 1)}</strong>
-                  <button type="button" className="btn-sm" onClick={() => setUnitsSel(1)} aria-label="Un logement de plus">+</button>
-                </div>
+                {editUnitsId === houseSel.id ? (
+                  <UnitsEditor
+                    key={houseSel.id} tour={tourRef.current} house={tourRef.current.houses.find((x) => x.id === houseSel.id) ?? houseSel}
+                    onDone={(next) => { setHouseSel({ ...next, tourId: houseSel.tourId }); setEditUnitsId(null) }}
+                    onCancel={() => setEditUnitsId(null)}
+                  />
+                ) : (
+                  <div className="row units-step">
+                    <span className="spacer">🏢 {houseSel.units?.length ? `${houseSel.units.length} logements : ${houseSel.units.slice(0, 4).map((u) => u.label).join(', ')}${houseSel.units.length > 4 ? '…' : ''}` : '1 logement (maison simple)'}</span>
+                    <button type="button" className="btn-sm" onClick={() => setEditUnitsId(houseSel.id)}>✏️ Modifier</button>
+                  </div>
+                )}
                 <div className="row">
                   <button type="button" className="spacer" onClick={() => setAskGive(true)}>↪️ Attribuer à une autre tournée</button>
                   <button type="button" className="btn-danger spacer" onClick={() => removeHouse('')}>🗑️ Supprimer de la tournée</button>

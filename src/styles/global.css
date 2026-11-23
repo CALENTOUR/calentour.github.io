@@ -1409,3 +1409,13 @@ a, button, input, select, textarea, label, summary { touch-action: manipulation;
 .history-at { min-width: 7.5rem; }
 .history-by { font-size: .78rem; }
 .history-restore { padding: .7rem; border: 1px solid var(--border); border-radius: 12px; background: var(--card-2); }
+/* Logements d'une adresse (édition de tournée) */
+.units-editor{border:1px solid var(--border);border-radius:10px;padding:.6rem;background:var(--card)}
+.units-count{width:4.2rem;text-align:center;font-size:16px}
+.units-rows{display:flex;flex-direction:column;gap:.3rem;max-height:40vh;overflow-y:auto}
+.units-row{display:grid;grid-template-columns:1fr 5.2rem auto;align-items:center;gap:.35rem}
+.units-row .units-tag{justify-self:start}
+.units-row input{flex:1;min-width:0;font-size:16px}
+.units-tag{font-size:.75rem;font-weight:600;padding:.1rem .45rem;border-radius:999px;border:1px solid var(--border);background:color-mix(in srgb,var(--c) 22%,transparent);white-space:nowrap}
+.house-edit-list li.units-open{flex-direction:column;align-items:stretch}
+.house-edit-list li > .row{width:100%;gap:.3rem}
