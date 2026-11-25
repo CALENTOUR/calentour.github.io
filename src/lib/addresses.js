@@ -1,6 +1,6 @@
 // Récupération des maisons le long des rues d'une tournée, depuis la
 // Base Adresse Nationale (adresses officielles et gratuites, service de l'IGN).
-import { projectOnLine, samplePoints } from './geo'
+import { distance, projectOnLine, samplePoints } from './geo'
 
 const ENDPOINTS = [
   (lng, lat) => `https://data.geopf.fr/geocodage/reverse?lon=${lng}&lat=${lat}&index=address&limit=20`,
@@ -95,5 +95,26 @@ export async function fetchHousesAlongPieces(pieces, onProgress) {
 export async function nearestAddress(lng, lat) {
   const features = await reverse(lng, lat)
   const f = features.find((x) => x.properties?.housenumber) ?? features[0]
-  return f ? [f.properties.housenumber, f.properties.street ?? f.properties.name].filter(Boolean).join(' ') : ''
+  if (!f) return { label: '', street: '', city: '' }
+  const street = f.properties.street ?? f.properties.name ?? ''
+  return { label: [f.properties.housenumber, street].filter(Boolean).join(' '), street, city: f.properties.city ?? '' }
+}
+
+const norm = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '')
+
+// Maison déjà sur la carte au même numéro, tout près : évite d'ajouter un doublon.
+// Le numéro suffit quand la maison est à moins de 80 m ; au-delà, il faut aussi la même rue.
+export function findSameAddress(houses, { number, street, lng, lat }) {
+  const n = norm(number)
+  if (!n || !/^\d/.test(n)) return null
+  const st = norm(street).slice(0, 8)
+  let best = null
+  for (const h of houses ?? []) {
+    if (norm(h.number) !== n) continue
+    const d = distance([lng, lat], [h.lng, h.lat])
+    const sameStreet = st && norm(h.street ?? h.label).includes(st)
+    if (d > (sameStreet ? 300 : 80)) continue
+    if (!best || d < best.dist) best = { house: h, dist: Math.round(d) }
+  }
+  return best
 }

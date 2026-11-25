@@ -177,7 +177,7 @@ export default function PiecePage() {
         </Sheet>
       )}
 
-      {newPoint && <AddHouseSheet tour={tour} point={newPoint} onAdd={addHouse} onClose={() => setNewPoint(null)} />}
+      {newPoint && <AddHouseSheet tour={tour} point={newPoint} onAdd={addHouse} onOpen={goTo} onClose={() => setNewPoint(null)} />}
 
       {openHouse && (
         <HouseSheet tour={tour} house={openHouse} state={state} year={year} user={user} onClose={() => setOpenHouseId(null)} onSaved={onSaved} />
