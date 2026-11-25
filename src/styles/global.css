@@ -1420,3 +1420,15 @@ a, button, input, select, textarea, label, summary { touch-action: manipulation;
 .units-tag{font-size:.75rem;font-weight:600;padding:.1rem .45rem;border-radius:999px;border:1px solid var(--border);background:color-mix(in srgb,var(--c) 22%,transparent);white-space:nowrap}
 .house-edit-list li.units-open{flex-direction:column;align-items:stretch}
 .house-edit-list li > .row{width:100%;gap:.3rem}
+
+/* Réglages > Maisons en double */
+.dup-card { gap: .7rem; }
+.dup-cols { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.dup-cols > div { display: flex; flex-direction: column; gap: .25rem; padding: .55rem .65rem; border: 1px solid var(--line, #e4dfd3); border-radius: 10px; background: var(--card-2); }
+.dup-status { align-self: flex-start; font-weight: 800; padding: .15rem .55rem; border-radius: 999px; border-left: 6px solid var(--c); background: #fff; }
+.dup-choice { border: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .3rem; }
+.dup-choice legend { font-weight: 800; margin-bottom: .2rem; }
+.dup-option { display: flex; flex-direction: row; gap: .6rem; align-items: center; padding: .45rem .6rem; border: 1px solid var(--line, #e4dfd3); border-radius: 10px; cursor: pointer; font-size: .95rem; }
+.dup-option.on { border-color: var(--brand); background: #fff; }
+.dup-option input { flex: 0 0 auto; width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--brand); }
+@media (max-width: 560px) { .dup-cols { grid-template-columns: 1fr; } }

@@ -5,15 +5,11 @@ import Sheet from './ui/Sheet'
 // mise à jour : changer `id` et remplacer les listes (le message réapparaît
 // alors une fois chez chacun).
 export const NEWS = {
-  id: '2026-11-25',
+  id: '2026-11-25b',
   title: 'Quoi de neuf ?',
-  member: [
-    ['🛟', 'Un don ne s’efface plus par erreur', 'Sur une maison qui a déjà donné, choisir « À repasser », « Refus » ou « Vide » demande maintenant de confirmer avant de supprimer le don.'],
-    ['🏠', 'Pas de maison en double', 'Si tu ajoutes une maison déjà sur la carte à la même adresse, CalenTour te propose de l’ouvrir au lieu d’en créer une deuxième.'],
-  ],
+  member: [],
   admin: [
-    ['🛟', 'Un don ne s’efface plus par erreur', 'Changer le statut d’une maison qui a donné demande confirmation, chez les binômes comme chez les admins.'],
-    ['🏠', 'Pas de maison en double', 'L’ajout d’une maison déjà présente au même numéro, tout près, est signalé. Les maisons ajoutées gardent aussi leur rue et leur commune.'],
+    ['🏠', 'Maisons en double', 'Réglages › Maisons à vérifier › Maisons en double : les maisons ajoutées par un binôme alors que l’adresse existait déjà. Une fusion garde la maison d’origine, à la position choisie, avec le passage le plus avancé.'],
   ],
 }
 
