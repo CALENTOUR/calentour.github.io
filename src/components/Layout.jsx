@@ -17,6 +17,7 @@ import { autoCheckAddresses, needsCheck } from '../lib/addressCheck'
 import { useToast } from './ui/Toast'
 import { loadSavedMissing, runMissingScan, useMissingBuildings } from '../lib/missingBuildings'
 import { loadSavedUncovered, useUncoveredHouses } from '../lib/uncoveredHouses'
+import { findDuplicates } from '../lib/duplicates'
 
 const MEMBER_NAV = [
   { to: '/tournee', icon: <IconTour />, label: 'Ma tournée', short: 'Ma tournée', sub: 'rues et maisons' },
@@ -29,9 +30,9 @@ const ADMIN_NAV = [
   { to: '/admin/dons', icon: <IconCash />, tone: 'ocre', label: 'Dons', stat: (g) => formatEuro(g.amount) },
   { to: '/admin/signalements', icon: <IconFlag />, tone: 'red', label: 'Signalements', short: 'Signaler', stat: (g, n, todo) => (todo.reports ? `${todo.reports} en attente` : 'aucun en attente'), badge: (todo) => todo.reports, badgeTitle: 'Signalements en attente' },
   { to: '/admin/reglages', icon: <IconSliders />, tone: 'blue', label: 'Réglages', stat: (g, n, todo) => {
-    const k = todo.missing + todo.uncovered
+    const k = todo.missing + todo.uncovered + todo.dups
     return k ? `${k} maison${k > 1 ? 's' : ''} à vérifier` : 'Accès, export'
-  }, badge: (todo) => todo.missing + todo.uncovered },
+  }, badge: (todo) => todo.missing + todo.uncovered + todo.dups },
 ]
 
 export default function Layout() {
@@ -42,7 +43,8 @@ export default function Layout() {
   const missing = missingRows.length
   // Maisons hors tournée : dernière analyse gardée sur l'appareil, ou onglet des réglages ouvert.
   const uncovered = useUncoveredHouses(isAdmin ? tours : null).rows.length
-  const todo = { missing, uncovered, reports: reports.filter((r) => !r.done).length }
+  const dups = useMemo(() => (isAdmin ? findDuplicates(tours, statesById).length : 0), [isAdmin, tours, statesById])
+  const todo = { missing, uncovered, dups, reports: reports.filter((r) => !r.done).length }
   useEffect(() => {
     if (!isAdmin || missingScan || !tours?.length) return undefined
     // Recherche gardée d'une visite à l'autre ; sinon elle est relancée, plus tard, pour

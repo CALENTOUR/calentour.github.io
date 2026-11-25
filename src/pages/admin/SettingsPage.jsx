@@ -5,6 +5,7 @@ import { setDoc } from 'firebase/firestore'
 import AccessCard from '../../components/AccessCard'
 import MissingBuildings from './MissingBuildings'
 import UncoveredHouses from './UncoveredHouses'
+import DuplicateHouses, { useDuplicateCount } from './DuplicateHouses'
 import { useUncoveredHouses } from '../../lib/uncoveredHouses'
 import { useToast } from '../../components/ui/Toast'
 import { useIsPhone } from '../../hooks/useIsPhone'
@@ -17,7 +18,7 @@ import { accessText, authErrorMessage, changeMyPassword, copyText, createAccount
 
 const PHONE_SECTIONS = [
   { id: 'access', group: 1, title: 'Accès des binômes', sub: (i) => `${i.members} accès · créer, copier, désactiver` },
-  { id: 'missing', group: 1, title: 'Maisons à vérifier', sub: () => 'sans bâtiment, hors tournée' },
+  { id: 'missing', group: 1, title: 'Maisons à vérifier', sub: () => 'doublons, sans bâtiment, hors tournée' },
   { id: 'backup', group: 1, title: 'Sauvegarde', sub: () => 'télécharger ou restaurer toute la base' },
   { id: 'campaign', group: 2, title: 'Campagne', sub: (i) => `campagne ${i.year ?? ''}` },
   { id: 'amicale', group: 2, title: 'Amicale', sub: () => 'nom affiché à la connexion' },
@@ -37,10 +38,11 @@ export default function SettingsPage() {
   const [pwd, setPwd] = useState({ current: '', next: '' })
   const location = useLocation()
   const [tab, setTab] = useState(location.state?.tab ?? 'general')
-  const [sub, setSub] = useState(location.state?.sub ?? 'missing')
+  const [sub, setSub] = useState(location.state?.sub ?? 'dups')
   const { rows: missingRows } = useMissingBuildings(toursById)
   const missingCount = missingRows.length
   const uncoveredCount = useUncoveredHouses(tours).rows.length
+  const dupCount = useDuplicateCount()
 
   const changePassword = async (e) => {
     e.preventDefault()
@@ -116,7 +118,7 @@ export default function SettingsPage() {
               <span className="kicker">{label}</span>
               <ul className="phone-menu">
                 {list.map((x) => {
-                  const badge = x.id === 'missing' ? missingCount + uncoveredCount : x.id === 'access' ? withoutAccess.length : 0
+                  const badge = x.id === 'missing' ? missingCount + uncoveredCount + dupCount : x.id === 'access' ? withoutAccess.length : 0
                   return (
                     <li key={x.id}>
                       <button type="button" onClick={() => { setSection(x.id); setTab(x.id === 'missing' ? 'missing' : 'general'); window.scrollTo(0, 0) }}>
@@ -136,12 +138,15 @@ export default function SettingsPage() {
       {!phone && <div className="segmented settings-tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === 'general'} className={tab === 'general' ? 'on' : ''} onClick={() => setTab('general')}>Général</button>
         <button type="button" role="tab" aria-selected={tab === 'missing'} className={tab === 'missing' ? 'on' : ''} onClick={() => setTab('missing')}>
-          Maisons à vérifier{missingCount + uncoveredCount ? <span className="tab-count">{missingCount + uncoveredCount}</span> : null}
+          Maisons à vérifier{missingCount + uncoveredCount + dupCount ? <span className="tab-count">{missingCount + uncoveredCount + dupCount}</span> : null}
         </button>
       </div>}
       {tab === 'missing' ? (
         <div className="stack-lg">
           <div className="segmented settings-tabs sub-tabs" role="tablist">
+            <button type="button" role="tab" aria-selected={sub === 'dups'} className={sub === 'dups' ? 'on' : ''} onClick={() => setSub('dups')}>
+              Maisons en double{dupCount ? <span className="tab-count">{dupCount}</span> : null}
+            </button>
             <button type="button" role="tab" aria-selected={sub === 'missing'} className={sub === 'missing' ? 'on' : ''} onClick={() => setSub('missing')}>
               Adresses sans bâtiment physique{missingCount ? <span className="tab-count">{missingCount}</span> : null}
             </button>
@@ -149,7 +154,7 @@ export default function SettingsPage() {
               Maisons non répertoriées dans une tournée{uncoveredCount ? <span className="tab-count">{uncoveredCount}</span> : null}
             </button>
           </div>
-          {sub === 'uncovered' ? <UncoveredHouses /> : <MissingBuildings />}
+          {sub === 'dups' ? <DuplicateHouses /> : sub === 'uncovered' ? <UncoveredHouses /> : <MissingBuildings />}
         </div>
       ) : (
       <>
