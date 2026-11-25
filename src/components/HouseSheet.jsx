@@ -17,7 +17,14 @@ function DwellingForm({ entry, onSave, onReset }) {
   const [mode, setMode] = useState(entry?.mode ?? 'cash')
   const value = toNumber(amount)
   const [confirmCancel, setConfirmCancel] = useState(false)
+  // Statut choisi sur une maison qui a déjà donné : il remplacerait le don, on demande d'abord.
+  const [replacing, setReplacing] = useState(null)
   const given = entry?.s === 'given'
+  const pick = (key) => {
+    if (key === 'given') setStep('amount')
+    else if (given) setReplacing(key)
+    else onSave(key)
+  }
 
   if (step === 'amount') {
     return (
@@ -73,13 +80,24 @@ function DwellingForm({ entry, onSave, onReset }) {
           )}
         </div>
       )}
+      {replacing && (
+        <div className="don-box don-replace">
+          <span className="spacer">
+            Le don de <strong>{formatEuro(entry.amount)}</strong> sera supprimé et remplacé par « {STATUSES[replacing].label} ».
+          </span>
+          <div className="row don-actions">
+            <button type="button" className="btn-sm btn-ghost" onClick={() => setReplacing(null)}>Garder le don</button>
+            <button type="button" className="btn-sm btn-danger" onClick={() => onSave(replacing)}>Oui, remplacer</button>
+          </div>
+        </div>
+      )}
       <div className="status-grid">
         {RESULT_STATUSES.map((s) => (
           <button
             key={s.key} type="button"
             className={`status-btn ${entry?.s === s.key ? 'current' : ''}`}
             style={{ '--c': s.color, '--cs': s.stroke }}
-            onClick={() => (s.key === 'given' ? setStep('amount') : onSave(s.key))}
+            onClick={() => pick(s.key)}
           >
             <span className="status-btn-icon">{s.icon}</span>
             <span className="status-btn-label">{s.label}</span>

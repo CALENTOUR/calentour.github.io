@@ -5,12 +5,15 @@ import Sheet from './ui/Sheet'
 // mise à jour : changer `id` et remplacer les listes (le message réapparaît
 // alors une fois chez chacun).
 export const NEWS = {
-  id: '2026-11-23',
+  id: '2026-11-25',
   title: 'Quoi de neuf ?',
-  member: [],
+  member: [
+    ['🛟', 'Un don ne s’efface plus par erreur', 'Sur une maison qui a déjà donné, choisir « À repasser », « Refus » ou « Vide » demande maintenant de confirmer avant de supprimer le don.'],
+    ['🏠', 'Pas de maison en double', 'Si tu ajoutes une maison déjà sur la carte à la même adresse, CalenTour te propose de l’ouvrir au lieu d’en créer une deuxième.'],
+  ],
   admin: [
-    ['🏢', 'Logements dans la modification de tournée', 'Dans « Ordre de passage » et sur la carte de l’éditeur, le bouton Logements permet de changer le nombre de logements d’une adresse et de nommer chacun (« RDC gauche », « Dupont »…).'],
-    ['🛟', 'Rien ne se perd', 'Les logements déjà passés gardent leur état et leur don. « − » enlève d’abord un logement vide, et supprimer un logement déjà fait demande confirmation.'],
+    ['🛟', 'Un don ne s’efface plus par erreur', 'Changer le statut d’une maison qui a donné demande confirmation, chez les binômes comme chez les admins.'],
+    ['🏠', 'Pas de maison en double', 'L’ajout d’une maison déjà présente au même numéro, tout près, est signalé. Les maisons ajoutées gardent aussi leur rue et leur commune.'],
   ],
 }
 
