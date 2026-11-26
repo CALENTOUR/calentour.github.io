@@ -180,7 +180,7 @@ export default function PiecePage() {
       {newPoint && <AddHouseSheet tour={tour} point={newPoint} onAdd={addHouse} onOpen={goTo} onClose={() => setNewPoint(null)} />}
 
       {openHouse && (
-        <HouseSheet tour={tour} house={openHouse} state={state} year={year} user={user} onClose={() => setOpenHouseId(null)} onSaved={onSaved} />
+        <HouseSheet tour={tour} house={openHouse} state={state} year={year} user={user} onClose={() => setOpenHouseId(null)} onSaved={onSaved} onOpen={goTo} />
       )}
       <Confetti trigger={party} />
     </div>

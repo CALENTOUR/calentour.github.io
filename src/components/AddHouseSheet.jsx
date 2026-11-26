@@ -1,14 +1,8 @@
 import { useEffect, useState } from 'react'
 import Sheet from './ui/Sheet'
-import { findSameAddress, nearestAddress } from '../lib/addresses'
+import { findSameAddress, nearestAddress, splitLabel } from '../lib/addresses'
 import { newId } from '../lib/format'
 import { locateOnPieces } from '../lib/tourBuilder'
-
-// « 12 bis rue de la Gare » → numéro « 12 bis », rue « rue de la Gare ».
-function splitLabel(text) {
-  const m = text.match(/^(\d+\s*(?:bis|ter|quater|[a-d])?)\b\s*,?\s*(.*)$/i)
-  return m ? { number: m[1].replace(/\s+/g, ''), street: m[2].trim() } : { number: '', street: text }
-}
 
 // Ajout d'une maison qui manque sur la carte, à l'endroit touché.
 // L'adresse est proposée d'après la Base Adresse Nationale et reste modifiable.

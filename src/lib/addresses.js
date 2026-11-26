@@ -102,6 +102,15 @@ export async function nearestAddress(lng, lat) {
 
 const norm = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '')
 
+// « 12 bis rue de la Gare » → numéro « 12bis », rue « rue de la Gare ».
+export function splitLabel(text) {
+  const m = String(text ?? '').match(/^(\d+\s*(?:bis|ter|quater|[a-d])?)\b\s*,?\s*(.*)$/i)
+  return m ? { number: m[1].replace(/\s+/g, ''), street: m[2].trim() } : { number: '', street: String(text ?? '').trim() }
+}
+
+// Numéro saisi à la main : « 5 BIS », « 5bis », « 5 b » → « 5bis », « 5b ».
+export const cleanNumber = (s) => String(s ?? '').trim().toLowerCase().replace(/\s+/g, '')
+
 // Maison déjà sur la carte au même numéro, tout près : évite d'ajouter un doublon.
 // Le numéro suffit quand la maison est à moins de 80 m ; au-delà, il faut aussi la même rue.
 export function findSameAddress(houses, { number, street, lng, lat }) {
