@@ -56,6 +56,12 @@ function DwellingForm({ entry, title, onSave, onReset, onDrop, checkRecent }) {
     return (
       <div className="stack">
         <div className="small muted">Don pour <strong>{title}</strong></div>
+        {given && (
+          <div className="don-box don-replace don-twin" role="alert">
+            <span>⚠️ Un don de <strong>{formatEuro(entry.amount)}</strong>{entry.mode === 'cheque' ? ' par chèque' : ''} a déjà été noté ici le {formatDate(entry.at)}.</span>
+            <span className="small">Le nouveau montant remplace celui-ci, il ne s’ajoute pas.</span>
+          </div>
+        )}
         <label className="amount-input">
           <input
             inputMode="decimal" autoFocus placeholder="0" value={amount}
@@ -79,7 +85,7 @@ function DwellingForm({ entry, title, onSave, onReset, onDrop, checkRecent }) {
         <div className="row">
           <button type="button" className="btn-ghost" onClick={() => setStep('status')}>← Retour</button>
           <button type="button" className="btn-primary btn-big spacer" disabled={!value} onClick={validate}>
-            Valider {value ? formatEuro(value) : ''}
+            {given ? 'Remplacer par' : 'Valider'} {value ? formatEuro(value) : ''}
           </button>
         </div>
       </div>
