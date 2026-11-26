@@ -5,11 +5,13 @@ import Sheet from './ui/Sheet'
 // mise à jour : changer `id` et remplacer les listes (le message réapparaît
 // alors une fois chez chacun).
 export const NEWS = {
-  id: '2026-11-25b',
+  id: '2026-11-26',
   title: 'Quoi de neuf ?',
-  member: [],
+  member: [
+    ['✏️', 'Corriger une adresse', 'Une maison porte un mauvais numéro ou un mauvais nom de rue ? Ouvre-la et touche « Adresse fausse ? La corriger ». Elle garde sa place et ses passages.'],
+  ],
   admin: [
-    ['🏠', 'Maisons en double', 'Réglages › Maisons à vérifier › Maisons en double : les maisons ajoutées par un binôme alors que l’adresse existait déjà. Une fusion garde la maison d’origine, à la position choisie, avec le passage le plus avancé.'],
+    ['✏️', 'Adresses corrigées par les binômes', 'Les binômes peuvent corriger le numéro (bis compris) et la rue d’une maison depuis sa fiche. L’adresse d’origine reste notée sur la maison. Si l’adresse existe déjà tout près, l’appli prévient avant d’enregistrer.'],
   ],
 }
 

@@ -5,6 +5,7 @@ import { formatDate, formatEuro, toNumber } from '../lib/format'
 import { carryPassage, dwellingKey, recordPassage } from '../services/state'
 import { saveHouseNote, saveTour } from '../services/tours'
 import { withUnits } from '../lib/logements'
+import { cleanNumber, findSameAddress, splitLabel } from '../lib/addresses'
 
 function navigationUrl(house) {
   return `https://www.google.com/maps/dir/?api=1&destination=${house.lat},${house.lng}&travelmode=walking`
@@ -156,7 +157,76 @@ function HouseNote({ tour, house, user }) {
   )
 }
 
-export default function HouseSheet({ tour, house, state, year, user, onClose, onSaved, initialUnitId = null }) {
+// Correction de l'adresse d'une maison (numéro, bis, rue) par le binôme ou un admin.
+// La maison garde sa place et ses passages : seul le libellé change. Si l'adresse
+// corrigée est déjà sur la carte tout près, on prévient avant d'enregistrer, pour ne
+// pas créer deux maisons à la même adresse.
+function AddressFix({ tour, house, user, onDone, onOpen }) {
+  const start = house.number ? { number: house.number, street: house.street || splitLabel(house.label).street } : splitLabel(house.label)
+  const [number, setNumber] = useState(start.number ?? '')
+  const [street, setStreet] = useState(start.street ?? '')
+  const [same, setSame] = useState(null)
+  const [error, setError] = useState('')
+  const num = number.trim().replace(/\s+/g, ' ').toLowerCase()
+  const st = street.trim().replace(/\s+/g, ' ')
+  const label = [num, st].filter(Boolean).join(' ')
+  const changed = cleanNumber(num) !== cleanNumber(house.number) || st !== (start.street ?? '').trim()
+
+  const write = () => {
+    const next = {
+      ...house, number: cleanNumber(num), street: st, label,
+      addrFix: { from: house.addrFix?.from ?? house.label ?? '', by: user?.name ?? '', at: new Date().toISOString() },
+    }
+    // Pas d'attente : hors ligne, l'écriture part dans la file locale.
+    saveTour(tour.id, { houses: tour.houses.map((x) => (x.id === house.id ? next : x)) })
+      .catch((err) => setError(err.code === 'permission-denied' ? 'Correction refusée : demande à un admin.' : `Erreur : ${err.message}`))
+    onDone(label)
+  }
+  const submit = (e) => {
+    e.preventDefault()
+    if (!st || !changed) return
+    const others = tour.houses.filter((x) => x.id !== house.id)
+    const found = findSameAddress(others, { number: num, street: st, lng: house.lng, lat: house.lat })
+    if (found) setSame(found)
+    else write()
+  }
+
+  if (same) {
+    return (
+      <div className="don-box don-replace stack">
+        <span>
+          <strong>{same.house.label}</strong> est déjà sur la carte, à {same.dist} m. Deux maisons à la même adresse sépareraient les dons.
+        </span>
+        <div className="row don-actions">
+          {onOpen && <button type="button" className="btn-sm btn-primary" onClick={() => onOpen(same.house)}>Ouvrir {same.house.label}</button>}
+          <button type="button" className="btn-sm btn-ghost" onClick={() => setSame(null)}>← Modifier</button>
+          <button type="button" className="btn-sm btn-ghost" onClick={write}>C’est une autre maison, enregistrer</button>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <form className="address-fix stack" onSubmit={submit}>
+      <strong className="small">Corriger l’adresse</strong>
+      <div className="address-fix-fields">
+        <label>N°
+          <input value={number} maxLength={10} autoComplete="off" placeholder="12 bis" onChange={(e) => setNumber(e.target.value)} />
+        </label>
+        <label>Rue
+          <input value={street} maxLength={80} autoComplete="off" placeholder="rue de la Gare" onChange={(e) => setStreet(e.target.value)} />
+        </label>
+      </div>
+      {house.addrFix?.from && house.addrFix.from !== label && <span className="small muted">Adresse d’origine : {house.addrFix.from}</span>}
+      {error && <p className="error small">{error}</p>}
+      <div className="row">
+        <button type="button" className="btn-ghost btn-sm" onClick={() => onDone(null)}>Annuler</button>
+        <button type="submit" className="btn-primary btn-sm spacer" disabled={!st || !changed}>Enregistrer {label}</button>
+      </div>
+    </form>
+  )
+}
+
+export default function HouseSheet({ tour, house, state, year, user, onClose, onSaved, onOpen, initialUnitId = null }) {
   const h = state?.h ?? {}
   const [unitId, setUnitId] = useState(house.units?.length ? initialUnitId : undefined)
   const isBuilding = Boolean(house.units?.length)
@@ -190,6 +260,8 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
     saveTour(tour.id, { houses: tour.houses.map((x) => (x.id === house.id ? { ...x, units } : x)) }).catch(() => {})
     setNaming(null)
   }
+
+  const [fixing, setFixing] = useState(false)
 
   return (
     <Sheet
@@ -239,8 +311,8 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
           {isBuilding && <button type="button" className="btn-ghost btn-sm" onClick={() => setUnitId(null)}>← Tous les logements</button>}
         </>
       )}
-      {!unit && !naming && !askUnits && <HouseNote key={house.id} tour={tour} house={house} user={user} />}
-      {!unit && !naming && (askUnits ? (
+      {!unit && !naming && !askUnits && !fixing && <HouseNote key={house.id} tour={tour} house={house} user={user} />}
+      {!unit && !naming && !fixing && (askUnits ? (
         <div className="units-ask stack">
           <strong className="small">Combien de logements dans ce bâtiment ?</strong>
           <div className="units-quick">
@@ -257,6 +329,15 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
         </div>
       ) : (
         <button type="button" className="btn-units" onClick={() => setAskUnits(true)}>🏢 {isBuilding ? 'Corriger le nombre de logements' : 'Plusieurs logements ici ?'}</button>
+      ))}
+      {!unit && !naming && !askUnits && (fixing ? (
+        <AddressFix
+          tour={tour} house={house} user={user}
+          onOpen={onOpen && ((h) => { setFixing(false); onOpen(h) })}
+          onDone={() => setFixing(false)}
+        />
+      ) : (
+        <button type="button" className="btn-address" onClick={() => setFixing(true)}>✏️ Adresse fausse ? La corriger</button>
       ))}
     </Sheet>
   )

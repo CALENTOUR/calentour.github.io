@@ -1048,6 +1048,11 @@ body.immersive .main { margin: 0 !important; padding: 0 !important; }
 /* Bouton « Plusieurs logements ici ? » bien visible dans la fiche maison. */
 .btn-units { width: 100%; min-height: 48px; font-weight: 700; font-size: 1rem; background: #eef4fb; color: #1f4f80; border: 2px solid #3f77ad; border-radius: 12px; }
 .btn-units:hover { background: #dce9f6; }
+.btn-address { align-self: flex-start; min-height: 38px; padding: 0 .2rem; border: none; background: transparent; color: var(--muted); font-size: .85rem; font-weight: 700; text-decoration: underline; }
+.address-fix { padding: .7rem; border: 1px solid var(--border); border-radius: 12px; background: var(--card); gap: .5rem; }
+.address-fix-fields { display: grid; grid-template-columns: 6.5rem 1fr; gap: .5rem; }
+.address-fix-fields label { min-width: 0; }
+.address-fix-fields input { width: 100%; min-width: 0; }
 
 /* Éditeur : onglets principaux (gros, pleins) bien distincts des outils (petits, dans le cadre de l'onglet). */
 .editor-toolbox { display: flex; flex-direction: column; }
