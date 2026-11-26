@@ -1393,6 +1393,10 @@ a, button, input, select, textarea, label, summary { touch-action: manipulation;
 /* Fiche maison : don déjà saisi, avec Modifier / Annuler. */
 .don-box { display: flex; flex-direction: column; gap: .45rem; padding: .6rem .7rem; border: 1px solid #b9d0b5; border-left: 4px solid var(--green, #4f8a4c); border-radius: 10px; background: #f3f8f1; }
 .don-box.don-replace { border-color: #e5b8ae; border-left-color: var(--red, #b8432f); background: #fbefec; }
+.don-twin { gap: .35rem; font-size: 1rem; }
+.don-saved { display: flex; flex-direction: column; align-items: center; gap: .2rem; width: 100%; padding: 1.1rem .8rem; border: 0; border-radius: 14px; background: var(--green, #4f8a4c); color: #fff; font-size: 1.15rem; animation: don-saved-in .18s ease-out; }
+.don-saved-check { font-size: 2.2rem; line-height: 1; }
+@keyframes don-saved-in { from { transform: scale(.94); opacity: .4; } to { transform: none; opacity: 1; } }
 .don-actions { gap: .4rem; flex-wrap: wrap; }
 
 /* Mon bilan : derniers dons, à toucher pour corriger. */

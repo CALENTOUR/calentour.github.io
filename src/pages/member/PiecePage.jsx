@@ -40,6 +40,9 @@ export default function PiecePage() {
   const [adding, setAdding] = useState(false)
   const [newPoint, setNewPoint] = useState(null)
   const mapRef = useRef(null)
+  // Fiche qui vient de se fermer : un toucher en trop tomberait sur la carte et
+  // ouvrirait la maison d'à côté (souvent la même adresse « bis »). On l'ignore.
+  const closedAt = useRef(0)
   const focus = !pieceId || pieceId === 'tout' ? null : pieceId
   const h = state?.h ?? {}
 
@@ -115,7 +118,7 @@ export default function PiecePage() {
         showMe
         streetLabels
         selectedHouseId={openHouse?.id ?? null}
-        onHouseClick={adding ? undefined : (p) => { const house = tour.houses.find((x) => x.id === p.houseId); if (!house) return; if (focus && house.pieceId !== focus) choosePiece(house.pieceId, { keep: true }); goTo(house) }}
+        onHouseClick={adding ? undefined : (p) => { if (Date.now() - closedAt.current < 800) return; const house = tour.houses.find((x) => x.id === p.houseId); if (!house) return; if (focus && house.pieceId !== focus) choosePiece(house.pieceId, { keep: true }); goTo(house) }}
         onMapClick={onMapClick}
         autoFit={!keepView}
         onReady={(m) => {
@@ -180,7 +183,7 @@ export default function PiecePage() {
       {newPoint && <AddHouseSheet tour={tour} point={newPoint} onAdd={addHouse} onOpen={goTo} onClose={() => setNewPoint(null)} />}
 
       {openHouse && (
-        <HouseSheet tour={tour} house={openHouse} state={state} year={year} user={user} onClose={() => setOpenHouseId(null)} onSaved={onSaved} onOpen={goTo} />
+        <HouseSheet tour={tour} house={openHouse} state={state} year={year} user={user} onClose={() => { closedAt.current = Date.now(); setOpenHouseId(null) }} onSaved={onSaved} onOpen={goTo} />
       )}
       <Confetti trigger={party} />
     </div>
