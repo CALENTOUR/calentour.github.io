@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Sheet from './ui/Sheet'
 import { MAP_COLORS, PAYMENT_MODES, QUICK_AMOUNTS, RESULT_STATUSES, STATUSES } from '../config/constants'
 import { formatDate, formatEuro, toNumber } from '../lib/format'
@@ -6,14 +6,22 @@ import { carryPassage, dwellingKey, recordPassage } from '../services/state'
 import { saveHouseNote, saveTour } from '../services/tours'
 import { withUnits } from '../lib/logements'
 import { cleanNumber, findSameAddress, splitLabel } from '../lib/addresses'
+import { agoText, findRecentDon } from '../lib/recentDon'
 
 function navigationUrl(house) {
   return `https://www.google.com/maps/dir/?api=1&destination=${house.lat},${house.lng}&travelmode=walking`
 }
 
 // Saisie d'un passage : 4 gros boutons, puis montant et mode si don.
-function DwellingForm({ entry, onSave, onReset }) {
+function DwellingForm({ entry, title, onSave, onReset, onDrop, checkRecent }) {
   const [step, setStep] = useState('status')
+  // Don qui ressemble à celui qu'on vient de noter à côté : on demande avant d'enregistrer.
+  const [twin, setTwin] = useState(null)
+  const validate = () => {
+    const recent = checkRecent?.(value)
+    if (recent) setTwin(recent)
+    else onSave('given', value, mode)
+  }
   const [amount, setAmount] = useState(entry?.s === 'given' ? String(entry.amount) : '')
   const [mode, setMode] = useState(entry?.mode ?? 'cash')
   const value = toNumber(amount)
@@ -27,9 +35,33 @@ function DwellingForm({ entry, onSave, onReset }) {
     else onSave(key)
   }
 
+  if (step === 'amount' && twin) {
+    const where = twin.unit ? `${twin.house.label} · ${twin.unit.label}` : twin.house.label
+    return (
+      <div className="stack">
+        <div className="don-box don-replace don-twin">
+          <span>
+            ⚠️ Tu viens d’enregistrer <strong>{formatEuro(twin.entry.amount)}</strong> au <strong>{where}</strong> {agoText(twin.ago)}
+            {twin.sameBuilding ? ', dans le même bâtiment.' : '.'}
+          </span>
+          <span>C’est le même don, ou un deuxième don ici, au <strong>{title}</strong> ?</span>
+        </div>
+        <button type="button" className="btn-primary btn-big" onClick={onDrop}>C’est le même don, ne rien ajouter</button>
+        <button type="button" className="btn-ghost" onClick={() => onSave('given', value, mode)}>Oui, un autre don de {formatEuro(value)} ici</button>
+      </div>
+    )
+  }
+
   if (step === 'amount') {
     return (
       <div className="stack">
+        <div className="small muted">Don pour <strong>{title}</strong></div>
+        {given && (
+          <div className="don-box don-replace don-twin" role="alert">
+            <span>⚠️ Un don de <strong>{formatEuro(entry.amount)}</strong>{entry.mode === 'cheque' ? ' par chèque' : ''} a déjà été noté ici le {formatDate(entry.at)}.</span>
+            <span className="small">Le nouveau montant remplace celui-ci, il ne s’ajoute pas.</span>
+          </div>
+        )}
         <label className="amount-input">
           <input
             inputMode="decimal" autoFocus placeholder="0" value={amount}
@@ -52,8 +84,8 @@ function DwellingForm({ entry, onSave, onReset }) {
         </div>
         <div className="row">
           <button type="button" className="btn-ghost" onClick={() => setStep('status')}>← Retour</button>
-          <button type="button" className="btn-primary btn-big spacer" disabled={!value} onClick={() => onSave('given', value, mode)}>
-            Valider {value ? formatEuro(value) : ''}
+          <button type="button" className="btn-primary btn-big spacer" disabled={!value} onClick={validate}>
+            {given ? 'Remplacer par' : 'Valider'} {value ? formatEuro(value) : ''}
           </button>
         </div>
       </div>
@@ -233,13 +265,29 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
   const unit = isBuilding && unitId ? house.units.find((u) => u.id === unitId) : null
   const key = dwellingKey(house.id, unit?.id)
 
-  const save = (status, amount, mode) => {
-    // Pas d'attente : hors ligne, l'écriture part dans la file locale.
-    recordPassage({ year, tourId: tour.id, key, status, amount, mode, user })
-    onSaved?.(status, amount)
+  // Un seul enregistrement par saisie : les touchers en plus pendant la confirmation sont ignorés.
+  const [saved, setSaved] = useState(null)
+  const timer = useRef(null)
+  useEffect(() => () => clearTimeout(timer.current), [])
+  const busy = useRef(0)
+  const finish = () => {
+    busy.current = 0
+    setSaved(null)
     if (isBuilding) setUnitId(null)
     else onClose()
   }
+  const save = (status, amount, mode) => {
+    if (busy.current) return
+    busy.current = Date.now()
+    // Pas d'attente : hors ligne, l'écriture part dans la file locale.
+    recordPassage({ year, tourId: tour.id, key, status, amount, mode, user })
+    onSaved?.(status, amount)
+    if (status !== 'given') return finish()
+    // Le don reste affiché, en vert, un court instant : on voit qu'il est bien noté.
+    setSaved({ amount, offline: typeof navigator !== 'undefined' && !navigator.onLine })
+    timer.current = setTimeout(finish, 1300)
+  }
+  const checkRecent = (amount) => findRecentDon({ tour, h, key, house, user, amount })
 
   const title = isBuilding && unit ? `${house.label} · ${unit.label}` : house.label
   // Le binôme peut signaler un immeuble et son nombre de logements.
@@ -307,7 +355,16 @@ export default function HouseSheet({ tour, house, state, year, user, onClose, on
         </div>
       ) : (
         <>
-          <DwellingForm key={key} entry={h[key]} onSave={save} onReset={() => save('todo')} />
+          {saved ? (
+            <button type="button" className="don-saved" onClick={() => { if (Date.now() - busy.current < 700) return; clearTimeout(timer.current); finish() }}>
+              <span className="don-saved-check">✓</span>
+              <strong>{formatEuro(saved.amount)} enregistrés</strong>
+              <span className="small">{title}</span>
+              {saved.offline && <span className="small">Sur le téléphone, envoi au retour du réseau</span>}
+            </button>
+          ) : (
+            <DwellingForm key={key} entry={h[key]} title={title} onSave={save} onReset={() => save('todo')} onDrop={finish} checkRecent={checkRecent} />
+          )}
           {isBuilding && <button type="button" className="btn-ghost btn-sm" onClick={() => setUnitId(null)}>← Tous les logements</button>}
         </>
       )}
