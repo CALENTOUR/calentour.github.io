@@ -17,10 +17,14 @@ function DwellingForm({ entry, title, onSave, onReset, onDrop, checkRecent }) {
   const [step, setStep] = useState('status')
   // Don qui ressemble à celui qu'on vient de noter à côté : on demande avant d'enregistrer.
   const [twin, setTwin] = useState(null)
+  // Montant relu avant d'enregistrer : une faute de frappe (40 au lieu de 4) se voit ici.
+  const [confirming, setConfirming] = useState(false)
+  // Un double appui sur « Valider » ne doit pas confirmer dans la foulée.
+  const shownAt = useRef(0)
   const validate = () => {
     const recent = checkRecent?.(value)
     if (recent) setTwin(recent)
-    else onSave('given', value, mode)
+    else { shownAt.current = Date.now(); setConfirming(true) }
   }
   const [amount, setAmount] = useState(entry?.s === 'given' ? String(entry.amount) : '')
   const [mode, setMode] = useState(entry?.mode ?? 'cash')
@@ -48,6 +52,22 @@ function DwellingForm({ entry, title, onSave, onReset, onDrop, checkRecent }) {
         </div>
         <button type="button" className="btn-primary btn-big" onClick={onDrop}>C’est le même don, ne rien ajouter</button>
         <button type="button" className="btn-ghost" onClick={() => onSave('given', value, mode)}>Oui, un autre don de {formatEuro(value)} ici</button>
+      </div>
+    )
+  }
+
+  if (step === 'amount' && confirming) {
+    return (
+      <div className="stack">
+        <div className="don-confirm">
+          <span className="small">Don pour <strong>{title}</strong></span>
+          <strong className="don-confirm-amount">{formatEuro(value)}</strong>
+          <span>{mode === 'cheque' ? '🧾 Par chèque' : '💶 En espèces'}</span>
+          {given && <span className="small">Remplace le don de {formatEuro(entry.amount)} déjà noté</span>}
+        </div>
+        <span className="small muted" style={{ textAlign: 'center' }}>Le montant est-il juste ?</span>
+        <button type="button" className="btn-primary btn-big" onClick={() => Date.now() - shownAt.current > 400 && onSave('given', value, mode)}>✓ Oui, enregistrer {formatEuro(value)}</button>
+        <button type="button" className="btn-ghost" onClick={() => setConfirming(false)}>← Non, corriger le montant</button>
       </div>
     )
   }
